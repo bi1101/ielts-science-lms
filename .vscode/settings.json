@@ -4,5 +4,7 @@
     "[php]": {
         "editor.defaultFormatter": "DEVSENSE.phptools-vscode"
     },
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "phpsab.snifferShowSources": false,
+    "phpsab.standard": "WordPress",
 }
