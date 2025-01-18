@@ -38,7 +38,7 @@ function ieltssci_check_wp_version() {
 		add_action( 'admin_notices', 'ielts_science_lms_wp_version_notice' );
 	}
 }
-add_action( 'admin_init', 'ielts_science_lms_check_wp_version' );
+add_action( 'admin_init', 'ieltssci_check_wp_version' );
 
 /**
  * Displays an admin notice if the WordPress version is below the required version.
