@@ -1,0 +1,98 @@
+Enum FeedbackSource {
+  API
+  MANUAL
+}
+
+Enum SegmentType {
+  INTRODUCTION
+  MAIN_POINT
+  CONCLUSION
+  TOPIC_SENTENCE
+}
+
+Table ieltssci_essays {
+  id integer [primary key, increment]
+  uuid varchar [not null, unique, note: 'UUID của bài viết, dùng để tạo link share bài viết']
+  original_id integer [note: 'ID bài gốc, sd khi gvien fork bài để nxet']
+  picture_ids integer[] [note: 'ID của ảnh người dùng upload']
+  type varchar [not null, note: 'Loại bài e.g Task 1, Task 2, Task 1 OCR, Task 2 OCR.']
+  question varchar [not null, note: 'Câu hỏi của bài']
+  content text [not null, note: 'Nội dung bài viết']
+  created_at timestamp [default: `now()`]
+  created_by integer [not null, note: 'ID người tạo bài, nếu fork từ bài khác thì là ID của người fork']
+}
+
+Table ieltssci_segment {
+  id integer [primary key, increment]
+  essay_id integer [not null]
+  type SegmentType [not null, note: 'Loại đoạn e.g introduction, main point, conclusion, topic sentence']
+  order integer [not null, note: 'Thứ tự đoạn trong bài']
+  title text [not null, note: 'vd: Introduction, Main Point 1, Conclusion, etc.']
+  content text [not null]
+}
+
+Table ieltssci_segment_feedback {
+  id integer [primary key, increment]
+  feedback_criteria varchar [not null, note: 'tiêu chí feedback e.g relevance, clearAnswer (score, Cot, feedback), rewrite, logicDepth, etc.'] 
+  segment_id integer [not null]
+  source FeedbackSource [not null]
+  cot_content text [note: 'Nội dung phần COT']
+  score_content text [note: 'Nội dung phần điểm số']
+  feedback_content text [note: 'Nội dung phần feedback']
+  created_at timestamp [default: `now()`]
+  created_by integer [not null, note: 'ID của người call API hoặc update MANUAL feedback']
+}
+
+Table ieltssci_essay_feedback {
+  id integer [primary key, increment]
+  feedback_criteria varchar [not null, note: 'Tiêu chí feedback e.g relevance, clearAnswer (score, Cot, feedback), rewrite, logicDepth, etc.']
+  essay_id integer [not null]
+  source FeedbackSource [not null]
+  cot_content text [note: 'Nội dung phần COT']
+  score_content text [note: 'Nội dung phần điểm số']
+  feedback_content text [note: 'Nội dung phần feedback']
+  created_at timestamp [default: `now()`]
+  created_by integer [not null, note: 'ID của người call API hoặc update MANUAL feedback']
+}
+
+Table ieltssci_api_feed {
+    id integer [primary key, increment]
+    feed_group_id integer [not null, note: 'ID của nhóm API feed, dùng để gộp các feed liên quan']
+    feed_group_name varchar [not null, note: 'Tên của nhóm API feed e.g Argument Enhance, Grammatical Range and Accuracy, etc.']
+    process_order integer [not null, note: 'Thứ tự xử lý feed, vd: 2 feed cùng thứ tự 1 thì sử lý song song, cả 2 hoàn thành thì mới tiếp tục (các) feed thứ tự 2']
+    essay_type varchar [not null, note: 'loại bài e.g Task 1, Task 2, Task 1 OCR, Task 2 OCR.']
+    feedback_criteria varchar [not null, note: 'Tiêu chí feedback e.g relevance, clearAnswer (score, Cot, feedback), rewrite, logicDepth, etc.']
+    apply_to varchar [not null, note: 'Áp dụng cho cả bài hay từng đoạn, mở thân, kết, vv']
+    meta json [not null, note: 'Setting cho API feed, base URL, parameters, step vv']
+}
+
+Table ieltssci_rate_limit_rule {
+    id integer [primary key, increment]
+    rate_limit integer [not null, note: 'Số lần request cho phép trong 1 khoảng thời gian']
+    roles varchar[] [not null, note: 'Các user role áp dụng rate limit (có thể tạo thêm bảng để dễ match nếu cần)']
+    time_period_type LimitType [not null, note: 'Loại giới hạn, theo thời gian, theo lịch, vĩnh viễn']
+    limit_rule json [not null, note: 'Chi tiết rule, ví dụ: {"time_period": 1, "unit": "month"}']
+    message json [not null, note: 'Thông báo khi vượt quá rate limit']
+}
+
+Table ieltssci_api_feed_rate_limit {
+    id integer [primary key, increment]
+    api_feed_id integer [not null, note: 'ID của API feed']
+    rate_limit_rule_id integer [not null, note: 'ID của rule áp dụng cho API feed']
+}
+
+Enum LimitType {
+    Forever
+    TimePeriod
+    CalendarPeriod
+}
+
+// Relationships
+Ref: ieltssci_essays.id < ieltssci_segment.essay_id
+Ref: ieltssci_segment.id < ieltssci_segment_feedback.segment_id
+Ref: ieltssci_essays.id < ieltssci_essay_feedback.essay_id
+Ref: ieltssci_essays.type < ieltssci_api_feed.essay_type
+Ref: ieltssci_api_feed.id < ieltssci_api_feed_rate_limit.api_feed_id
+Ref: ieltssci_rate_limit_rule.id < ieltssci_api_feed_rate_limit.rate_limit_rule_id
+Ref: ieltssci_api_feed.feedback_criteria < ieltssci_segment_feedback.feedback_criteria
+Ref: ieltssci_api_feed.feedback_criteria < ieltssci_essay_feedback.feedback_criteria
