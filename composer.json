@@ -1,0 +1,20 @@
+{
+    "name": "bi110/ielts-science-lms",
+    "description": "IELTS Science Learning Management System",
+    "type": "project",
+    "authors": [
+        {
+            "name": "bi1101",
+            "email": "bihungba1101@GMAIL.COM"
+        }
+    ],
+    "require-dev": {
+        "wp-coding-standards/wpcs": "^3.1",
+        "phpcompatibility/phpcompatibility-wp": "*"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    }
+}

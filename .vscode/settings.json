@@ -1,0 +1,8 @@
+{
+    "php.format.codeStyle": "WordPress",
+    "eslint.format.enable": true,
+    "[php]": {
+        "editor.defaultFormatter": "DEVSENSE.phptools-vscode"
+    },
+    "editor.formatOnSave": true
+}
