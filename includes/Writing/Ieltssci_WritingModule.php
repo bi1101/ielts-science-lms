@@ -70,24 +70,24 @@ class Ieltssci_WritingModule {
 
 	public function enqueue_writing_assets() {
 		if ( is_singular( 'page' ) && get_post_meta( get_the_ID(), 'ieltssci_flag', true ) === 'IELTS Science Writing' ) {
-			$build_path = plugin_dir_path( __FILE__ ) . '../../public/writing/build/';
-			$asset_files = glob( $build_path . '*.asset.php' );
+			// Define the handle for the index script and style.
+			$script_handle = 'ielts-science-index';
+			$style_handle = 'ielts-science-index-css';
+			$runtime_handle = 'ielts-science-runtime';
 
-			foreach ( $asset_files as $asset_file ) {
-				$asset = include( $asset_file );
-				$handle = 'ielts-science-' . basename( $asset_file, '.asset.php' );
-				$src = plugin_dir_url( __FILE__ ) . '../../public/writing/build/' . basename( $asset_file, '.asset.php' ) . '.js';
-				$deps = $asset['dependencies'];
-				$ver = $asset['version'];
+			// Enqueue the runtime script if it's registered.
+			if ( wp_script_is( $runtime_handle, 'registered' ) ) {
+				wp_enqueue_script( $runtime_handle );
+			}
+			// Enqueue the index script if it's registered.
+			if ( wp_script_is( $script_handle, 'registered' ) ) {
+				wp_enqueue_script( $script_handle );
+			}
 
-				wp_enqueue_script( $handle, $src, $deps, $ver, true );
 
-				$css_file = str_replace( '.asset.php', '.css', $asset_file );
-				if ( file_exists( $css_file ) ) {
-					$css_handle = $handle . '-css';
-					$css_src = plugin_dir_url( __FILE__ ) . '../../public/writing/build/' . basename( $css_file );
-					wp_enqueue_style( $css_handle, $css_src, [], $ver );
-				}
+			// Enqueue the index style if it's registered.
+			if ( wp_style_is( $style_handle, 'registered' ) ) {
+				wp_enqueue_style( $style_handle );
 			}
 		}
 	}
