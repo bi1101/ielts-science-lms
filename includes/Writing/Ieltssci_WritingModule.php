@@ -10,8 +10,6 @@ class Ieltssci_WritingModule {
 		add_action( 'wp_enqueue_scripts', [ $this, 'register_writing_assets' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_writing_assets' ] );
 		add_filter( 'display_post_states', [ $this, 'add_custom_post_state' ], 10, 2 );
-		add_filter( 'theme_page_templates', [ $this, 'add_custom_page_template' ] );
-		add_filter( 'template_include', [ $this, 'load_custom_page_template' ] );
 	}
 
 	public function register_writing_assets() {
@@ -54,7 +52,7 @@ class Ieltssci_WritingModule {
 				'meta_input' => array(
 					'ieltssci_flag' => 'IELTS Science Writing',
 				),
-				'page_template' => '../templates/template-react-page.php',
+				'page_template' => 'template-react-page.php',
 			);
 			wp_insert_post( $page );
 		}
@@ -92,15 +90,4 @@ class Ieltssci_WritingModule {
 		}
 	}
 
-	public function add_custom_page_template( $templates ) {
-		$templates['template-react-page.php'] = 'React Page Template';
-		return $templates;
-	}
-
-	public function load_custom_page_template( $template ) {
-		if ( is_page_template( 'template-react-page.php' ) ) {
-			$template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
-		}
-		return $template;
-	}
 }
