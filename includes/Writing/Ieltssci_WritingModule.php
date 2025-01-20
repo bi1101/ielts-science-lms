@@ -71,8 +71,8 @@ class Ieltssci_WritingModule {
 		// Get the saved page settings
 		$ielts_pages = get_option( 'ielts_science_lms_pages', [] );
 
-		// Get module pages data using the filter
-		$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', [] );
+		// Get module pages data for current module
+		$module_pages_data = $this->provide_module_pages_data( [] );
 
 		// Extract writing module pages
 		$writing_module_pages = [];
