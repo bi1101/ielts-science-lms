@@ -85,6 +85,9 @@ class Ieltssci_Settings {
 		// Get current page assignments
 		$ielts_pages = get_option( 'ielts_science_lms_pages', [] );
 
+		// *** Apply Filter for Module Page Settings ***
+		$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', [] );
+
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Pages Settings', 'ielts-science-lms' ); ?></h1>
@@ -93,41 +96,48 @@ class Ieltssci_Settings {
 			<!-- Main Settings Form (for saving page selections) -->
 			<form method="post" action="options.php">
 				<?php settings_fields( 'ielts_science_lms_pages_group' ); ?>
-				<table class="form-table">
-					<?php
-					$pages_data = $this->get_pages_data();
 
-					foreach ( $pages_data as $page_key => $page_data ) :
-						$selected_page_id = isset( $ielts_pages[ $page_key ] ) ? $ielts_pages[ $page_key ] : 0;
-						?>
-						<tr>
-							<th scope="row">
-								<label
-									for="ielts_science_lms_pages_<?php echo esc_attr( $page_key ); ?>"><?php echo esc_html( $page_data['label'] ); ?></label>
-							</th>
-							<td>
-								<?php
-								$dropdown_args = [ 
-									'name' => "ielts_science_lms_pages[{$page_key}]",
-									'id' => "ielts_science_lms_pages_" . esc_attr( $page_key ),
-									'selected' => $selected_page_id,
-									'show_option_none' => __( '- Select a page -', 'ielts-science-lms' ),
-									'option_none_value' => '0',
-								];
-								wp_dropdown_pages( $dropdown_args );
+				<?php // *** Loop Through Module Data ***
+						foreach ( $module_pages_data as $module_data ) : ?>
+					<div class="card" style="max-width: none;">
+						<h2 class="title"><?php echo esc_html( $module_data['section_title'] ); ?></h2>
+						<p><?php echo esc_html( $module_data['section_desc'] ); ?></p>
+						<table class="form-table">
+							<?php foreach ( $module_data['pages'] as $page_key => $page_label ) :
+								$selected_page_id = isset( $ielts_pages[ $page_key ] ) ? $ielts_pages[ $page_key ] : 0;
 								?>
-								<?php if ( $selected_page_id && get_post_status( $selected_page_id ) === 'publish' ) : ?>
-									<a href="<?php echo get_permalink( $selected_page_id ); ?>" target="_blank"
-										class="button button-secondary"><?php esc_html_e( 'View Page', 'ielts-science-lms' ); ?></a>
-								<?php else : ?>
-									<!-- Create Page Button with Data Attribute -->
-									<button type="button" class="button button-secondary ielts-create-page-button"
-										data-page-key="<?php echo esc_attr( $page_key ); ?>"><?php esc_html_e( 'Create Page', 'ielts-science-lms' ); ?></button>
-								<?php endif; ?>
-							</td>
-						</tr>
-					<?php endforeach; ?>
-				</table>
+								<tr>
+									<th scope="row">
+										<label
+											for="ielts_science_lms_pages_<?php echo esc_attr( $page_key ); ?>"><?php echo esc_html( $page_label ); ?></label>
+									</th>
+									<td>
+										<?php
+										$dropdown_args = [ 
+											'name' => "ielts_science_lms_pages[{$page_key}]",
+											'id' => "ielts_science_lms_pages_" . esc_attr( $page_key ),
+											'selected' => $selected_page_id,
+											'show_option_none' => __( '- Select a page -', 'ielts-science-lms' ),
+											'option_none_value' => '0',
+										];
+										wp_dropdown_pages( $dropdown_args );
+										?>
+										<?php if ( $selected_page_id && get_post_status( $selected_page_id ) === 'publish' ) : ?>
+											<a href="<?php echo get_permalink( $selected_page_id ); ?>" target="_blank"
+												class="button button-secondary"><?php esc_html_e( 'View Page', 'ielts-science-lms' ); ?></a>
+										<?php else : ?>
+											<!-- Create Page Button with Data Attribute -->
+											<button type="button" class="button button-secondary ielts-create-page-button"
+												data-page-key="<?php echo esc_attr( $page_key ); ?>"
+												data-module="<?php echo esc_attr( $module_data['module_name'] ); ?>"><?php esc_html_e( 'Create Page', 'ielts-science-lms' ); ?></button>
+										<?php endif; ?>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+						</table>
+					</div>
+				<?php endforeach; ?>
+
 				<?php submit_button(); ?>
 			</form> <!-- End of Main Settings Form -->
 		</div>
@@ -136,28 +146,32 @@ class Ieltssci_Settings {
 			jQuery(document).ready(function ($) {
 				$('.ielts-create-page-button').on('click', function () {
 					var pageKey = $(this).data('page-key');
-					var $button = $(this); // Store reference to the button
+					var moduleName = $(this).data('module'); // Get the module name
+					var $button = $(this);
 
 					$.ajax({
 						url: '<?php echo admin_url( 'admin-ajax.php' ); ?>',
 						type: 'POST',
 						data: {
-							action: 'ielts_create_page_ajax', // AJAX action name
-							page_key: pageKey
+							action: 'ielts_create_page_ajax',
+							page_key: pageKey,
+							module: moduleName // Pass the module name to the AJAX handler
 						},
 						beforeSend: function () {
-							// Disable the button and change the text
 							$button.attr('disabled', 'disabled').text('<?php esc_html_e( 'Creating...', 'ielts-science-lms' ); ?>');
 						},
 						success: function (response) {
-							location.reload(); // Simplest way to refresh the page and show the new link
+							if (response.success) {
+								location.reload(); // Refresh the page
+							} else {
+								alert('Error: ' + response.data.message);
+							}
 						},
 						error: function (jqXHR, textStatus, errorThrown) {
 							alert('AJAX Error: ' + textStatus + ' - ' + errorThrown);
 						},
 						complete: function () {
-							// Re-enable the button and change the text back
-							$button.text('<?php esc_html_e( 'Create Page', 'ielts-science-lms' ); ?>');
+							$button.text('<?php esc_html_e( 'Create Page', 'ielts-science-lms' ); ?>').removeAttr('disabled');
 						}
 					});
 				});
@@ -173,25 +187,38 @@ class Ieltssci_Settings {
 		}
 
 		$page_key = isset( $_POST['page_key'] ) ? sanitize_text_field( $_POST['page_key'] ) : '';
+		$module_name = isset( $_POST['module'] ) ? sanitize_text_field( $_POST['module'] ) : '';
 
-		if ( empty( $page_key ) ) {
-			wp_send_json_error( [ 'message' => __( 'Invalid page key.', 'ielts-science-lms' ) ] );
+		if ( empty( $page_key ) || empty( $module_name ) ) {
+			wp_send_json_error( [ 'message' => __( 'Invalid page key or module name.', 'ielts-science-lms' ) ] );
 		}
 
-		$this->handle_page_action( $page_key, 'create_page' );
+		// Use the filter to get all module pages data
+		$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', [] );
+		$page_title = '';
+
+		// Find the page title from the corresponding module
+		foreach ( $module_pages_data as $module_data ) {
+			if ( $module_data['module_name'] === $module_name ) {
+				if ( isset( $module_data['pages'][ $page_key ] ) ) {
+					$page_title = $module_data['pages'][ $page_key ];
+					break;
+				}
+			}
+		}
+
+		if ( empty( $page_title ) ) {
+			wp_send_json_error( [ 'message' => __( 'Page title not found for the given key and module.', 'ielts-science-lms' ) ] );
+		}
+
+		$this->handle_page_action( $page_key, 'create_page', $page_title, $module_name );
 
 		// Assume the page creation was successful
 		wp_send_json_success( [ 'message' => __( 'Page created successfully!', 'ielts-science-lms' ) ] );
 	}
 
 	// Function to handle page creation
-	private function handle_page_action( $page_key, $action ) {
-		$pages_data = $this->get_pages_data();
-		if ( ! isset( $pages_data[ $page_key ] ) ) {
-			return; // Invalid page key
-		}
-
-		$page_title = $pages_data[ $page_key ]['label'];
+	private function handle_page_action( $page_key, $action, $page_title ) {
 		$page_content = ''; // Content is not needed
 		$page_slug = sanitize_title( $page_title );
 
@@ -228,48 +255,35 @@ class Ieltssci_Settings {
 		return $page_id;
 	}
 
-	// Helper function to get pages data
-	private function get_pages_data() {
-		return [ 
-			'writing_submission' => [ 
-				'label' => __( 'Writing Submission', 'ielts-science-lms' ),
-			],
-			'result_task_2' => [ 
-				'label' => __( 'Result Task 2', 'ielts-science-lms' ),
-			],
-			'result_task_1' => [ 
-				'label' => __( 'Result Task 1', 'ielts-science-lms' ),
-			],
-			'result_general_essay' => [ 
-				'label' => __( 'Result General Essay', 'ielts-science-lms' ),
-			],
-		];
-	}
-
 	private function display_notices() {
-		$pages_data = $this->get_pages_data();
+		$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', [] );
 
-		foreach ( $pages_data as $page_key => $page_data ) {
-			// Check for success notice
-			if ( get_transient( 'ielts_science_lms_page_action_success_' . $page_key ) ) {
-				?>
-				<div class="notice notice-success is-dismissible">
-					<p><?php printf( esc_html__( '%s page created successfully!', 'ielts-science-lms' ), $page_data['label'] ); ?></p>
-				</div>
-				<?php
-				delete_transient( 'ielts_science_lms_page_action_success_' . $page_key );
-			}
+		foreach ( $module_pages_data as $module_data ) {
+			foreach ( $module_data['pages'] as $page_key => $page_label ) {
+				// Check for success notice
+				if ( get_transient( 'ielts_science_lms_page_action_success_' . $page_key ) ) {
+					?>
+					<div class="notice notice-success is-dismissible">
+						<p>
+							<?php printf( esc_html__( '%s page created successfully!', 'ielts-science-lms' ), $page_label ); ?>
+						</p>
+					</div>
+					<?php
+					delete_transient( 'ielts_science_lms_page_action_success_' . $page_key );
+				}
 
-			// Check for error notice
-			$error_message = get_transient( 'ielts_science_lms_page_action_error_' . $page_key );
-			if ( $error_message ) {
-				?>
-				<div class="notice notice-error is-dismissible">
-					<p><?php printf( esc_html__( 'Error creating %s page: %s', 'ielts-science-lms' ), $page_data['label'], $error_message ); ?>
-					</p>
-				</div>
-				<?php
-				delete_transient( 'ielts_science_lms_page_action_error_' . $page_key );
+				// Check for error notice
+				$error_message = get_transient( 'ielts_science_lms_page_action_error_' . $page_key );
+				if ( $error_message ) {
+					?>
+					<div class="notice notice-error is-dismissible">
+						<p>
+							<?php printf( esc_html__( 'Error creating %s page: %s', 'ielts-science-lms' ), $page_label, $error_message ); ?>
+						</p>
+					</div>
+					<?php
+					delete_transient( 'ielts_science_lms_page_action_error_' . $page_key );
+				}
 			}
 		}
 	}

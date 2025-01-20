@@ -10,6 +10,7 @@ class Ieltssci_WritingModule {
 		add_action( 'wp_enqueue_scripts', [ $this, 'register_writing_assets' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_writing_assets' ] );
 		add_filter( 'display_post_states', [ $this, 'add_custom_post_state' ], 10, 2 );
+		add_filter( 'ielts_science_lms_module_pages_data', [ $this, 'provide_module_pages_data' ] );
 	}
 
 	public function register_writing_assets() {
@@ -88,6 +89,22 @@ class Ieltssci_WritingModule {
 				wp_enqueue_style( $style_handle );
 			}
 		}
+	}
+
+	public function provide_module_pages_data( $module_data ) {
+		$module_data['writing_module'] = [ 
+			'module_name' => 'writing_module',
+			'section_title' => __( 'Writing Module Pages', 'ielts-science-lms' ),
+			'section_desc' => __( 'Select the pages for the Writing Module.', 'ielts-science-lms' ),
+			'pages' => [ 
+				'writing_submission' => __( 'Writing Submission', 'ielts-science-lms' ),
+				'result_task_2' => __( 'Result Task 2', 'ielts-science-lms' ),
+				'result_task_1' => __( 'Result Task 1', 'ielts-science-lms' ),
+				'result_general_essay' => __( 'Result General Essay', 'ielts-science-lms' ),
+			],
+		];
+
+		return $module_data;
 	}
 
 }
