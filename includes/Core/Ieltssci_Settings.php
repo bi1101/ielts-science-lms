@@ -211,7 +211,7 @@ class Ieltssci_Settings {
 			wp_send_json_error( [ 'message' => __( 'Page title not found for the given key and module.', 'ielts-science-lms' ) ] );
 		}
 
-		$this->handle_page_action( $page_key, 'create_page', $page_title, $module_name );
+		$this->handle_page_action( $page_key, 'create_page', $page_title );
 
 		// Assume the page creation was successful
 		wp_send_json_success( [ 'message' => __( 'Page created successfully!', 'ielts-science-lms' ) ] );
@@ -219,11 +219,10 @@ class Ieltssci_Settings {
 
 	// Function to handle page creation
 	private function handle_page_action( $page_key, $action, $page_title ) {
-		$page_content = ''; // Content is not needed
 		$page_slug = sanitize_title( $page_title );
 
 		if ( $action === 'create_page' ) {
-			$page_id = $this->create_page( $page_title, $page_content, $page_slug );
+			$page_id = $this->create_page( $page_title, $page_slug );
 		}
 
 		if ( ! is_wp_error( $page_id ) ) {
@@ -241,7 +240,7 @@ class Ieltssci_Settings {
 	}
 
 	// Function to create a new page
-	private function create_page( $page_title, $page_content, $page_slug ) {
+	private function create_page( $page_title, $page_slug ) {
 		$page_data = [ 
 			'post_type' => 'page',
 			'post_title' => $page_title,

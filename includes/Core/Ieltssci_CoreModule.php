@@ -8,6 +8,7 @@ class Ieltssci_CoreModule {
 		new \IeltsScienceLMS\Core\Ieltssci_Settings();
 		add_filter( 'theme_page_templates', [ $this, 'add_custom_page_template' ] );
 		add_filter( 'template_include', [ $this, 'load_custom_page_template' ] );
+		add_filter( 'display_post_states', [ $this, 'add_module_page_post_state' ], 10, 2 );
 	}
 
 	/**
@@ -73,6 +74,29 @@ class Ieltssci_CoreModule {
 			$template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
 		}
 		return $template;
+	}
+
+	public function add_module_page_post_state( $post_states, $post ) {
+		// Get the saved page settings
+		$ielts_pages = get_option( 'ielts_science_lms_pages', [] );
+
+		// Check if this post's ID is one of the assigned pages
+		if ( ! empty( $ielts_pages ) && in_array( $post->ID, $ielts_pages ) ) {
+			// Get the module pages data
+			$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', [] );
+
+			// Find the page key and label for this post's ID
+			foreach ( $module_pages_data as $module_data ) {
+				foreach ( $module_data['pages'] as $page_key => $page_label ) {
+					if ( isset( $ielts_pages[ $page_key ] ) && $ielts_pages[ $page_key ] == $post->ID ) {
+						// Add the page label as a custom post state
+						$post_states[] = esc_html( $page_label );
+						break 2; // Exit both loops once the page is found
+					}
+				}
+			}
+		}
+		return $post_states;
 	}
 
 }
