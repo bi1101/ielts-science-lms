@@ -119,8 +119,21 @@ class Ieltssci_WritingModule {
 				}
 			}
 
+			// Create a nonce
+			$nonce = wp_create_nonce( 'wp_rest' );
+
+			// Get the REST API root URL
+			$root_url = rest_url();
+
+			// Combine all data to be localized
+			$localized_data = [ 
+				'pages' => $page_data_for_js,
+				'nonce' => $nonce,
+				'root_url' => $root_url,
+			];
+
 			// Localize script (pass data to the React app)
-			wp_localize_script( $script_handle, 'ielts_writing_data', $page_data_for_js );
+			wp_localize_script( $script_handle, 'ielts_writing_data', $localized_data );
 		}
 	}
 
