@@ -115,7 +115,12 @@ class Ieltssci_WritingModule {
 			$page_data_for_js = [];
 			foreach ( $writing_module_pages as $page_key => $page_label ) {
 				if ( isset( $ielts_pages[ $page_key ] ) ) {
-					$page_data_for_js[ $page_key ] = get_page_uri( $ielts_pages[ $page_key ] );
+					$page_id = $ielts_pages[ $page_key ];
+					// Check if this page is set as the front page
+					$is_front_page = ( $page_id == get_option( 'page_on_front' ) );
+					// Use empty string for homepage URI to match root route
+					$uri = $is_front_page ? '' : get_page_uri( $page_id );
+					$page_data_for_js[ $page_key ] = $uri;
 				}
 			}
 
