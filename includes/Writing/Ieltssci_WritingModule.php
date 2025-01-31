@@ -13,11 +13,11 @@ class Ieltssci_WritingModule {
 	}
 
 	/**
-	 * Đăng ký các tài nguyên (assets) cho module viết.
+	 * Register assets (scripts and styles) for the writing module.
 	 *
-	 * Hàm này sẽ tìm và đăng ký các tệp JavaScript và CSS cần thiết cho module viết.
-	 * Các tệp tài nguyên được tìm kiếm trong thư mục 'public/writing/build/'.
-	 * 
+	 * This function locates and registers JavaScript and CSS files required for the writing module.
+	 * Asset files are expected to be in the 'public/writing/build/' directory.
+	 *
 	 * @return void
 	 */
 	public function register_writing_assets() {
@@ -139,6 +139,69 @@ class Ieltssci_WritingModule {
 				$menu = wp_get_nav_menu_object( $locations[ $menu_name ] );
 				$menu_items = wp_get_nav_menu_items( $menu->term_id, array( 'order' => 'ASC' ) );
 
+				// Function to get the menu item icon
+				function get_menu_item_icon( $item ) {
+					// Use locate_template to find the class files, respecting child themes
+					$meta_file = locate_template( 'inc/plugins/buddyboss-menu-icons/includes/meta.php' );
+					$front_file = locate_template( 'inc/plugins/buddyboss-menu-icons/includes/front.php' );
+
+					// Include the necessary class files if they exist
+					if ( file_exists( $meta_file ) ) {
+						require_once( $meta_file );
+					}
+					if ( file_exists( $front_file ) ) {
+						require_once( $front_file );
+					}
+
+					$icon = false;
+
+					// Use fully qualified class names with leading backslash to indicate global namespace
+					if ( class_exists( '\Menu_Icons_Meta' ) ) {
+						$meta = \Menu_Icons_Meta::get( $item->ID );
+						if ( class_exists( '\Menu_Icons_Front_End' ) ) {
+							$icon = \Menu_Icons_Front_End::get_icon( $meta );
+						}
+					}
+
+					// Handle cases where the icon might be an HTML string or an object
+					if ( is_object( $icon ) && isset( $icon->html ) ) {
+						$icon = $icon->html;
+					} elseif ( is_array( $icon ) && isset( $icon['html'] ) ) {
+						$icon = $icon['html'];
+					}
+
+					// Sanitize the icon HTML
+					if ( $icon ) {
+						$icon = wp_kses(
+							$icon,
+							array(
+								'i' => array(
+									'class' => array(),
+								),
+								'svg' => array(
+									'class' => array(),
+									'aria-hidden' => array(),
+									'role' => array(),
+									'focusable' => array(),
+									'xmlns' => array(),
+									'width' => array(),
+									'height' => array(),
+									'viewbox' => array(),
+								),
+								'path' => array(
+									'd' => array(),
+									'fill' => array(),
+								),
+								'use' => array(
+									'xlink:href' => array(),
+								),
+							)
+						);
+					}
+
+					return $icon;
+				}
+
 				// Function to build the hierarchical menu structure
 				function build_hierarchical_menu( $items, $parent = 0 ) {
 					$menu = array();
@@ -149,6 +212,7 @@ class Ieltssci_WritingModule {
 								'title' => $item->title,
 								'url' => $item->url,
 								'children' => build_hierarchical_menu( $items, $item->ID ), // Recursively find children
+								'icon' => get_menu_item_icon( $item ), // Get the icon data
 								// ... add other fields you need from the menu item object (e.g., classes, target, etc.) ...
 							);
 							$menu[] = $menu_item;
