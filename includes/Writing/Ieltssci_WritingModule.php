@@ -130,11 +130,47 @@ class Ieltssci_WritingModule {
 			// Get the REST API root URL
 			$root_url = rest_url();
 
+			// --- Menu Retrieval and Localization ---
+
+			$menu_name = 'header-menu'; // Or your specific theme location
+			$menu_items = array();
+
+			if ( ( $locations = get_nav_menu_locations() ) && isset( $locations[ $menu_name ] ) ) {
+				$menu = wp_get_nav_menu_object( $locations[ $menu_name ] );
+				$menu_items = wp_get_nav_menu_items( $menu->term_id, array( 'order' => 'ASC' ) );
+
+				// Function to build the hierarchical menu structure
+				function build_hierarchical_menu( $items, $parent = 0 ) {
+					$menu = array();
+					foreach ( $items as $item ) {
+						if ( $item->menu_item_parent == $parent ) {
+							$menu_item = array(
+								'id' => $item->ID,
+								'title' => $item->title,
+								'url' => $item->url,
+								'children' => build_hierarchical_menu( $items, $item->ID ), // Recursively find children
+								// ... add other fields you need from the menu item object (e.g., classes, target, etc.) ...
+							);
+							$menu[] = $menu_item;
+						}
+					}
+					return $menu;
+				}
+
+				$formatted_menu_items = build_hierarchical_menu( $menu_items );
+			} else {
+				$formatted_menu_items = array(); // Empty array if menu not found
+			}
+
+			// --- End of Menu Retrieval ---
+
 			// Combine all data to be localized
 			$localized_data = [ 
 				'pages' => $page_data_for_js,
 				'nonce' => $nonce,
 				'root_url' => $root_url,
+				'is_logged_in' => is_user_logged_in(),
+				'header_menu' => $formatted_menu_items,
 			];
 
 			// Localize script (pass data to the React app)

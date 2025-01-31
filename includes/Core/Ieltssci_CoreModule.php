@@ -9,6 +9,7 @@ class Ieltssci_CoreModule {
 		add_filter( 'theme_page_templates', [ $this, 'add_custom_page_template' ] );
 		add_filter( 'template_include', [ $this, 'load_custom_page_template' ] );
 		add_filter( 'display_post_states', [ $this, 'add_module_page_post_state' ], 10, 2 );
+		add_action( 'wp_enqueue_scripts', [ $this, 'dequeue_assets_for_react_template' ], 100 );
 	}
 
 	/**
@@ -74,6 +75,35 @@ class Ieltssci_CoreModule {
 			$template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
 		}
 		return $template;
+	}
+
+	public function dequeue_assets_for_react_template() {
+		if ( is_page_template( 'template-react-page.php' ) ) {
+
+			// Dequeue Stylesheets
+			wp_dequeue_style( 'bb_theme_block-buddypanel-style-css' );
+			wp_dequeue_style( 'buddyboss-theme-buddypress' );
+			wp_dequeue_style( 'buddyboss-theme-css' );
+			wp_dequeue_style( 'buddyboss-theme-fonts' );
+			wp_dequeue_style( 'buddyboss-theme-magnific-popup-css' );
+			wp_dequeue_style( 'buddyboss-theme-select2-css' );
+			wp_dequeue_style( 'buddyboss-theme-template' );
+			wp_dequeue_style( 'buddyboss_legacy' );
+			wp_dequeue_style( 'redux-extendify-styles' );
+
+			// Dequeue JavaScripts
+			wp_dequeue_script( 'boss-fitvids-js' );
+			wp_dequeue_script( 'boss-jssocials-js' );
+			wp_dequeue_script( 'boss-menu-js' );
+			wp_dequeue_script( 'boss-panelslider-js' );
+			wp_dequeue_script( 'boss-slick-js' );
+			wp_dequeue_script( 'boss-sticky-js' );
+			wp_dequeue_script( 'boss-validate-js' );
+			wp_dequeue_script( 'buddyboss-theme-main-js' );
+			wp_dequeue_script( 'mousewheel-js' );
+			wp_dequeue_script( 'progressbar-js' );
+			wp_dequeue_script( 'select2-js' );
+		}
 	}
 
 	public function add_module_page_post_state( $post_states, $post ) {
