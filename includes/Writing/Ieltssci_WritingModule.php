@@ -239,6 +239,36 @@ class Ieltssci_WritingModule {
 			}
 			// --- End of Menu Retrieval ---
 
+			// --- User Data ---
+			$current_user = wp_get_current_user();
+			$user_link = '';
+			$display_name = '';
+			$user_mention = '';
+			$user_avatar = '';
+
+			if ( is_user_logged_in() ) {
+				// BuddyBoss-specific functions (if BuddyBoss is active)
+				if ( function_exists( 'bp_core_get_user_domain' ) ) {
+					$user_link = bp_core_get_user_domain( $current_user->ID );
+				} else {
+					$user_link = get_author_posts_url( $current_user->ID );
+				}
+
+				if ( function_exists( 'bp_core_get_user_displayname' ) ) {
+					$display_name = bp_core_get_user_displayname( $current_user->ID );
+				} else {
+					$display_name = $current_user->display_name;
+				}
+
+				if ( function_exists( 'bp_activity_get_user_mentionname' ) ) {
+					$user_mention = '@' . bp_activity_get_user_mentionname( $current_user->ID );
+				} else {
+					$user_mention = '@' . $current_user->user_login;
+				}
+
+				$user_avatar = get_avatar_url( $current_user->ID, array( 'size' => 100 ) );
+			}
+
 			// Combine all data to be localized
 			$localized_data = [ 
 				'pages' => $page_data_for_js,
@@ -247,6 +277,10 @@ class Ieltssci_WritingModule {
 				'is_logged_in' => is_user_logged_in(),
 				'header_menu' => $formatted_header_menu_items,
 				'account_menu' => $formatted_account_menu_items,
+				'user_link' => $user_link,
+				'user_display_name' => $display_name,
+				'user_mention' => $user_mention,
+				'user_avatar' => $user_avatar,
 			];
 
 			// Localize script (pass data to the React app)
