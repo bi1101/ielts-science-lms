@@ -2,8 +2,6 @@
 
 namespace IeltsScienceLMS\Writing;
 
-use WP_Query;
-
 class Ieltssci_WritingModule {
 	public function __construct() {
 		// Initialize the writing module
@@ -40,31 +38,6 @@ class Ieltssci_WritingModule {
 				wp_register_style( $css_handle, $css_src, [], $ver );
 			}
 		}
-	}
-
-	public function create_writing_page() {
-		$page_slug = 'ielts-science-writing';
-
-		// Check if a post with the 'ieltssci_flag' meta key already exists
-		$meta_query = new WP_Query( array(
-			'post_type' => 'page',
-			'meta_key' => 'ieltssci_flag',
-			'meta_value' => 'IELTS Science Writing',
-		) );
-
-		if ( ! $meta_query->have_posts() ) {
-			$page = array(
-				'post_title' => 'IELTS Science Writing',
-				'post_name' => $page_slug,
-				'post_type' => 'page',
-				'meta_input' => array(
-					'ieltssci_flag' => 'IELTS Science Writing',
-				),
-				'page_template' => 'template-react-page.php',
-			);
-			wp_insert_post( $page );
-		}
-
 	}
 
 	public function enqueue_writing_assets() {

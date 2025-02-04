@@ -6,7 +6,9 @@ class Ieltssci_Settings {
 	public function __construct() {
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
 		add_action( 'admin_menu', [ $this, 'register_admin_menu' ] );
+		add_action( 'admin_enqueue_scripts', [ $this, 'register_settings_assets' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_scripts' ] );
+		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_settings_assets' ] );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
 		add_action( 'wp_ajax_ielts_create_page_ajax', [ $this, 'handle_create_page_ajax' ] );
 	}
@@ -48,34 +50,73 @@ class Ieltssci_Settings {
 	}
 
 	public function settings_page() {
-		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'IELTS Science LMS Settings', 'ielts-science-lms' ); ?></h1>
-			<div id="tabs">
-				<ul>
-					<li><a href="#general"><?php esc_html_e( 'General', 'ielts-science-lms' ); ?></a></li>
-					<li><a href="#advanced"><?php esc_html_e( 'Advanced', 'ielts-science-lms' ); ?></a></li>
-				</ul>
-				<div id="general">
-					<form method="post" action="options.php">
-						<?php
-						settings_fields( 'ielts_science_lms_settings_group' );
-						do_settings_sections( 'ielts_science_lms_settings_group' );
-						submit_button();
-						?>
-					</form>
-				</div>
-				<div id="advanced">
-					<p><?php esc_html_e( 'Advanced settings go here.', 'ielts-science-lms' ); ?></p>
-				</div>
-			</div>
-		</div>
-		<script>
-			jQuery(document).ready(function ($) {
-				$("#tabs").tabs();
-			});
-		</script>
-		<?php
+		printf( '<div class="wrap" id="ieltsci_settings_page"><h1>%s</h1><p>%s</p></div>',
+			esc_html__( 'IELTS Science LMS Settings', 'ielts-science-lms' ),
+			esc_html__( 'Welcome to the settings page.', 'ielts-science-lms' ) );
+	}
+
+	/**
+	 * Register assets (scripts and styles) for the settings module.
+	 *
+	 * This function locates and registers JavaScript and CSS files required for the settings module.
+	 * Asset files are expected to be in the 'admin/settings/build/' directory.
+	 *
+	 * @return void
+	 */
+	public function register_settings_assets() {
+		$build_path = plugin_dir_path( __FILE__ ) . '../../admin/settings/build/';
+		$asset_files = glob( $build_path . '*.asset.php' );
+
+		foreach ( $asset_files as $asset_file ) {
+			$asset = include( $asset_file );
+			$handle = 'ielts-science-wp-admin-' . basename( $asset_file, '.asset.php' );
+			$src = plugin_dir_url( __FILE__ ) . '../../admin/settings/build/' . basename( $asset_file, '.asset.php' ) . '.js';
+			$deps = $asset['dependencies'];
+			$ver = $asset['version'];
+
+			wp_register_script( $handle, $src, $deps, $ver, true );
+
+			$css_file = str_replace( '.asset.php', '.css', $asset_file );
+			if ( file_exists( $css_file ) ) {
+				$css_handle = $handle . '-css';
+				$css_src = plugin_dir_url( __FILE__ ) . '../../admin/settings/build/' . basename( $css_file );
+				wp_register_style( $css_handle, $css_src, [], $ver );
+			}
+		}
+	}
+
+	/**
+	 * Enqueue assets (scripts and styles) for the settings module.
+	 *
+	 * This function enqueues JavaScript and CSS files required for the settings module.
+	 * Asset files are expected to be in the 'admin/settings/build/' directory.
+	 *
+	 * @return void
+	 */
+	public function enqueue_settings_assets( $admin_page ) {
+		if ( 'ielts-science-lms_page_ielts-science-lms-settings' !== $admin_page ) {
+			return;
+		}
+
+		// Define the handle for the index script and style.
+		$script_handle = 'ielts-science-wp-admin-index';
+		$style_handle = 'ielts-science-wp-admin-index-css';
+		$runtime_handle = 'ielts-science-wp-admin-runtime';
+
+		// Enqueue the runtime script if it's registered.
+		if ( wp_script_is( $runtime_handle, 'registered' ) ) {
+			wp_enqueue_script( $runtime_handle );
+		}
+		// Enqueue the index script if it's registered.
+		if ( wp_script_is( $script_handle, 'registered' ) ) {
+			wp_enqueue_script( $script_handle );
+		}
+
+		// Enqueue the index style if it's registered.
+		if ( wp_style_is( $style_handle, 'registered' ) ) {
+			wp_enqueue_style( $style_handle );
+		}
+		wp_enqueue_style( 'wp-components' );
 	}
 
 	public function pages_settings_page() {

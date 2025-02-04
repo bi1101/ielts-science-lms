@@ -1,3 +1,6 @@
 [submodule "public/writing"]
 	path = public/writing
 	url = https://github.com/bi1101/ielts-science-writing
+[submodule "admin/settings"]
+	path = admin/settings
+	url = https://github.com/bi1101/ielts-science-wp-admin.git
