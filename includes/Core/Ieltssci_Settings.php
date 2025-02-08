@@ -50,9 +50,9 @@ class Ieltssci_Settings {
 	}
 
 	public function settings_page() {
-		printf( '<div class="wrap" id="ieltsci_settings_page"><h1>%s</h1><p>%s</p></div>',
-			esc_html__( 'IELTS Science LMS Settings', 'ielts-science-lms' ),
-			esc_html__( 'Welcome to the settings page.', 'ielts-science-lms' ) );
+		?>
+		<div id="ieltssci_settings_page"></div>
+		<?php
 	}
 
 	/**
