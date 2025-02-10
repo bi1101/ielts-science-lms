@@ -6,6 +6,7 @@ class Ieltssci_CoreModule {
 	public function __construct() {
 		new \IeltsScienceLMS\Writing\Ieltssci_WritingModule();
 		new \IeltsScienceLMS\Core\Ieltssci_Settings();
+		new \IeltsScienceLMS\Core\Ieltssci_Settings_REST();
 		add_filter( 'theme_page_templates', [ $this, 'add_custom_page_template' ] );
 		add_filter( 'template_include', [ $this, 'load_custom_page_template' ] );
 		add_filter( 'display_post_states', [ $this, 'add_module_page_post_state' ], 10, 2 );
@@ -21,8 +22,8 @@ class Ieltssci_CoreModule {
 	 */
 	public function activate() {
 		$this->check_wp_version();
-		// Create the writing page
-		// ( new \IeltsScienceLMS\Writing\Ieltssci_WritingModule() )->create_writing_page();
+		// Trigger settings table creation
+		do_action( 'ieltssci_activate' );
 	}
 
 

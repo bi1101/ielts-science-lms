@@ -11,6 +11,7 @@ class Ieltssci_Settings {
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_settings_assets' ] );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
 		add_action( 'wp_ajax_ielts_create_page_ajax', [ $this, 'handle_create_page_ajax' ] );
+		add_action( 'ieltssci_activate', [ $this, 'on_activate' ] );
 	}
 
 	public function register_admin_menu() {
@@ -117,6 +118,13 @@ class Ieltssci_Settings {
 			wp_enqueue_style( $style_handle );
 		}
 		wp_enqueue_style( 'wp-components' );
+
+		// Localize the index script with the REST API URL, nonce & settings config
+		wp_localize_script( $script_handle, 'ieltssciSettings', [ 
+			'apiRoot' => esc_url_raw( rest_url() ),
+			'nonce' => wp_create_nonce( 'wp_rest' ),
+			'settingsConfig' => $this->get_settings_config(),
+		] );
 	}
 
 	public function pages_settings_page() {
@@ -345,5 +353,392 @@ class Ieltssci_Settings {
 		}
 
 		return $sanitized_input;
+	}
+
+	private function create_api_feeds_table() {
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'ieltssci_api_feed';
+		$charset_collate = $wpdb->get_charset_collate();
+		$db_version = '0.0.1';
+		$current_version = get_option( 'ieltssci_api_feed_db_version' );
+
+		// If table exists and versions match, return early
+		if ( $wpdb->get_var( "SHOW TABLES LIKE '$table_name'" ) === $table_name
+			&& $current_version === $db_version ) {
+			return;
+		}
+
+		$sql = "CREATE TABLE $table_name (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			feedback_criteria varchar(191) NOT NULL,
+			feed_title varchar(191) NOT NULL,
+			feed_desc text DEFAULT NULL,
+			process_order int(11) UNSIGNED NOT NULL DEFAULT 0,
+			essay_type varchar(50) NOT NULL,
+			apply_to varchar(50) NOT NULL,
+			meta longtext NOT NULL,
+			created_at datetime DEFAULT CURRENT_TIMESTAMP,
+			updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			KEY feedback_criteria (feedback_criteria),
+			KEY essay_type (essay_type)
+		) $charset_collate;";
+
+		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+		dbDelta( $sql );
+
+		// Update version if needed
+		if ( $current_version !== $db_version ) {
+			update_option( 'ieltssci_api_feed_db_version', $db_version );
+		}
+	}
+
+	public function on_activate() {
+		$this->create_api_feeds_table();
+	}
+
+	public function get_settings_config() {
+		$settings = [ 
+			[ 
+				'groupName' => 'lexical-resource',
+				'groupTitle' => 'Lexical Resource',
+				'feeds' => [ 
+					[ 
+						'feedName' => 'vocabulary-suggestions',
+						'feedTitle' => 'Vocabulary Suggestions',
+						'applyTo' => 'essay',
+						'essayType' => [ 'task-2', 'task-2-ocr' ],
+						'steps' => [ 
+							[ 
+								'step' => 'Analyze',
+								'sections' => [ 
+									[ 
+										'section' => 'General Setting',
+										'fields' => [ 
+											[ 
+												'id' => 'apiProvider',
+												'type' => 'radio',
+												'label' => 'API Provider',
+												'help' => 'Select which API provider to use.',
+												'options' => [ 
+													[ 'label' => 'Open Key AI', 'value' => 'open-key-ai' ],
+													[ 'label' => 'Open AI', 'value' => 'open-ai' ],
+													[ 'label' => 'Google', 'value' => 'google' ],
+													[ 'label' => 'Azure', 'value' => 'azure' ],
+													[ 'label' => 'Home Server', 'value' => 'home-server' ],
+												],
+												'default' => 'open-key-ai',
+											],
+											[ 
+												'id' => 'model',
+												'type' => 'modelPicker',
+												'label' => 'Model',
+												'dependency' => 'apiProvider',
+												'options' => [ 
+													'open-key-ai' => [ 
+														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'open-ai' => [ 
+														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'google' => [ 
+														[ 'label' => 'gemini-1.5-flash', 'value' => 'gemini-1.5-flash' ],
+														[ 'label' => 'gemini-1.5-pro', 'value' => 'gemini-1.5-pro' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'azure' => [ 
+														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'home-server' => [ 
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+												],
+												'default' => 'gpt-4o-mini',
+											],
+										],
+									],
+									[ 
+										'section' => 'Advanced Setting',
+										'fields' => [ 
+											[ 
+												'id' => 'englishPrompt',
+												'type' => 'textarea',
+												'label' => 'English Prompt',
+												'help' => 'The message to send to LLM',
+												'default' => 'Message sent to the model {|parameter_name|}',
+											],
+											[ 
+												'id' => 'vietnamesePrompt',
+												'type' => 'textarea',
+												'label' => 'Vietnamese Prompt',
+												'help' => 'The message to send to LLM',
+												'default' => 'Message sent to the model {|parameter_name|}',
+											],
+										],
+									],
+								],
+							],
+						],
+					],
+					[ 
+						'feedName' => 'grammar-suggestions',
+						'feedTitle' => 'Grammar Suggestions',
+						'applyTo' => 'essay',
+						'essayType' => [ 'task-2', 'task-2-ocr' ],
+						'steps' => [ 
+							[ 
+								'step' => 'Analyze',
+								'sections' => [ 
+									[ 
+										'section' => 'General Setting',
+										'fields' => [ 
+											[ 
+												'id' => 'apiProvider',
+												'type' => 'radio',
+												'label' => 'API Provider',
+												'help' => 'Select which API provider to use.',
+												'options' => [ 
+													[ 'label' => 'Open Key AI', 'value' => 'open-key-ai' ],
+													[ 'label' => 'Open AI', 'value' => 'open-ai' ],
+													[ 'label' => 'Google', 'value' => 'google' ],
+													[ 'label' => 'Azure', 'value' => 'azure' ],
+													[ 'label' => 'Home Server', 'value' => 'home-server' ],
+												],
+												'default' => 'open-key-ai',
+											],
+											[ 
+												'id' => 'model',
+												'type' => 'modelPicker',
+												'label' => 'Model',
+												'dependency' => 'apiProvider',
+												'options' => [ 
+													'open-key-ai' => [ 
+														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'open-ai' => [ 
+														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'google' => [ 
+														[ 'label' => 'gemini-1.5-flash', 'value' => 'gemini-1.5-flash' ],
+														[ 'label' => 'gemini-1.5-pro', 'value' => 'gemini-1.5-pro' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'azure' => [ 
+														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'home-server' => [ 
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+												],
+												'default' => 'gpt-4o-mini',
+											],
+										],
+									],
+									[ 
+										'section' => 'Advanced Setting',
+										'fields' => [ 
+											[ 
+												'id' => 'englishPrompt',
+												'type' => 'textarea',
+												'label' => 'English Prompt',
+												'help' => 'The message to send to LLM',
+												'default' => 'Message sent to the model {|parameter_name|}',
+											],
+											[ 
+												'id' => 'vietnamesePrompt',
+												'type' => 'textarea',
+												'label' => 'Vietnamese Prompt',
+												'help' => 'The message to send to LLM',
+												'default' => 'Message sent to the model {|parameter_name|}',
+											],
+										],
+									],
+								],
+							],
+						],
+					],
+				],
+			],
+			[ 
+				'groupName' => 'coherence-cohesion',
+				'groupTitle' => 'Coherence & Cohesion',
+				'feeds' => [ 
+					[ 
+						'feedName' => 'coherence-suggestions',
+						'feedTitle' => 'Coherence Suggestions',
+						'applyTo' => 'essay',
+						'essayType' => [ 'task-2', 'task-2-ocr' ],
+						'steps' => [ 
+							[ 
+								'step' => 'chain-of-thought',
+								'sections' => [ 
+									[ 
+										'section' => 'General Setting',
+										'fields' => [ 
+											[ 
+												'id' => 'apiProvider',
+												'type' => 'radio',
+												'label' => 'API Provider',
+												'help' => 'Select which API provider to use.',
+												'options' => [ 
+													[ 'label' => 'Open Key AI', 'value' => 'open-key-ai' ],
+													[ 'label' => 'Open AI', 'value' => 'open-ai' ],
+													[ 'label' => 'Google', 'value' => 'google' ],
+													[ 'label' => 'Azure', 'value' => 'azure' ],
+													[ 'label' => 'Home Server', 'value' => 'home-server' ],
+												],
+												'default' => 'open-key-ai',
+											],
+											[ 
+												'id' => 'model',
+												'type' => 'modelPicker',
+												'label' => 'Model',
+												'dependency' => 'apiProvider',
+												'options' => [ 
+													'open-key-ai' => [ 
+														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'open-ai' => [ 
+														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'google' => [ 
+														[ 'label' => 'gemini-1.5-flash', 'value' => 'gemini-1.5-flash' ],
+														[ 'label' => 'gemini-1.5-pro', 'value' => 'gemini-1.5-pro' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'azure' => [ 
+														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'home-server' => [ 
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+												],
+												'default' => 'gpt-4o-mini',
+											],
+										],
+									],
+									[ 
+										'section' => 'Advanced Setting',
+										'fields' => [ 
+											[ 
+												'id' => 'englishPrompt',
+												'type' => 'textarea',
+												'label' => 'English Prompt',
+												'help' => 'The message to send to LLM',
+												'default' => 'Message sent to the model {|parameter_name|}',
+											],
+											[ 
+												'id' => 'vietnamesePrompt',
+												'type' => 'textarea',
+												'label' => 'Vietnamese Prompt',
+												'help' => 'The message to send to LLM',
+												'default' => 'Message sent to the model {|parameter_name|}',
+											],
+										],
+									],
+								],
+							],
+							[ 
+								'step' => 'scoring',
+								'sections' => [ 
+									[ 
+										'section' => 'General Setting',
+										'fields' => [ 
+											[ 
+												'id' => 'apiProvider',
+												'type' => 'radio',
+												'label' => 'API Provider',
+												'help' => 'Select which API provider to use.',
+												'options' => [ 
+													[ 'label' => 'Open Key AI', 'value' => 'open-key-ai' ],
+													[ 'label' => 'Open AI', 'value' => 'open-ai' ],
+													[ 'label' => 'Google', 'value' => 'google' ],
+													[ 'label' => 'Azure', 'value' => 'azure' ],
+													[ 'label' => 'Home Server', 'value' => 'home-server' ],
+												],
+												'default' => 'open-key-ai',
+											],
+											[ 
+												'id' => 'model',
+												'type' => 'modelPicker',
+												'label' => 'Model',
+												'dependency' => 'apiProvider',
+												'options' => [ 
+													'open-key-ai' => [ 
+														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'open-ai' => [ 
+														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'google' => [ 
+														[ 'label' => 'gemini-1.5-flash', 'value' => 'gemini-1.5-flash' ],
+														[ 'label' => 'gemini-1.5-pro', 'value' => 'gemini-1.5-pro' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'azure' => [ 
+														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+													'home-server' => [ 
+														[ 'label' => 'Other:', 'value' => 'other' ],
+													],
+												],
+												'default' => 'gpt-4o-mini',
+											],
+										],
+									],
+									[ 
+										'section' => 'Advanced Setting',
+										'fields' => [ 
+											[ 
+												'id' => 'englishPrompt',
+												'type' => 'textarea',
+												'label' => 'English Prompt',
+												'help' => 'The message to send to LLM',
+												'default' => 'Message sent to the model {|parameter_name|}',
+											],
+											[ 
+												'id' => 'vietnamesePrompt',
+												'type' => 'textarea',
+												'label' => 'Vietnamese Prompt',
+												'help' => 'The message to send to LLM',
+												'default' => 'Message sent to the model {|parameter_name|}',
+											],
+										],
+									],
+								],
+							]
+						],
+
+					],
+				],
+			]
+		];
+
+		// Add filter to allow extending settings
+		return apply_filters( 'ieltssci_settings_config', $settings );
 	}
 }
