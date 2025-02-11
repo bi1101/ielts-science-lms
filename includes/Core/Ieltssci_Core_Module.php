@@ -2,9 +2,9 @@
 
 namespace IeltsScienceLMS\Core;
 
-class Ieltssci_CoreModule {
+class Ieltssci_Core_Module {
 	public function __construct() {
-		new \IeltsScienceLMS\Writing\Ieltssci_WritingModule();
+		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
 		new \IeltsScienceLMS\Core\Ieltssci_Settings();
 		new \IeltsScienceLMS\Core\Ieltssci_Settings_REST();
 		add_filter( 'theme_page_templates', [ $this, 'add_custom_page_template' ] );

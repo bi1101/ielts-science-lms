@@ -22,10 +22,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/vendor/autoload.php';
-require_once __DIR__ . '/includes/Core/Ieltssci_CoreModule.php';
 
 // Initialize the core module
-$core_module = new \IeltsScienceLMS\Core\Ieltssci_CoreModule();
+$core_module = new \IeltsScienceLMS\Core\Ieltssci_Core_Module();
 
 register_activation_hook( __FILE__, [ $core_module, 'activate' ] );
 register_deactivation_hook( __FILE__, [ $core_module, 'deactivate' ] );
