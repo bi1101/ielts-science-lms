@@ -52,7 +52,9 @@ class Ieltssci_Settings {
 
 	public function settings_page() {
 		?>
-		<div id="ieltssci_settings_page"></div>
+		<div class="wrap">
+			<div id="ieltssci_settings_page"></div>
+		</div>
 		<?php
 	}
 
@@ -397,348 +399,487 @@ class Ieltssci_Settings {
 		$this->create_api_feeds_table();
 	}
 
+	/**
+	 * Generates a field configuration.
+	 *
+	 * @param string $id           Field ID.
+	 * @param string $type         Field type (e.g., 'radio', 'textarea', 'number', 'modelPicker').
+	 * @param string $label        Field label.
+	 * @param string $help         (Optional) Help text.
+	 * @param mixed  $default      (Optional) Default value.
+	 * @param array  $options      (Optional) Options for radio buttons, modelPicker, etc.
+	 * @param string $dependency   (Optional) Field dependency.
+	 * @param array  $extra_attrs  (Optional) Additional attributes for further customization.
+	 *
+	 * @return array The field configuration array.
+	 */
+	protected function createField( string $id, string $type, string $label, string $help = '', $default = null, array $options = [], string $dependency = '', array $extra_attrs = [] ): array {
+		$field = [ 
+			'id' => $id,
+			'type' => $type,
+			'label' => $label,
+		];
+
+		if ( $help ) {
+			$field['help'] = $help;
+		}
+		if ( $default !== null ) {
+			$field['default'] = $default;
+		} // Handle 0, false, etc. correctly
+		if ( $options ) {
+			$field['options'] = $options;
+		}
+		if ( $dependency ) {
+			$field['dependency'] = $dependency;
+		}
+		if ( $extra_attrs ) {
+			$field = array_merge( $field, $extra_attrs );
+		} // Allow other attributes
+
+		return $field;
+	}
+
+	/**
+	 * Generates an API provider field configuration (reusable radio button group).
+	 *
+	 * @param mixed $default (Optional) Default value.
+	 * @return array The API provider field configuration.
+	 */
+	protected function createApiProviderField( $default = 'open-key-ai' ): array {
+		return $this->createField(
+			'apiProvider',
+			'radio',
+			'API Provider',
+			'Select which API provider to use.',
+			$default,
+			[ 
+				[ 'label' => 'Open Key AI', 'value' => 'open-key-ai' ],
+				[ 'label' => 'Open AI', 'value' => 'open-ai' ],
+				[ 'label' => 'Google', 'value' => 'google' ],
+				[ 'label' => 'Azure', 'value' => 'azure' ],
+				[ 'label' => 'Home Server', 'value' => 'home-server' ],
+			]
+		);
+	}
+
+	/**
+	 * Generates a model picker field configuration.
+	 *
+	 * @param string $dependency The field this model picker depends on.
+	 * @param array  $options    The model options.
+	 * @param mixed  $default    (Optional) Default value.
+	 *
+	 * @return array The model picker field configuration.
+	 */
+	protected function createModelPickerField( string $dependency, array $options, $default = 'gpt-4o-mini' ): array {
+		return $this->createField(
+			'model',
+			'modelPicker',
+			'Model',
+			'',  // No help text in the original for model
+			$default,
+			$options,
+			$dependency
+		);
+	}
+
+	/**
+	 * Generates common model options based on API provider.  Handles the "Other:" option.
+	 *
+	 * @param array $providerOptions Model options specific to a provider.
+	 * @return array Combined options, including the "Other:" option.
+	 */
+	protected function getModelOptions( array $providerOptions ): array {
+		$options = [];
+		foreach ( $providerOptions as $provider => $models ) {
+			$options[ $provider ] = $models;
+			// Check if 'Other:' already exists, if not add. Avoid duplicates
+			$hasOther = false;
+			foreach ( $models as $model ) {
+				if ( $model['value'] === 'other' ) {
+					$hasOther = true;
+					break;
+				}
+			}
+			if ( ! $hasOther ) {
+				$options[ $provider ][] = [ 'label' => 'Other:', 'value' => 'other' ];
+			}
+		}
+		return $options;
+	}
+	/**
+	 * Generates a prompt field configuration.
+	 *
+	 * @param string $id         Field ID (e.g., 'englishPrompt', 'vietnamesePrompt').
+	 * @param string $label      Field label (e.g., 'English Prompt', 'Vietnamese Prompt').
+	 * @param string $default    Default prompt text.
+	 *
+	 * @return array The prompt field configuration.
+	 */
+	protected function createPromptField( string $id, string $label, string $default ): array {
+		return $this->createField(
+			$id,
+			'textarea',
+			$label,
+			'The message to send to LLM',
+			$default
+		);
+	}
+
+	/**
+	 * Generates a section configuration.
+	 *
+	 * @param string $sectionName  Section name (e.g., 'general-setting', 'advanced-setting').
+	 * @param array  $fields       Array of field configurations.
+	 *
+	 * @return array The section configuration.
+	 */
+	protected function createSection( string $sectionName, array $fields ): array {
+		return [ 
+			'section' => $sectionName,
+			'fields' => $fields,
+		];
+	}
+
+	/**
+	 * Generates a step configuration.
+	 *
+	 * @param string $stepName    Step name (e.g., 'chain-of-thought', 'scoring', 'feedback').
+	 * @param array  $sections    Array of section configurations.
+	 *
+	 * @return array The step configuration.
+	 */
+	protected function createStep( string $stepName, array $sections ): array {
+		return [ 
+			'step' => $stepName,
+			'sections' => $sections,
+		];
+	}
+
+	/**
+	 * Creates a feed configuration.
+	 *
+	 * @param string $feedName
+	 * @param string $feedTitle
+	 * @param string $applyTo
+	 * @param array $essayType
+	 * @param array $steps
+	 * @return array
+	 */
+	protected function createFeed( string $feedName, string $feedTitle, string $applyTo, array $essayType, array $steps ): array {
+		return [ 
+			'feedName' => $feedName,
+			'feedTitle' => $feedTitle,
+			'applyTo' => $applyTo,
+			'essayType' => $essayType,
+			'steps' => $steps
+		];
+	}
+
+	/**
+	 * Generates the main settings configuration.
+	 *
+	 * @return array The complete settings configuration.
+	 */
 	public function get_settings_config() {
+
+		$defaultModelOptions = $this->getModelOptions( [ 
+			'open-key-ai' => [ 
+				[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+				[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+			],
+			'open-ai' => [ 
+				[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+				[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+			],
+			'google' => [ 
+				[ 'label' => 'gemini-1.5-flash', 'value' => 'gemini-1.5-flash' ],
+				[ 'label' => 'gemini-1.5-pro', 'value' => 'gemini-1.5-pro' ],
+			],
+			'azure' => [ 
+				[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
+				[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
+			],
+			'home-server' => [],
+		] );
+
+		$commonGeneralFields = [ 
+			$this->createApiProviderField(),
+			$this->createModelPickerField( 'apiProvider', $defaultModelOptions ),
+			$this->createPromptField( 'englishPrompt', 'English Prompt', 'Message sent to the model {|parameter_name|}' ),
+			$this->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', 'Message sent to the model {|parameter_name|}' ),
+
+		];
+
+		$commonAdvancedFields = [ 
+			$this->createField( 'maxToken', 'number', 'Max Token', 'The maximum number of tokens to generate.', 2048 ),
+			$this->createField( 'temperature', 'number', 'Temperature', 'The value used to module the next token probabilities.', 0.1 ),
+		];
+
+		$commonSections = [ 
+			$this->createSection( 'general-setting', $commonGeneralFields ),
+			$this->createSection( 'advanced-setting', $commonAdvancedFields ),
+		];
+
 		$settings = [ 
+			[ 
+				'groupName' => 'vocabulary-suggestions',
+				'groupTitle' => 'Vocabulary Suggestions',
+				'feeds' => [ 
+					$this->createFeed(
+						'vocabulary-suggestions',
+						'Vocabulary Suggestions',
+						'essay',
+						[ 'task-2', 'task-2-ocr' ],
+						[ 
+							$this->createStep( 'feedback', $commonSections )
+						] ),
+				],
+			],
+			[ 
+				'groupName' => 'grammar-suggestions',
+				'groupTitle' => 'Grammar Suggestions',
+				'feeds' => [ 
+					$this->createFeed(
+						'grammar-suggestions',
+						'Grammar Suggestions',
+						'essay',
+						[ 'task-2', 'task-2-ocr' ],
+						[ 
+							$this->createStep( 'feedback', $commonSections )
+						] ),
+				],
+			],
+			[ 
+				'groupName' => 'argument-enhance',
+				'groupTitle' => 'Argument Enhance',
+				'feeds' => [ 
+					$this->createFeed(
+						'segmenting',
+						'Segmenting',
+						'essay',
+						[ 'task-2', 'task-2-ocr' ],
+						[ $this->createStep( 'output', [ 
+							$this->createSection( 'general-setting', [ 
+								$this->createApiProviderField( 'home-server' ),
+								$this->createModelPickerField( 'apiProvider', $defaultModelOptions, 'bihungba1101/segmenting-paragraph' ),
+								$this->createPromptField( 'englishPrompt', 'English Prompt', '{|each_paragraph_in_essay|}' ),
+								$this->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', '{|each_paragraph_in_essay|}' ),
+							] ),
+							$this->createSection( 'advanced-setting', $commonAdvancedFields )
+						] )
+						] ),
+					$this->createFeed( 'introduction-relevance', 'Introduction Relevance', 'introduction', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'introduction-clear-answer', 'Introduction Clear Answer/Clear Opinion', 'introduction', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'introduction-brief-overview', 'Introduction Brief Overview', 'introduction', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'introduction-rewrite', 'Introduction Rewrite', 'introduction', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'feedback', [ $this->createSection( 'general-setting', $commonGeneralFields ), $this->createSection( 'advanced-setting', $commonAdvancedFields ) ] )
+					] ),
+					$this->createFeed( 'topic-sentence-linking', 'Topic Sentence Linking', 'topic-sentence', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'topic-sentence-relevance', 'Topic Sentence Relevance', 'topic-sentence', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'topic-sentence-rewrite', 'Topic Sentence Rewrite', 'topic-sentence', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'feedback', [ $this->createSection( 'general-setting', $commonGeneralFields ), $this->createSection( 'advanced-setting', $commonAdvancedFields ) ] )
+					] ),
+					$this->createFeed( 'main-point-logic-depth', 'Main Point Logic & Depth', 'main-point', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'main-point-overgeneralize', 'Main Point Overgeneralize', 'main-point', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'main-point-relevance', 'Main Point Relevance', 'main-point', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'main-point-rewrite', 'Main Point Rewrite', 'main-point', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'feedback', [ $this->createSection( 'general-setting', $commonGeneralFields ), $this->createSection( 'advanced-setting', $commonAdvancedFields ) ] )
+					] ),
+					$this->createFeed( 'conclusion-relevance', 'Conclusion Relevance', 'conclusion', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'conclusion-clear-answer', 'Conclusion Clear Answer/Clear Opinion', 'conclusion', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'conclusion-rewrite', 'Conclusion Rewrite', 'conclusion', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'feedback', [ $this->createSection( 'general-setting', $commonGeneralFields ), $this->createSection( 'advanced-setting', $commonAdvancedFields ) ] )
+					] ),
+				],
+			],
 			[ 
 				'groupName' => 'lexical-resource',
 				'groupTitle' => 'Lexical Resource',
 				'feeds' => [ 
-					[ 
-						'feedName' => 'vocabulary-suggestions',
-						'feedTitle' => 'Vocabulary Suggestions',
-						'applyTo' => 'essay',
-						'essayType' => [ 'task-2', 'task-2-ocr' ],
-						'steps' => [ 
-							[ 
-								'step' => 'Analyze',
-								'sections' => [ 
-									[ 
-										'section' => 'General Setting',
-										'fields' => [ 
-											[ 
-												'id' => 'apiProvider',
-												'type' => 'radio',
-												'label' => 'API Provider',
-												'help' => 'Select which API provider to use.',
-												'options' => [ 
-													[ 'label' => 'Open Key AI', 'value' => 'open-key-ai' ],
-													[ 'label' => 'Open AI', 'value' => 'open-ai' ],
-													[ 'label' => 'Google', 'value' => 'google' ],
-													[ 'label' => 'Azure', 'value' => 'azure' ],
-													[ 'label' => 'Home Server', 'value' => 'home-server' ],
-												],
-												'default' => 'open-key-ai',
-											],
-											[ 
-												'id' => 'model',
-												'type' => 'modelPicker',
-												'label' => 'Model',
-												'dependency' => 'apiProvider',
-												'options' => [ 
-													'open-key-ai' => [ 
-														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'open-ai' => [ 
-														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'google' => [ 
-														[ 'label' => 'gemini-1.5-flash', 'value' => 'gemini-1.5-flash' ],
-														[ 'label' => 'gemini-1.5-pro', 'value' => 'gemini-1.5-pro' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'azure' => [ 
-														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'home-server' => [ 
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-												],
-												'default' => 'gpt-4o-mini',
-											],
-										],
-									],
-									[ 
-										'section' => 'Advanced Setting',
-										'fields' => [ 
-											[ 
-												'id' => 'englishPrompt',
-												'type' => 'textarea',
-												'label' => 'English Prompt',
-												'help' => 'The message to send to LLM',
-												'default' => 'Message sent to the model {|parameter_name|}',
-											],
-											[ 
-												'id' => 'vietnamesePrompt',
-												'type' => 'textarea',
-												'label' => 'Vietnamese Prompt',
-												'help' => 'The message to send to LLM',
-												'default' => 'Message sent to the model {|parameter_name|}',
-											],
-										],
-									],
-								],
-							],
-						],
-					],
-					[ 
-						'feedName' => 'grammar-suggestions',
-						'feedTitle' => 'Grammar Suggestions',
-						'applyTo' => 'essay',
-						'essayType' => [ 'task-2', 'task-2-ocr' ],
-						'steps' => [ 
-							[ 
-								'step' => 'Analyze',
-								'sections' => [ 
-									[ 
-										'section' => 'General Setting',
-										'fields' => [ 
-											[ 
-												'id' => 'apiProvider',
-												'type' => 'radio',
-												'label' => 'API Provider',
-												'help' => 'Select which API provider to use.',
-												'options' => [ 
-													[ 'label' => 'Open Key AI', 'value' => 'open-key-ai' ],
-													[ 'label' => 'Open AI', 'value' => 'open-ai' ],
-													[ 'label' => 'Google', 'value' => 'google' ],
-													[ 'label' => 'Azure', 'value' => 'azure' ],
-													[ 'label' => 'Home Server', 'value' => 'home-server' ],
-												],
-												'default' => 'open-key-ai',
-											],
-											[ 
-												'id' => 'model',
-												'type' => 'modelPicker',
-												'label' => 'Model',
-												'dependency' => 'apiProvider',
-												'options' => [ 
-													'open-key-ai' => [ 
-														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'open-ai' => [ 
-														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'google' => [ 
-														[ 'label' => 'gemini-1.5-flash', 'value' => 'gemini-1.5-flash' ],
-														[ 'label' => 'gemini-1.5-pro', 'value' => 'gemini-1.5-pro' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'azure' => [ 
-														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'home-server' => [ 
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-												],
-												'default' => 'gpt-4o-mini',
-											],
-										],
-									],
-									[ 
-										'section' => 'Advanced Setting',
-										'fields' => [ 
-											[ 
-												'id' => 'englishPrompt',
-												'type' => 'textarea',
-												'label' => 'English Prompt',
-												'help' => 'The message to send to LLM',
-												'default' => 'Message sent to the model {|parameter_name|}',
-											],
-											[ 
-												'id' => 'vietnamesePrompt',
-												'type' => 'textarea',
-												'label' => 'Vietnamese Prompt',
-												'help' => 'The message to send to LLM',
-												'default' => 'Message sent to the model {|parameter_name|}',
-											],
-										],
-									],
-								],
-							],
-						],
-					],
+					$this->createFeed( 'range-of-vocab', 'Range of Vocab', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'word-choice-collocation-style', 'Word choice, Collocation, Style', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'uncommon-vocab', 'Uncommon vocab', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'spelling-word-form-error', 'Spelling, Word Form Error', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+				],
+			],
+			[ 
+				'groupName' => 'grammatical-range-accuracy',
+				'groupTitle' => 'Grammatical Range & Accuracy',
+				'feeds' => [ 
+					$this->createFeed( 'range-of-structures', 'Range of Structures', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'grammar-accuracy', 'Grammar Accuracy', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
 				],
 			],
 			[ 
 				'groupName' => 'coherence-cohesion',
 				'groupTitle' => 'Coherence & Cohesion',
 				'feeds' => [ 
-					[ 
-						'feedName' => 'coherence-suggestions',
-						'feedTitle' => 'Coherence Suggestions',
-						'applyTo' => 'essay',
-						'essayType' => [ 'task-2', 'task-2-ocr' ],
-						'steps' => [ 
-							[ 
-								'step' => 'chain-of-thought',
-								'sections' => [ 
-									[ 
-										'section' => 'General Setting',
-										'fields' => [ 
-											[ 
-												'id' => 'apiProvider',
-												'type' => 'radio',
-												'label' => 'API Provider',
-												'help' => 'Select which API provider to use.',
-												'options' => [ 
-													[ 'label' => 'Open Key AI', 'value' => 'open-key-ai' ],
-													[ 'label' => 'Open AI', 'value' => 'open-ai' ],
-													[ 'label' => 'Google', 'value' => 'google' ],
-													[ 'label' => 'Azure', 'value' => 'azure' ],
-													[ 'label' => 'Home Server', 'value' => 'home-server' ],
-												],
-												'default' => 'open-key-ai',
-											],
-											[ 
-												'id' => 'model',
-												'type' => 'modelPicker',
-												'label' => 'Model',
-												'dependency' => 'apiProvider',
-												'options' => [ 
-													'open-key-ai' => [ 
-														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'open-ai' => [ 
-														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'google' => [ 
-														[ 'label' => 'gemini-1.5-flash', 'value' => 'gemini-1.5-flash' ],
-														[ 'label' => 'gemini-1.5-pro', 'value' => 'gemini-1.5-pro' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'azure' => [ 
-														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'home-server' => [ 
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-												],
-												'default' => 'gpt-4o-mini',
-											],
-										],
-									],
-									[ 
-										'section' => 'Advanced Setting',
-										'fields' => [ 
-											[ 
-												'id' => 'englishPrompt',
-												'type' => 'textarea',
-												'label' => 'English Prompt',
-												'help' => 'The message to send to LLM',
-												'default' => 'Message sent to the model {|parameter_name|}',
-											],
-											[ 
-												'id' => 'vietnamesePrompt',
-												'type' => 'textarea',
-												'label' => 'Vietnamese Prompt',
-												'help' => 'The message to send to LLM',
-												'default' => 'Message sent to the model {|parameter_name|}',
-											],
-										],
-									],
-								],
-							],
-							[ 
-								'step' => 'scoring',
-								'sections' => [ 
-									[ 
-										'section' => 'General Setting',
-										'fields' => [ 
-											[ 
-												'id' => 'apiProvider',
-												'type' => 'radio',
-												'label' => 'API Provider',
-												'help' => 'Select which API provider to use.',
-												'options' => [ 
-													[ 'label' => 'Open Key AI', 'value' => 'open-key-ai' ],
-													[ 'label' => 'Open AI', 'value' => 'open-ai' ],
-													[ 'label' => 'Google', 'value' => 'google' ],
-													[ 'label' => 'Azure', 'value' => 'azure' ],
-													[ 'label' => 'Home Server', 'value' => 'home-server' ],
-												],
-												'default' => 'open-key-ai',
-											],
-											[ 
-												'id' => 'model',
-												'type' => 'modelPicker',
-												'label' => 'Model',
-												'dependency' => 'apiProvider',
-												'options' => [ 
-													'open-key-ai' => [ 
-														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'open-ai' => [ 
-														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'google' => [ 
-														[ 'label' => 'gemini-1.5-flash', 'value' => 'gemini-1.5-flash' ],
-														[ 'label' => 'gemini-1.5-pro', 'value' => 'gemini-1.5-pro' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'azure' => [ 
-														[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-														[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-													'home-server' => [ 
-														[ 'label' => 'Other:', 'value' => 'other' ],
-													],
-												],
-												'default' => 'gpt-4o-mini',
-											],
-										],
-									],
-									[ 
-										'section' => 'Advanced Setting',
-										'fields' => [ 
-											[ 
-												'id' => 'englishPrompt',
-												'type' => 'textarea',
-												'label' => 'English Prompt',
-												'help' => 'The message to send to LLM',
-												'default' => 'Message sent to the model {|parameter_name|}',
-											],
-											[ 
-												'id' => 'vietnamesePrompt',
-												'type' => 'textarea',
-												'label' => 'Vietnamese Prompt',
-												'help' => 'The message to send to LLM',
-												'default' => 'Message sent to the model {|parameter_name|}',
-											],
-										],
-									],
-								],
-							]
-						],
-
-					],
+					$this->createFeed( 'flow', 'Flow', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'paragraphing', 'Paragraphing', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'referencing', 'Referencing', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'use-of-cohesive-devices', 'Use of Cohesive Devices', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
 				],
-			]
+			],
+			[ 
+				'groupName' => 'task-response',
+				'groupTitle' => 'Task Response',
+				'feeds' => [ 
+					$this->createFeed( 'relevance', 'Relevance', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'clear-opinion', 'Clear Opinion', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+					$this->createFeed( 'idea-development', 'Idea Development', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections ),
+					] ),
+				],
+			],
+			[ 
+				'groupName' => 'task-achievement',
+				'groupTitle' => 'Task Achievement',
+				'feeds' => [ 
+					$this->createFeed( 'use-data-accurately', 'Use data accurately', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections )
+					] ),
+					$this->createFeed( 'present-key-features', 'Present key features', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections )
+					] ),
+					$this->createFeed( 'use-data', 'Use data', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections )
+					] ),
+					$this->createFeed( 'present-an-overview', 'Present an overview', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections )
+					] ),
+					$this->createFeed( 'format', 'Format', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
+						$this->createStep( 'chain-of-thought', $commonSections ),
+						$this->createStep( 'scoring', $commonSections ),
+						$this->createStep( 'feedback', $commonSections )
+					] ),
+				],
+			],
+			[ 
+				'groupName' => 'improve-essay',
+				'groupTitle' => 'Improve Essay',
+				'feeds' => [ 
+					$this->createFeed(
+						'improve-essay-task-2',
+						'Improve Essay Task 2',
+						'essay',
+						[ 'task-2', 'task-2-ocr' ],
+						[ 
+							$this->createStep( 'feedback', $commonSections )
+						]
+					),
+					$this->createFeed(
+						'improve-essay-task-1',
+						'Improve Essay Task 1',
+						'essay',
+						[ 'task-1', 'task-1-ocr' ],
+						[ 
+							$this->createStep( 'feedback', $commonSections )
+						]
+					),
+				],
+			],
+
 		];
 
-		// Add filter to allow extending settings
 		return apply_filters( 'ieltssci_settings_config', $settings );
 	}
 }
