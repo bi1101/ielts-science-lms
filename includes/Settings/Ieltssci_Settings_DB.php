@@ -1,6 +1,6 @@
 <?php
 
-namespace IeltsScienceLMS\Core;
+namespace IeltsScienceLMS\Settings;
 
 class Ieltssci_Settings_DB {
 	private $table_name;

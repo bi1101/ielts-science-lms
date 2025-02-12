@@ -6,8 +6,8 @@ class Ieltssci_Core_Module {
 	public function __construct() {
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Settings();
-		new \IeltsScienceLMS\Core\Ieltssci_Settings();
-		new \IeltsScienceLMS\Core\Ieltssci_Settings_REST();
+		new \IeltsScienceLMS\Settings\Ieltssci_Settings();
+		new \IeltsScienceLMS\Settings\Ieltssci_Settings_REST();
 		add_filter( 'theme_page_templates', [ $this, 'add_custom_page_template' ] );
 		add_filter( 'template_include', [ $this, 'load_custom_page_template' ] );
 		add_filter( 'display_post_states', [ $this, 'add_module_page_post_state' ], 10, 2 );
