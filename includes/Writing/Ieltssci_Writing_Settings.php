@@ -12,6 +12,7 @@ class Ieltssci_Writing_Settings {
 		$writing_settings = [ 
 			'writing-apis' => [ 
 				'tab_label' => __( 'Writing APIs', 'ielts-science-lms' ),
+				'tab_type' => 'api-feeds',
 				'settings' => $this->writing_apis_settings(),
 			],
 		];

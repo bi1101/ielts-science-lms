@@ -324,13 +324,7 @@ class Ieltssci_Settings_REST {
 			return $result;
 		}
 
-		// Get and return updated settings
-		$updated_settings = $this->get_settings( $request )->get_data();
-		if ( is_wp_error( $updated_settings ) ) {
-			return new \WP_REST_Response( 'Settings updated, but could not retrieve updated settings.', 200 );
-		}
-
-		return new \WP_REST_Response( $updated_settings, 200 );
+		return new \WP_REST_Response( $result, 200 );
 	}
 
 	private function update_api_feed_settings( $settings, $tab ) {
@@ -368,7 +362,11 @@ class Ieltssci_Settings_REST {
 			}
 
 			$this->db->commit();
-			return true;
+
+			// Get and return updated settings
+			$updated_settings = $this->get_api_feed_settings( $tab );
+
+			return $updated_settings;
 
 		} catch (\Exception $e) {
 			$this->db->rollback();

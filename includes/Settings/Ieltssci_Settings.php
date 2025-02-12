@@ -52,22 +52,6 @@ class Ieltssci_Settings {
 		wp_enqueue_style( 'wp-admin' );
 	}
 
-	/**
-	 * Get the script handle for the current tab.
-	 *
-	 * @param string $current_tab
-	 * @return string
-	 */
-	private function get_tab_script_handle( $current_tab ) {
-		$tab_scripts = [ 
-			'writing-apis' => 'ielts-science-wp-admin-writing-apis',
-			'another-tab' => 'ielts-science-wp-admin-another-tab',
-			// Add more tab-script mappings as needed
-		];
-
-		return isset( $tab_scripts[ $current_tab ] ) ? $tab_scripts[ $current_tab ] : 'ielts-science-wp-admin-index';
-	}
-
 	public function enqueue_settings_assets( $admin_page ) {
 		if ( 'ielts-science-lms_page_ielts-science-lms-settings' !== $admin_page ) {
 			return;
@@ -76,9 +60,17 @@ class Ieltssci_Settings {
 		// Get current tab
 		$current_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'writing-apis';
 
+		$tabs = $this->settings_config->get_settings_config(); // Get all tabs
+		foreach ( $tabs as $tab ) {
+			if ( $tab['id'] === $current_tab ) {
+				$current_tab_type = $tab['type'];
+				break;
+			}
+		}
+
 		// Get the appropriate script handle for this tab
-		$script_handle = $this->get_tab_script_handle( $current_tab );
-		$style_handle = $script_handle . '-css';
+		$script_handle = "ielts-science-wp-admin-{$current_tab_type}";
+		$style_handle = "{$script_handle}-css";
 		$runtime_handle = 'ielts-science-wp-admin-runtime';
 
 		// Enqueue the runtime script if it's registered
@@ -128,7 +120,7 @@ class Ieltssci_Settings {
 	 * @param string $current_tab The currently active tab.
 	 */
 	private function render_tabs( $current_tab ) {
-		$tabs = $this->settings_config->get_settings_config(); // Get the tab list
+		$tabs = $this->settings_config->get_settings_config();
 
 		?>
 		<nav class="nav-tab-wrapper">

@@ -197,6 +197,7 @@ class Ieltssci_Settings_Config {
 				$tab_list[] = [ 
 					'id' => $tab_id,
 					'label' => $tab_data['tab_label'],
+					'type' => $tab_data['tab_type'],
 				];
 			}
 			return $tab_list;
