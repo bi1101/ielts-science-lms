@@ -18,6 +18,13 @@ class Ieltssci_Settings_REST {
 				'methods' => \WP_REST_Server::READABLE,
 				'callback' => [ $this, 'get_settings' ],
 				'permission_callback' => [ $this, 'check_permission' ],
+				'args' => [ 
+					'tab' => [ 
+						'required' => false,
+						'type' => 'string',
+						'sanitize_callback' => 'sanitize_key', // Important for security
+					],
+				],
 			],
 			[ 
 				'methods' => \WP_REST_Server::EDITABLE,
@@ -37,10 +44,18 @@ class Ieltssci_Settings_REST {
 		return current_user_can( 'manage_options' );
 	}
 
-	public function get_settings() {
+	public function get_settings( \WP_REST_Request $request ) {
+		// Get the 'tab' parameter from the request.
+		$tab = $request->get_param( 'tab' );
+
 		// 1. Get settingsConfig (from the Ieltssci_Settings class)
 		$settings_instance = new Ieltssci_Settings();
-		$settings_config = $settings_instance->get_settings_config();
+		$settings_config = $settings_instance->get_settings_config( $tab );  // Pass the $tab parameter
+
+		// Return early if settings config is empty.  This is important!
+		if ( empty( $settings_config ) ) {
+			return new \WP_REST_Response( [], 200 );
+		}
 
 		// 2. Query the database
 		$results = $this->db->get_all_settings();
@@ -230,7 +245,8 @@ class Ieltssci_Settings_REST {
 			$this->db->commit();
 
 			// Get and return updated settings
-			$updated_settings_response = $this->get_settings()->get_data();
+			// We need to re-fetch using the same 'tab' parameter.
+			$updated_settings_response = $this->get_settings( $request )->get_data(); // Pass the original request
 			if ( is_wp_error( $updated_settings_response ) ) {
 				return new \WP_REST_Response( 'Settings updated, but could not retrieve updated settings.', 200 );
 			}

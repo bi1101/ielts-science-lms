@@ -50,11 +50,95 @@ class Ieltssci_Settings {
 		wp_enqueue_style( 'wp-admin' );
 	}
 
+	/**
+	 * Get the script handle for the current tab.
+	 *
+	 * @param string $current_tab
+	 * @return string
+	 */
+	private function get_tab_script_handle( $current_tab ) {
+		$tab_scripts = [ 
+			'writing-apis' => 'ielts-science-wp-admin-writing-apis',
+			'another-tab' => 'ielts-science-wp-admin-another-tab',
+			// Add more tab-script mappings as needed
+		];
+
+		return isset( $tab_scripts[ $current_tab ] ) ? $tab_scripts[ $current_tab ] : 'ielts-science-wp-admin-index';
+	}
+
+	public function enqueue_settings_assets( $admin_page ) {
+		if ( 'ielts-science-lms_page_ielts-science-lms-settings' !== $admin_page ) {
+			return;
+		}
+
+		// Get current tab
+		$current_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'writing-apis';
+
+		// Get the appropriate script handle for this tab
+		$script_handle = $this->get_tab_script_handle( $current_tab );
+		$style_handle = $script_handle . '-css';
+		$runtime_handle = 'ielts-science-wp-admin-runtime';
+
+		// Enqueue the runtime script if it's registered
+		if ( wp_script_is( $runtime_handle, 'registered' ) ) {
+			wp_enqueue_script( $runtime_handle );
+		}
+
+		// Enqueue the tab-specific script if it's registered
+		if ( wp_script_is( $script_handle, 'registered' ) ) {
+			wp_enqueue_script( $script_handle );
+		}
+
+		// Enqueue the tab-specific style if it's registered
+		if ( wp_style_is( $style_handle, 'registered' ) ) {
+			wp_enqueue_style( $style_handle );
+		}
+
+		wp_enqueue_style( 'wp-components' );
+
+		// Localize the script with the REST API URL, nonce & settings config
+		wp_localize_script( $script_handle, 'ieltssciSettings', [ 
+			'apiRoot' => esc_url_raw( rest_url() ),
+			'nonce' => wp_create_nonce( 'wp_rest' ),
+			'settingsConfig' => $this->get_settings_config( $current_tab ),
+			'currentTab' => $current_tab
+		] );
+	}
+
 	public function settings_page() {
+		// Determine the current tab. Default to 'writing-apis' if none specified.
+		$current_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'writing-apis';
+
 		?>
 		<div class="wrap">
+			<h1><?php esc_html_e( 'IELTS Science LMS Settings', 'ielts-science-lms' ); ?></h1>
+
+			<?php $this->render_tabs( $current_tab ); ?>
+
 			<div id="ieltssci_settings_page"></div>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Renders the tab navigation.
+	 *
+	 * @param string $current_tab The currently active tab.
+	 */
+	private function render_tabs( $current_tab ) {
+		$tabs = $this->get_settings_config(); // Get the tab list
+
+		?>
+		<nav class="nav-tab-wrapper">
+			<?php foreach ( $tabs as $tab ) :
+				$active_class = ( $current_tab === $tab["id"] ) ? 'nav-tab-active' : '';
+				$url = add_query_arg( 'tab', $tab["id"], menu_page_url( 'ielts-science-lms-settings', false ) ); // Use menu_page_url
+				?>
+				<a href="<?php echo esc_url( $url ); ?>" class="nav-tab <?php echo esc_attr( $active_class ); ?>">
+					<?php echo esc_html( $tab["label"] ); ?>
+				</a>
+			<?php endforeach; ?>
+		</nav>
 		<?php
 	}
 
@@ -86,47 +170,6 @@ class Ieltssci_Settings {
 				wp_register_style( $css_handle, $css_src, [], $ver );
 			}
 		}
-	}
-
-	/**
-	 * Enqueue assets (scripts and styles) for the settings module.
-	 *
-	 * This function enqueues JavaScript and CSS files required for the settings module.
-	 * Asset files are expected to be in the 'admin/settings/build/' directory.
-	 *
-	 * @return void
-	 */
-	public function enqueue_settings_assets( $admin_page ) {
-		if ( 'ielts-science-lms_page_ielts-science-lms-settings' !== $admin_page ) {
-			return;
-		}
-
-		// Define the handle for the index script and style.
-		$script_handle = 'ielts-science-wp-admin-index';
-		$style_handle = 'ielts-science-wp-admin-index-css';
-		$runtime_handle = 'ielts-science-wp-admin-runtime';
-
-		// Enqueue the runtime script if it's registered.
-		if ( wp_script_is( $runtime_handle, 'registered' ) ) {
-			wp_enqueue_script( $runtime_handle );
-		}
-		// Enqueue the index script if it's registered.
-		if ( wp_script_is( $script_handle, 'registered' ) ) {
-			wp_enqueue_script( $script_handle );
-		}
-
-		// Enqueue the index style if it's registered.
-		if ( wp_style_is( $style_handle, 'registered' ) ) {
-			wp_enqueue_style( $style_handle );
-		}
-		wp_enqueue_style( 'wp-components' );
-
-		// Localize the index script with the REST API URL, nonce & settings config
-		wp_localize_script( $script_handle, 'ieltssciSettings', [ 
-			'apiRoot' => esc_url_raw( rest_url() ),
-			'nonce' => wp_create_nonce( 'wp_rest' ),
-			'settingsConfig' => $this->get_settings_config(),
-		] );
 	}
 
 	public function pages_settings_page() {
@@ -413,7 +456,7 @@ class Ieltssci_Settings {
 	 *
 	 * @return array The field configuration array.
 	 */
-	protected function createField( string $id, string $type, string $label, string $help = '', $default = null, array $options = [], string $dependency = '', array $extra_attrs = [] ): array {
+	public function createField( string $id, string $type, string $label, string $help = '', $default = null, array $options = [], string $dependency = '', array $extra_attrs = [] ): array {
 		$field = [ 
 			'id' => $id,
 			'type' => $type,
@@ -445,7 +488,7 @@ class Ieltssci_Settings {
 	 * @param mixed $default (Optional) Default value.
 	 * @return array The API provider field configuration.
 	 */
-	protected function createApiProviderField( $default = 'open-key-ai' ): array {
+	public function createApiProviderField( $default = 'open-key-ai' ): array {
 		return $this->createField(
 			'apiProvider',
 			'radio',
@@ -471,7 +514,7 @@ class Ieltssci_Settings {
 	 *
 	 * @return array The model picker field configuration.
 	 */
-	protected function createModelPickerField( string $dependency, array $options, $default = 'gpt-4o-mini' ): array {
+	public function createModelPickerField( string $dependency, array $options, $default = 'gpt-4o-mini' ): array {
 		return $this->createField(
 			'model',
 			'modelPicker',
@@ -489,7 +532,7 @@ class Ieltssci_Settings {
 	 * @param array $providerOptions Model options specific to a provider.
 	 * @return array Combined options, including the "Other:" option.
 	 */
-	protected function getModelOptions( array $providerOptions ): array {
+	public function getModelOptions( array $providerOptions ): array {
 		$options = [];
 		foreach ( $providerOptions as $provider => $models ) {
 			$options[ $provider ] = $models;
@@ -516,7 +559,7 @@ class Ieltssci_Settings {
 	 *
 	 * @return array The prompt field configuration.
 	 */
-	protected function createPromptField( string $id, string $label, string $default ): array {
+	public function createPromptField( string $id, string $label, string $default ): array {
 		return $this->createField(
 			$id,
 			'textarea',
@@ -534,7 +577,7 @@ class Ieltssci_Settings {
 	 *
 	 * @return array The section configuration.
 	 */
-	protected function createSection( string $sectionName, array $fields ): array {
+	public function createSection( string $sectionName, array $fields ): array {
 		return [ 
 			'section' => $sectionName,
 			'fields' => $fields,
@@ -549,7 +592,7 @@ class Ieltssci_Settings {
 	 *
 	 * @return array The step configuration.
 	 */
-	protected function createStep( string $stepName, array $sections ): array {
+	public function createStep( string $stepName, array $sections ): array {
 		return [ 
 			'step' => $stepName,
 			'sections' => $sections,
@@ -566,7 +609,7 @@ class Ieltssci_Settings {
 	 * @param array $steps
 	 * @return array
 	 */
-	protected function createFeed( string $feedName, string $feedTitle, string $applyTo, array $essayType, array $steps ): array {
+	public function createFeed( string $feedName, string $feedTitle, string $applyTo, array $essayType, array $steps ): array {
 		return [ 
 			'feedName' => $feedName,
 			'feedTitle' => $feedTitle,
@@ -579,307 +622,30 @@ class Ieltssci_Settings {
 	/**
 	 * Generates the main settings configuration.
 	 *
-	 * @return array The complete settings configuration.
+	 * @param string|null $tab The tab ID to retrieve settings for, or null for the tab list.
+	 *
+	 * @return array The settings configuration, or null if the tab is not found.
 	 */
-	public function get_settings_config() {
+	public function get_settings_config( $tab = null ) {
+		$all_settings = apply_filters( 'ieltssci_settings_config', [] );
 
-		$defaultModelOptions = $this->getModelOptions( [ 
-			'open-key-ai' => [ 
-				[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-				[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-			],
-			'open-ai' => [ 
-				[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-				[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-			],
-			'google' => [ 
-				[ 'label' => 'gemini-1.5-flash', 'value' => 'gemini-1.5-flash' ],
-				[ 'label' => 'gemini-1.5-pro', 'value' => 'gemini-1.5-pro' ],
-			],
-			'azure' => [ 
-				[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-				[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-			],
-			'home-server' => [],
-		] );
-
-		$commonGeneralFields = [ 
-			$this->createApiProviderField(),
-			$this->createModelPickerField( 'apiProvider', $defaultModelOptions ),
-			$this->createPromptField( 'englishPrompt', 'English Prompt', 'Message sent to the model {|parameter_name|}' ),
-			$this->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', 'Message sent to the model {|parameter_name|}' ),
-
-		];
-
-		$commonAdvancedFields = [ 
-			$this->createField( 'maxToken', 'number', 'Max Token', 'The maximum number of tokens to generate.', 2048 ),
-			$this->createField( 'temperature', 'number', 'Temperature', 'The value used to module the next token probabilities.', 0.1 ),
-		];
-
-		$commonSections = [ 
-			$this->createSection( 'general-setting', $commonGeneralFields ),
-			$this->createSection( 'advanced-setting', $commonAdvancedFields ),
-		];
-
-		$settings = [ 
-			[ 
-				'groupName' => 'vocabulary-suggestions',
-				'groupTitle' => 'Vocabulary Suggestions',
-				'feeds' => [ 
-					$this->createFeed(
-						'vocabulary-suggestions',
-						'Vocabulary Suggestions',
-						'essay',
-						[ 'task-2', 'task-2-ocr' ],
-						[ 
-							$this->createStep( 'feedback', $commonSections )
-						] ),
-				],
-			],
-			[ 
-				'groupName' => 'grammar-suggestions',
-				'groupTitle' => 'Grammar Suggestions',
-				'feeds' => [ 
-					$this->createFeed(
-						'grammar-suggestions',
-						'Grammar Suggestions',
-						'essay',
-						[ 'task-2', 'task-2-ocr' ],
-						[ 
-							$this->createStep( 'feedback', $commonSections )
-						] ),
-				],
-			],
-			[ 
-				'groupName' => 'argument-enhance',
-				'groupTitle' => 'Argument Enhance',
-				'feeds' => [ 
-					$this->createFeed(
-						'segmenting',
-						'Segmenting',
-						'essay',
-						[ 'task-2', 'task-2-ocr' ],
-						[ $this->createStep( 'output', [ 
-							$this->createSection( 'general-setting', [ 
-								$this->createApiProviderField( 'home-server' ),
-								$this->createModelPickerField( 'apiProvider', $defaultModelOptions, 'bihungba1101/segmenting-paragraph' ),
-								$this->createPromptField( 'englishPrompt', 'English Prompt', '{|each_paragraph_in_essay|}' ),
-								$this->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', '{|each_paragraph_in_essay|}' ),
-							] ),
-							$this->createSection( 'advanced-setting', $commonAdvancedFields )
-						] )
-						] ),
-					$this->createFeed( 'introduction-relevance', 'Introduction Relevance', 'introduction', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'introduction-clear-answer', 'Introduction Clear Answer/Clear Opinion', 'introduction', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'introduction-brief-overview', 'Introduction Brief Overview', 'introduction', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'introduction-rewrite', 'Introduction Rewrite', 'introduction', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'feedback', [ $this->createSection( 'general-setting', $commonGeneralFields ), $this->createSection( 'advanced-setting', $commonAdvancedFields ) ] )
-					] ),
-					$this->createFeed( 'topic-sentence-linking', 'Topic Sentence Linking', 'topic-sentence', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'topic-sentence-relevance', 'Topic Sentence Relevance', 'topic-sentence', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'topic-sentence-rewrite', 'Topic Sentence Rewrite', 'topic-sentence', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'feedback', [ $this->createSection( 'general-setting', $commonGeneralFields ), $this->createSection( 'advanced-setting', $commonAdvancedFields ) ] )
-					] ),
-					$this->createFeed( 'main-point-logic-depth', 'Main Point Logic & Depth', 'main-point', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'main-point-overgeneralize', 'Main Point Overgeneralize', 'main-point', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'main-point-relevance', 'Main Point Relevance', 'main-point', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'main-point-rewrite', 'Main Point Rewrite', 'main-point', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'feedback', [ $this->createSection( 'general-setting', $commonGeneralFields ), $this->createSection( 'advanced-setting', $commonAdvancedFields ) ] )
-					] ),
-					$this->createFeed( 'conclusion-relevance', 'Conclusion Relevance', 'conclusion', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'conclusion-clear-answer', 'Conclusion Clear Answer/Clear Opinion', 'conclusion', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'conclusion-rewrite', 'Conclusion Rewrite', 'conclusion', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'feedback', [ $this->createSection( 'general-setting', $commonGeneralFields ), $this->createSection( 'advanced-setting', $commonAdvancedFields ) ] )
-					] ),
-				],
-			],
-			[ 
-				'groupName' => 'lexical-resource',
-				'groupTitle' => 'Lexical Resource',
-				'feeds' => [ 
-					$this->createFeed( 'range-of-vocab', 'Range of Vocab', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'word-choice-collocation-style', 'Word choice, Collocation, Style', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'uncommon-vocab', 'Uncommon vocab', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'spelling-word-form-error', 'Spelling, Word Form Error', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-				],
-			],
-			[ 
-				'groupName' => 'grammatical-range-accuracy',
-				'groupTitle' => 'Grammatical Range & Accuracy',
-				'feeds' => [ 
-					$this->createFeed( 'range-of-structures', 'Range of Structures', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'grammar-accuracy', 'Grammar Accuracy', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-				],
-			],
-			[ 
-				'groupName' => 'coherence-cohesion',
-				'groupTitle' => 'Coherence & Cohesion',
-				'feeds' => [ 
-					$this->createFeed( 'flow', 'Flow', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'paragraphing', 'Paragraphing', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'referencing', 'Referencing', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'use-of-cohesive-devices', 'Use of Cohesive Devices', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-				],
-			],
-			[ 
-				'groupName' => 'task-response',
-				'groupTitle' => 'Task Response',
-				'feeds' => [ 
-					$this->createFeed( 'relevance', 'Relevance', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'clear-opinion', 'Clear Opinion', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-					$this->createFeed( 'idea-development', 'Idea Development', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections ),
-					] ),
-				],
-			],
-			[ 
-				'groupName' => 'task-achievement',
-				'groupTitle' => 'Task Achievement',
-				'feeds' => [ 
-					$this->createFeed( 'use-data-accurately', 'Use data accurately', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections )
-					] ),
-					$this->createFeed( 'present-key-features', 'Present key features', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections )
-					] ),
-					$this->createFeed( 'use-data', 'Use data', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections )
-					] ),
-					$this->createFeed( 'present-an-overview', 'Present an overview', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections )
-					] ),
-					$this->createFeed( 'format', 'Format', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
-						$this->createStep( 'chain-of-thought', $commonSections ),
-						$this->createStep( 'scoring', $commonSections ),
-						$this->createStep( 'feedback', $commonSections )
-					] ),
-				],
-			],
-			[ 
-				'groupName' => 'improve-essay',
-				'groupTitle' => 'Improve Essay',
-				'feeds' => [ 
-					$this->createFeed(
-						'improve-essay-task-2',
-						'Improve Essay Task 2',
-						'essay',
-						[ 'task-2', 'task-2-ocr' ],
-						[ 
-							$this->createStep( 'feedback', $commonSections )
-						]
-					),
-					$this->createFeed(
-						'improve-essay-task-1',
-						'Improve Essay Task 1',
-						'essay',
-						[ 'task-1', 'task-1-ocr' ],
-						[ 
-							$this->createStep( 'feedback', $commonSections )
-						]
-					),
-				],
-			],
-
-		];
-
-		return apply_filters( 'ieltssci_settings_config', $settings );
+		if ( $tab === null ) {
+			// Return only the tab list (id and label)
+			$tab_list = [];
+			foreach ( $all_settings as $tab_id => $tab_data ) {
+				$tab_list[] = [ 
+					'id' => $tab_id,
+					'label' => $tab_data['tab_label'],
+				];
+			}
+			return $tab_list;
+		} else {
+			// Return the full settings for the specified tab
+			if ( isset( $all_settings[ $tab ] ) ) {
+				return $all_settings[ $tab ]['settings'];
+			} else {
+				return []; // Or null, depending on how you want to handle it in JS
+			}
+		}
 	}
 }
