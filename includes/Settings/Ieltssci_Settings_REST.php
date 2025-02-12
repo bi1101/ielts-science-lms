@@ -184,8 +184,10 @@ class Ieltssci_Settings_REST {
 	}
 
 	public function update_settings( \WP_REST_Request $request ) {
+		// Validate request parameters
 		$type = $request->get_param( 'type' );
 		$settings = $request->get_param( 'settings' );
+		$tab = $request->get_param( 'tab' );
 
 		if ( empty( $type ) ) {
 			return new \WP_Error( 400, 'No type provided.' );
@@ -195,106 +197,113 @@ class Ieltssci_Settings_REST {
 			return new \WP_Error( 400, 'No settings provided.' );
 		}
 
-		$this->db->start_transaction();
-
-		$result = match ( $type ) {
-			'api-feeds' => $this->update_api_feed_settings( $settings, $request ),
-			default => new \WP_Error( 400, 'Invalid type.' ),
-		};
-
-		if ( is_wp_error( $result ) ) {
-			$this->db->rollback();
-			return $result;
-		}
-
-		$this->db->commit();
-
-		// Get and return updated settings
-		$updated_settings_response = $this->get_settings( $request )->get_data();
-		if ( is_wp_error( $updated_settings_response ) ) {
-			return new \WP_REST_Response( 'Settings updated, but could not retrieve updated settings.', 200 );
-		}
-
-		return new \WP_REST_Response( $updated_settings_response, 200 );
-	}
-
-	private function update_api_feed_settings( $settings, \WP_REST_Request $request ) {
-
-		$tab = $request->get_param( 'tab' );
-
 		if ( empty( $tab ) ) {
 			return new \WP_Error( 400, 'No tab provided.' );
 		}
 
+		// Process based on type
+		$result = match ( $type ) {
+			'api-feeds' => $this->update_api_feed_settings( $settings, $tab ),
+			default => new \WP_Error( 400, 'Invalid type.' ),
+		};
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		// Get and return updated settings
+		$updated_settings = $this->get_settings( $request )->get_data();
+		if ( is_wp_error( $updated_settings ) ) {
+			return new \WP_REST_Response( 'Settings updated, but could not retrieve updated settings.', 200 );
+		}
+
+		return new \WP_REST_Response( $updated_settings, 200 );
+	}
+
+	private function update_api_feed_settings( $settings, $tab ) {
 		if ( ! isset( $settings ) || ! is_array( $settings ) ) {
 			return new \WP_Error( '400', 'Invalid settings format for API feeds.' );
 		}
 
-		foreach ( $settings as $group ) {
-			if ( ! isset( $group['feeds'] ) || ! is_array( $group['feeds'] ) ) {
-				return new \WP_Error( '400', 'Invalid feeds format.' );
+		$this->db->start_transaction();
+
+		try {
+			foreach ( $settings as $group ) {
+				if ( ! isset( $group['feeds'] ) || ! is_array( $group['feeds'] ) ) {
+					throw new \Exception( 'Invalid feeds format.' );
+				}
+
+				foreach ( $group['feeds'] as $feed ) {
+					if ( ! isset( $feed['feedName'], $feed['feedTitle'], $feed['processOrder'], $feed['applyTo'], $feed['essayType'] )
+						|| ! is_array( $feed['essayType'] ) ) {
+						throw new \Exception( 'Missing required feed fields or essayType is not an array.' );
+					}
+
+					$existing_essay_types = $this->db->get_existing_essay_types( $feed['feedName'], $feed['applyTo'], $feed['id'] ?? 0 );
+					$essay_types_to_delete = array_diff( $existing_essay_types, $feed['essayType'] );
+
+					if ( ! empty( $essay_types_to_delete ) ) {
+						$this->db->delete_essay_types( $feed['feedName'], $feed['applyTo'], $essay_types_to_delete );
+					}
+
+					// Process new essay types
+					$this->process_new_essay_types( $feed );
+
+					// Update existing essay types
+					$this->update_existing_essay_types( $feed, $existing_essay_types );
+				}
 			}
 
-			foreach ( $group['feeds'] as $feed ) {
-				if ( ! isset( $feed['feedName'], $feed['feedTitle'], $feed['processOrder'], $feed['applyTo'], $feed['essayType'] )
-					|| ! is_array( $feed['essayType'] ) ) {
-					return new \WP_Error( 400, 'Missing required feed fields or essayType is not an array.' );
-				}
+			$this->db->commit();
+			return true;
 
-				$existing_essay_types = $this->db->get_existing_essay_types( $feed['feedName'], $feed['applyTo'], $feed['id'] ?? 0 );
-				$essay_types_to_delete = array_diff( $existing_essay_types, $feed['essayType'] );
+		} catch (\Exception $e) {
+			$this->db->rollback();
+			return new \WP_Error( 400, $e->getMessage() );
+		}
+	}
 
-				if ( ! empty( $essay_types_to_delete ) ) {
-					$this->db->delete_essay_types( $feed['feedName'], $feed['applyTo'], $essay_types_to_delete );
-				}
+	private function process_new_essay_types( $feed ) {
+		$existing_essay_types = $this->db->get_existing_essay_types( $feed['feedName'], $feed['applyTo'], $feed['id'] ?? 0 );
+		$essay_types_to_add = array_diff( $feed['essayType'], $existing_essay_types );
 
-				$essay_types_to_add = array_diff( $feed['essayType'], $existing_essay_types );
+		foreach ( $essay_types_to_add as $essay_type ) {
+			$data = $this->prepare_feed_data( $feed, $essay_type );
+			$meta_data = $this->prepare_meta_data( $feed );
 
-				foreach ( $essay_types_to_add as $essay_type ) {
-					$data = [ 
-						'feedback_criteria' => $feed['feedName'],
-						'feed_title' => $feed['feedTitle'],
-						'process_order' => (int) $feed['processOrder'],
-						'essay_type' => $essay_type,
-						'apply_to' => $feed['applyTo'],
-						'feed_desc' => $feed['feedDesc'] ?? null,
-					];
-
-					$meta_data = [];
-					if ( isset( $feed['steps'] ) ) {
-						$meta_data['steps'] = $feed['steps'];
-					}
-
-					$insert_result = $this->db->insert_feed_setting( $data, $meta_data );
-					if ( ! $insert_result ) {
-						return new \WP_Error( 400, "Failed to insert feed setting for {$feed['feedName']} and essay type $essay_type" );
-					}
-				}
-
-				// Update existing essay_type
-				foreach ( $existing_essay_types as $essay_type ) {
-					$data = [ 
-						'feedback_criteria' => $feed['feedName'],
-						'feed_title' => $feed['feedTitle'],
-						'process_order' => (int) $feed['processOrder'],
-						'essay_type' => $essay_type,
-						'apply_to' => $feed['applyTo'],
-						'feed_desc' => $feed['feedDesc'] ?? null,
-					];
-
-					$meta_data = [];
-					if ( isset( $feed['steps'] ) ) {
-						$meta_data['steps'] = $feed['steps'];
-					}
-
-					$update_result = $this->db->update_feed_setting( $feed['id'], $data, $meta_data );
-					if ( ! $update_result ) {
-						return new \WP_Error( 400, "Failed to update feed setting for ID {$feed['id']} and essay type $essay_type" );
-					}
-				}
+			if ( ! $this->db->insert_feed_setting( $data, $meta_data ) ) {
+				throw new \Exception( "Failed to insert feed setting for {$feed['feedName']} and essay type $essay_type" );
 			}
 		}
+	}
 
-		return true;
+	private function update_existing_essay_types( $feed, $existing_essay_types ) {
+		foreach ( $existing_essay_types as $essay_type ) {
+			$data = $this->prepare_feed_data( $feed, $essay_type );
+			$meta_data = $this->prepare_meta_data( $feed );
+
+			if ( ! $this->db->update_feed_setting( $feed['id'], $data, $meta_data ) ) {
+				throw new \Exception( "Failed to update feed setting for ID {$feed['id']} and essay type $essay_type" );
+			}
+		}
+	}
+
+	private function prepare_feed_data( $feed, $essay_type ) {
+		return [ 
+			'feedback_criteria' => $feed['feedName'],
+			'feed_title' => $feed['feedTitle'],
+			'process_order' => (int) $feed['processOrder'],
+			'essay_type' => $essay_type,
+			'apply_to' => $feed['applyTo'],
+			'feed_desc' => $feed['feedDesc'] ?? null,
+		];
+	}
+
+	private function prepare_meta_data( $feed ) {
+		$meta_data = [];
+		if ( isset( $feed['steps'] ) ) {
+			$meta_data['steps'] = $feed['steps'];
+		}
+		return $meta_data;
 	}
 }
