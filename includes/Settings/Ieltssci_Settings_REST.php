@@ -69,10 +69,14 @@ class Ieltssci_Settings_REST {
 			default => new \WP_Error( 400, 'Invalid type.' ),
 		};
 
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
 		return new \WP_REST_Response( $result, 200 );
 	}
 
-	private function get_api_feed_settings( $tab ) {
+	public function get_api_feed_settings( $tab ) {
 		// 1. Get settingsConfig (from the Ieltssci_Settings class)
 		$settings_config_instance = new Ieltssci_Settings_Config();
 		$settings_config = $settings_config_instance->get_settings_config( $tab );  // Pass the $tab parameter
