@@ -62,14 +62,24 @@ class Ieltssci_Settings_REST {
 	public function get_settings( \WP_REST_Request $request ) {
 		// Get the 'tab' parameter from the request.
 		$tab = $request->get_param( 'tab' );
+		$type = $request->get_param( 'type' );
 
+		$result = match ( $type ) {
+			'api-feeds' => $this->get_api_feed_settings( $tab ),
+			default => new \WP_Error( 400, 'Invalid type.' ),
+		};
+
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	private function get_api_feed_settings( $tab ) {
 		// 1. Get settingsConfig (from the Ieltssci_Settings class)
 		$settings_config_instance = new Ieltssci_Settings_Config();
 		$settings_config = $settings_config_instance->get_settings_config( $tab );  // Pass the $tab parameter
 
-		// Return early if settings config is empty.  This is important!
+		// Return early if settings config is empty.
 		if ( empty( $settings_config ) ) {
-			return new \WP_REST_Response( [], 200 );
+			return [];
 		}
 
 		// 2. Query the database
@@ -180,7 +190,7 @@ class Ieltssci_Settings_REST {
 		}
 
 		// 11. Return the flattened settings
-		return new \WP_REST_Response( $finalSettings, 200 );
+		return $finalSettings;
 	}
 
 	public function update_settings( \WP_REST_Request $request ) {
