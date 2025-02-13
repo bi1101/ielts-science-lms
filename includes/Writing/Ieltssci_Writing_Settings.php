@@ -97,7 +97,7 @@ class Ieltssci_Writing_Settings {
 					$settingsConfigInstance->createFeed(
 						'segmenting',
 						'Segmenting',
-						'essay',
+						'paragraph',
 						[ 'task-2', 'task-2-ocr' ],
 						[ $settingsConfigInstance->createStep( 'output', [ 
 							$settingsConfigInstance->createSection( 'general-setting', [ 
