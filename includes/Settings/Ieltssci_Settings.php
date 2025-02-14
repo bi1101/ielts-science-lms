@@ -13,7 +13,6 @@ class Ieltssci_Settings {
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_settings_assets' ] );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
 		add_action( 'wp_ajax_ielts_create_page_ajax', [ $this, 'handle_create_page_ajax' ] );
-		add_action( 'ieltssci_activate', [ $this, 'on_activate' ] );
 	}
 
 	public function register_admin_menu() {
@@ -53,6 +52,7 @@ class Ieltssci_Settings {
 	}
 
 	public function enqueue_settings_assets( $admin_page ) {
+		$db = new Ieltssci_Settings_DB();
 		if ( 'ielts-science-lms_page_ielts-science-lms-settings' !== $admin_page ) {
 			return;
 		}
@@ -90,13 +90,23 @@ class Ieltssci_Settings {
 
 		wp_enqueue_style( 'wp-components' );
 
+		match ( $current_tab_type ) {
+			'api-feeds' => wp_localize_script( $script_handle, 'ieltssciSettings', [ 
+				'apiRoot' => esc_url_raw( rest_url() ),
+				'nonce' => wp_create_nonce( 'wp_rest' ),
+				'settingsConfig' => $this->settings_config->get_settings_config( $current_tab ),
+				'currentTab' => $current_tab
+			] ),
+			'rate-limits' => wp_localize_script( $script_handle, 'ieltssciRateLimits', [ 
+				'apiRoot' => esc_url_raw( rest_url() ),
+				'nonce' => wp_create_nonce( 'wp_rest' ),
+				// All Roles in WP
+				'roles' => wp_roles()->roles,
+				'feeds' => $db->get_all_settings(),
+			] ),
+		};
 		// Localize the script with the REST API URL, nonce & settings config
-		wp_localize_script( $script_handle, 'ieltssciSettings', [ 
-			'apiRoot' => esc_url_raw( rest_url() ),
-			'nonce' => wp_create_nonce( 'wp_rest' ),
-			'settingsConfig' => $this->settings_config->get_settings_config( $current_tab ),
-			'currentTab' => $current_tab
-		] );
+
 	}
 
 	public function settings_page() {
@@ -393,47 +403,4 @@ class Ieltssci_Settings {
 
 		return $sanitized_input;
 	}
-
-	private function create_api_feeds_table() {
-		global $wpdb;
-		$table_name = $wpdb->prefix . 'ieltssci_api_feed';
-		$charset_collate = $wpdb->get_charset_collate();
-		$db_version = '0.0.1';
-		$current_version = get_option( 'ieltssci_api_feed_db_version' );
-
-		// If table exists and versions match, return early
-		if ( $wpdb->get_var( "SHOW TABLES LIKE '$table_name'" ) === $table_name
-			&& $current_version === $db_version ) {
-			return;
-		}
-
-		$sql = "CREATE TABLE $table_name (
-			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-			feedback_criteria varchar(191) NOT NULL,
-			feed_title varchar(191) NOT NULL,
-			feed_desc text DEFAULT NULL,
-			process_order int(11) UNSIGNED NOT NULL DEFAULT 0,
-			essay_type varchar(50) NOT NULL,
-			apply_to varchar(50) NOT NULL,
-			meta longtext NOT NULL,
-			created_at datetime DEFAULT CURRENT_TIMESTAMP,
-			updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			PRIMARY KEY  (id),
-			KEY feedback_criteria (feedback_criteria),
-			KEY essay_type (essay_type)
-		) $charset_collate;";
-
-		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
-		dbDelta( $sql );
-
-		// Update version if needed
-		if ( $current_version !== $db_version ) {
-			update_option( 'ieltssci_api_feed_db_version', $db_version );
-		}
-	}
-
-	public function on_activate() {
-		$this->create_api_feeds_table();
-	}
-
 }

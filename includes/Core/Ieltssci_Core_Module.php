@@ -3,11 +3,15 @@
 namespace IeltsScienceLMS\Core;
 
 class Ieltssci_Core_Module {
+	private $db_schema;
 	public function __construct() {
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Settings();
 		new \IeltsScienceLMS\Settings\Ieltssci_Settings();
 		new \IeltsScienceLMS\Settings\Ieltssci_Settings_REST();
+		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit_Module();
+		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit_Settings();
+		$this->db_schema = new Ieltssci_Database_Schema();
 		add_filter( 'theme_page_templates', [ $this, 'add_custom_page_template' ] );
 		add_filter( 'template_include', [ $this, 'load_custom_page_template' ] );
 		add_filter( 'display_post_states', [ $this, 'add_module_page_post_state' ], 10, 2 );
@@ -23,6 +27,10 @@ class Ieltssci_Core_Module {
 	 */
 	public function activate() {
 		$this->check_wp_version();
+
+		if ( $this->db_schema->needs_upgrade() ) {
+			$this->db_schema->create_tables();
+		}
 		// Trigger settings table creation
 		do_action( 'ieltssci_activate' );
 	}
