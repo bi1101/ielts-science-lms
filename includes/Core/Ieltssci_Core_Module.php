@@ -8,7 +8,7 @@ class Ieltssci_Core_Module {
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Settings();
 		new \IeltsScienceLMS\Settings\Ieltssci_Settings();
-		new \IeltsScienceLMS\Settings\Ieltssci_Settings_REST();
+		new \IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_REST();
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit_Module();
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit_Settings();
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit_REST();

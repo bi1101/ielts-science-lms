@@ -52,7 +52,7 @@ class Ieltssci_Settings {
 	}
 
 	public function enqueue_settings_assets( $admin_page ) {
-		$db = new Ieltssci_Settings_DB();
+
 		if ( 'ielts-science-lms_page_ielts-science-lms-settings' !== $admin_page ) {
 			return;
 		}
@@ -102,7 +102,7 @@ class Ieltssci_Settings {
 				'nonce' => wp_create_nonce( 'wp_rest' ),
 				// All Roles in WP
 				'roles' => wp_roles()->roles,
-				'feeds' => $db->get_all_settings(),
+				// 'feeds' => $db->get_all_settings(),
 			] ),
 		};
 		// Localize the script with the REST API URL, nonce & settings config
