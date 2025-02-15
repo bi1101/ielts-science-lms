@@ -100,9 +100,18 @@ class Ieltssci_Settings {
 			'rate-limits' => wp_localize_script( $script_handle, 'ieltssciRateLimits', [ 
 				'apiRoot' => esc_url_raw( rest_url() ),
 				'nonce' => wp_create_nonce( 'wp_rest' ),
-				// All Roles in WP
 				'roles' => wp_roles()->roles,
-				// 'feeds' => $db->get_all_settings(),
+				'feeds' => array_reduce(
+					( new \IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_DB() )->get_all_api_feeds_settings(),
+					function ($result, $item) {
+							$id = $item['id'];
+							if ( ! isset( $result[ $id ] ) ) {
+								$result[ $id ] = $item;
+							}
+							return $result;
+						},
+					[]
+				),
 			] ),
 		};
 		// Localize the script with the REST API URL, nonce & settings config
