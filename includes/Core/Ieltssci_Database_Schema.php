@@ -16,17 +16,18 @@ class Ieltssci_Database_Schema {
 
 		try {
 			$this->create_api_feeds_table();
+			$this->create_api_feed_essay_type_table();
 			$this->create_rate_limit_rule_table();
 			$this->create_api_feed_rate_limit_rule_table();
 			$this->create_role_rate_limit_rule_table();
 
 			update_option( 'ieltssci_db_version', $this->db_version );
 			$this->wpdb->query( 'COMMIT' );
-			return true;
+			return;
 		} catch (\Exception $e) {
 			$this->wpdb->query( 'ROLLBACK' );
 			error_log( 'Database creation failed: ' . $e->getMessage() );
-			return false;
+			return new \WP_Error( 500, 'Database creation failed' );
 		}
 	}
 
@@ -39,15 +40,35 @@ class Ieltssci_Database_Schema {
             feedback_criteria varchar(191) NOT NULL,
             feed_title varchar(191) NOT NULL,
             feed_desc text DEFAULT NULL,
-            process_order int(11) UNSIGNED NOT NULL DEFAULT 0,
-            essay_type varchar(50) NOT NULL,
             apply_to varchar(50) NOT NULL,
             meta longtext NOT NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
-            KEY feedback_criteria (feedback_criteria(191)),
-            KEY essay_type (essay_type(50))
+            KEY feedback_criteria (feedback_criteria(191))
+        ) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	private function create_api_feed_essay_type_table() {
+		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_feed_essay_type';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+            id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            api_feed_id bigint(20) UNSIGNED NOT NULL,
+            essay_type varchar(191) NOT NULL,
+            process_order int(11) NOT NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY api_feed_id (api_feed_id),
+            KEY essay_type (essay_type(191)),
+            CONSTRAINT fk_essay_type_api_feed 
+                FOREIGN KEY (api_feed_id) 
+                REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "api_feed(id) 
+                ON DELETE CASCADE
         ) $charset_collate";
 
 		return $this->execute_sql( $sql );
@@ -85,7 +106,7 @@ class Ieltssci_Database_Schema {
             PRIMARY KEY  (id),
             KEY api_feed_id (api_feed_id),
             KEY rate_limit_rule_id (rate_limit_rule_id),
-            CONSTRAINT fk_api_feed 
+            CONSTRAINT fk_rate_limit_api_feed 
                 FOREIGN KEY (api_feed_id) 
                 REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "api_feed(id) 
                 ON DELETE CASCADE,
