@@ -237,6 +237,7 @@ class Ieltssci_ApiFeeds_REST {
 		// Process based on type
 		$result = match ( $type ) {
 			'api-feeds' => $this->update_api_feed_settings( $settings, $tab ),
+			'api-feeds-process-order' => $this->update_process_order_settings( $settings, $tab ),
 			default => new \WP_Error( 400, 'Invalid type.' ),
 		};
 
@@ -271,6 +272,66 @@ class Ieltssci_ApiFeeds_REST {
 			// Get and return updated settings
 			$updated_settings = $this->get_api_feed_settings( $tab );
 			return $updated_settings;
+
+		} catch (\Exception $e) {
+			$this->db->rollback();
+			return new \WP_Error( 400, $e->getMessage() );
+		}
+	}
+
+	private function update_process_order_settings( $settings, $tab ) {
+		if ( ! is_array( $settings ) ) {
+			return new \WP_Error( '400', 'Invalid settings format.' );
+		}
+
+		$this->db->start_transaction();
+
+		try {
+			// Get current process orders from DB for comparison
+			$current_settings = $this->db->get_all_api_feeds_settings();
+			$current_orders = [];
+
+			// Create lookup of current process orders
+			foreach ( $current_settings as $feed ) {
+				if ( ! empty( $feed['essay_type'] ) ) {
+					$key = $feed['essay_type'] . '-' . $feed['id'];
+					$current_orders[ $key ] = (int) $feed['process_order'];
+				}
+			}
+
+			// Track changes to minimize DB operations
+			$updates = [];
+
+			// Compare and collect changes
+			foreach ( $settings as $group ) {
+				foreach ( $group['feeds'] as $feed ) {
+					$key = $group['groupName'] . '-' . $feed['id'];
+					$new_order = (int) $feed['processOrder'];
+
+					// Only update if order has changed
+					if ( ! isset( $current_orders[ $key ] ) || $current_orders[ $key ] !== $new_order ) {
+						$updates[] = [ 
+							'api_feed_id' => $feed['id'],
+							'essay_type' => $group['groupName'],
+							'process_order' => $new_order
+						];
+					}
+				}
+			}
+
+			// Apply updates
+			foreach ( $updates as $update ) {
+				$this->db->update_process_order(
+					$update['api_feed_id'],
+					$update['essay_type'],
+					$update['process_order']
+				);
+			}
+
+			$this->db->commit();
+
+			// Return updated settings
+			return ( new Ieltssci_Settings_Config() )->get_settings_config( $tab );
 
 		} catch (\Exception $e) {
 			$this->db->rollback();

@@ -113,6 +113,12 @@ class Ieltssci_Settings {
 					[]
 				),
 			] ),
+			default => wp_localize_script( $script_handle, 'ieltssciProcessOrder', [ 
+				'apiRoot' => esc_url_raw( rest_url() ),
+				'nonce' => wp_create_nonce( 'wp_rest' ),
+				'settingsConfig' => $this->settings_config->get_settings_config( $current_tab ),
+				'currentTab' => $current_tab
+			] ),
 		};
 		// Localize the script with the REST API URL, nonce & settings config
 

@@ -2,9 +2,14 @@
 
 namespace IeltsScienceLMS\Writing;
 
+use IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_DB;
+
 class Ieltssci_Writing_Settings {
+	private $db;
+
 	public function __construct() {
 		add_filter( 'ieltssci_settings_config', [ $this, 'register_settings_config' ] );
+		$this->db = new Ieltssci_ApiFeeds_DB();
 	}
 
 	public function register_settings_config( $settings ) {
@@ -15,9 +20,62 @@ class Ieltssci_Writing_Settings {
 				'tab_type' => 'api-feeds',
 				'settings' => $this->writing_apis_settings(),
 			],
+			'writing-apis-process-order' => [ 
+				'tab_label' => __( 'Writing APIs Process Order', 'ielts-science-lms' ),
+				'tab_type' => 'api-feeds-process-order',
+				'settings' => $this->essay_types(),
+			]
 		];
 
 		return array_merge( $settings, $writing_settings );
+	}
+
+	protected function essay_types() {
+		// Get all feeds with their essay types and process orders
+		$feeds = $this->db->get_all_api_feeds_settings();
+
+		// Group feeds by essay type
+		$grouped_feeds = [];
+		foreach ( $feeds as $feed ) {
+			if ( empty( $feed['essay_type'] ) )
+				continue;
+
+			if ( ! isset( $grouped_feeds[ $feed['essay_type'] ] ) ) {
+				$grouped_feeds[ $feed['essay_type'] ] = [];
+			}
+
+			$grouped_feeds[ $feed['essay_type'] ][] = [ 
+				'id' => (int) $feed['id'],
+				'feedName' => $feed['feedback_criteria'],
+				'feedTitle' => $feed['feed_title'],
+				'feedDesc' => $feed['feed_desc'],
+				'processOrder' => (int) $feed['process_order']
+			];
+		}
+
+		// Map to the required format
+		return [ 
+			[ 
+				'groupName' => 'task-1',
+				'groupTitle' => 'Task 1',
+				'feeds' => $grouped_feeds['task-1'] ?? []
+			],
+			[ 
+				'groupName' => 'task-2',
+				'groupTitle' => 'Task 2',
+				'feeds' => $grouped_feeds['task-2'] ?? []
+			],
+			[ 
+				'groupName' => 'task-1-ocr',
+				'groupTitle' => 'Task 1 OCR',
+				'feeds' => $grouped_feeds['task-1-ocr'] ?? []
+			],
+			[ 
+				'groupName' => 'task-2-ocr',
+				'groupTitle' => 'Task 2 OCR',
+				'feeds' => $grouped_feeds['task-2-ocr'] ?? []
+			],
+		];
 	}
 
 	protected function writing_apis_settings() {

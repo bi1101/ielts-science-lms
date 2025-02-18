@@ -17,7 +17,7 @@ Table ieltssci_essays {
   picture_ids integer[] [note: 'ID của ảnh người dùng upload']
   essay_type varchar [not null, note: 'Loại bài e.g Task 1, Task 2, Task 1 OCR, Task 2 OCR.']
   question varchar [not null, note: 'Câu hỏi của bài']
-  content text [not null, note: 'Nội dung bài viết']
+  essay_content text [not null, note: 'Nội dung bài viết']
   created_at timestamp [default: `now()`]
   created_by integer [not null, note: 'ID người tạo bài, nếu fork từ bài khác thì là ID của người fork']
 }

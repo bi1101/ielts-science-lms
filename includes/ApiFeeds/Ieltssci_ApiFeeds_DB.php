@@ -143,4 +143,25 @@ class Ieltssci_ApiFeeds_DB {
 			}
 		}
 	}
+
+	public function update_process_order( int $api_feed_id, string $essay_type, int $process_order ): bool {
+		$table = $this->essay_type_table;
+
+		$result = $this->wpdb->update(
+			$table,
+			[ 'process_order' => $process_order ],
+			[ 
+				'api_feed_id' => $api_feed_id,
+				'essay_type' => $essay_type
+			],
+			[ '%d' ],
+			[ '%d', '%s' ]
+		);
+
+		if ( $result === false ) {
+			throw new \Exception( "Failed to update process order: " . $this->wpdb->last_error );
+		}
+
+		return true;
+	}
 }
