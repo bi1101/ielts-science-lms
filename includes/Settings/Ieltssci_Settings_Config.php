@@ -203,7 +203,7 @@ class Ieltssci_Settings_Config {
 			return $tab_list;
 		} else {
 			// Return the full settings for the specified tab
-			if ( isset( $all_settings[ $tab ] ) ) {
+			if ( isset( $all_settings[ $tab ] ) && isset( $all_settings[ $tab ]['settings'] ) ) {
 				return $all_settings[ $tab ]['settings'];
 			} else {
 				return [];
