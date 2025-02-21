@@ -94,6 +94,7 @@ class Ieltssci_Writing_Settings {
 			'google' => [ 
 				[ 'label' => 'gemini-1.5-flash', 'value' => 'gemini-1.5-flash' ],
 				[ 'label' => 'gemini-1.5-pro', 'value' => 'gemini-1.5-pro' ],
+				[ 'label' => 'gemini-2.0-flash', 'value' => 'gemini-2.0-flash' ],
 			],
 			'azure' => [ 
 				[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
@@ -120,6 +121,33 @@ class Ieltssci_Writing_Settings {
 		];
 
 		$writing_apis_settings = [ 
+			[ 
+				'groupName' => 'ocr',
+				'groupTitle' => 'OCR',
+				'feeds' => [ 
+					$settingsConfigInstance->createFeed(
+						'ocr-essay',
+						'OCR Essay',
+						'essay',
+						[ 'task-1-ocr', 'task-2-ocr' ],
+						[ 
+							$settingsConfigInstance->createStep( 'feedback', [ 
+								$settingsConfigInstance->createSection( 'general-setting', [ 
+									$settingsConfigInstance->createApiProviderField(),
+									$settingsConfigInstance->createModelPickerField( 'apiProvider', $defaultModelOptions ),
+									// Toggle to enable/disable multi-modal field
+									$settingsConfigInstance->createField( 'enableMultiModal', 'toggle', 'Enable Multi Modal Input', 'Enable Multi Modal input or not', false ),
+									$settingsConfigInstance->createField( 'multiModalField', 'form-token', 'Multi Modal Field(s)', '', null, [], 'enableMultiModal', [ 
+										'suggestions' => [ 'ocr_image_ids', 'chart_image_ids' ],
+									] ),
+									$settingsConfigInstance->createPromptField( 'englishPrompt', 'English Prompt', 'Message sent to the model {|parameter_name|}' ),
+									$settingsConfigInstance->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', 'Message sent to the model {|parameter_name|}' ),
+								] ),
+								$settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields )
+							] )
+						] ),
+				],
+			],
 			[ 
 				'groupName' => 'vocabulary-suggestions',
 				'groupTitle' => 'Vocabulary Suggestions',
