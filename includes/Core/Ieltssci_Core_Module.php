@@ -12,6 +12,8 @@ class Ieltssci_Core_Module {
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit_Module();
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit_Settings();
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit_REST();
+		new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_Settings();
+		new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_REST();
 		$this->db_schema = new Ieltssci_Database_Schema();
 		add_filter( 'theme_page_templates', [ $this, 'add_custom_page_template' ] );
 		add_filter( 'template_include', [ $this, 'load_custom_page_template' ] );

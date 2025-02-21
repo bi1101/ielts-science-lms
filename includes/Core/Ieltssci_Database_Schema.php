@@ -20,6 +20,7 @@ class Ieltssci_Database_Schema {
 			$this->create_rate_limit_rule_table();
 			$this->create_api_feed_rate_limit_rule_table();
 			$this->create_role_rate_limit_rule_table();
+			$this->create_api_key_table();
 
 			update_option( 'ieltssci_db_version', $this->db_version );
 			$this->wpdb->query( 'COMMIT' );
@@ -141,6 +142,23 @@ class Ieltssci_Database_Schema {
 		return $this->execute_sql( $sql );
 	}
 
+	private function create_api_key_table() {
+		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_key';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+            id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            api_provider varchar(50) NOT NULL,
+            meta json NOT NULL,
+            usage_count bigint(20) UNSIGNED DEFAULT 0,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY api_provider (api_provider)
+        ) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
 
 	private function execute_sql( $sql ) {
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';

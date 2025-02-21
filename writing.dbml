@@ -107,6 +107,15 @@ Table ieltssci_api_request_log {
   created_at timestamp [default: `now()`]
 }
 
+Table ieltssci_api_key {
+  id integer [primary key, increment]
+  api_provider varchar [not null, note: 'The API provider, e.g., OpenAI, Azure, etc.']
+  meta json [note: 'API keys and other settings']
+  usage_count integer [default: 0, note: 'The number of times the API key has been used']
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
 Enum LimitType {
     Forever
     TimePeriod
