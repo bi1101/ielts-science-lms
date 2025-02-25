@@ -117,16 +117,34 @@ class Ieltssci_Settings_Config {
 	 * @param string $id         Field ID (e.g., 'englishPrompt', 'vietnamesePrompt').
 	 * @param string $label      Field label (e.g., 'English Prompt', 'Vietnamese Prompt').
 	 * @param string $default    Default prompt text.
+	 * @param array  $merge_tags (Optional) Merge tags array.
 	 *
 	 * @return array The prompt field configuration.
 	 */
-	public function createPromptField( string $id, string $label, string $default ): array {
+	public function createPromptField( string $id, string $label, string $default, array $merge_tags = [] ): array {
+		$default_merge_tags = [ 
+			[ 
+				'groupLabel' => 'General',
+				'items' => [ 
+					[ 'label' => 'Site URL', 'info' => '{site_url}', 'value' => '{site_url}' ],
+				],
+			]
+		];
+		// Get default merge tags through filter
+		$filtered_merge_tags = apply_filters( 'ieltssci_merge_tags', $default_merge_tags );
+
+		// Merge provided tags with filtered tags
+		$combined_merge_tags = array_merge( $filtered_merge_tags, $merge_tags );
+
 		return $this->createField(
 			$id,
 			'textarea',
 			$label,
 			'The message to send to LLM',
-			$default
+			$default,
+			[],
+			'',
+			[ 'merge_tags' => $combined_merge_tags ]
 		);
 	}
 

@@ -82,6 +82,26 @@ class Ieltssci_Writing_Settings {
 
 		$settingsConfigInstance = new \IeltsScienceLMS\Settings\Ieltssci_Settings_Config();
 
+		// Define writing specific merge tags.
+		$writingMergeTags = [ 
+			[ 
+				'groupLabel' => 'Essay level',
+				'items' => [ 
+					[ 'label' => 'Essay Content', 'info' => '{|essay:essay_content|}', 'value' => '{|essay:essay_content|}' ],
+					[ 'label' => 'Question', 'info' => '{|essay:question|}', 'value' => '{|essay:question|}' ],
+				],
+			],
+			[ 
+				'groupLabel' => 'Segment level',
+				'items' => [ 
+					[ 'label' => 'Introduction Content', 'info' => '{|segment:content[type:introduction]|}', 'value' => '{|segment:content[type:introduction]|}' ],
+				],
+			]
+		];
+
+		// Apply filter to allow other plugins to add more writing merge tags.
+		$writingMergeTags = apply_filters( 'ieltssci_writing_merge_tags', $writingMergeTags );
+
 		$defaultModelOptions = $settingsConfigInstance->getModelOptions( [ 
 			'open-key-ai' => [ 
 				[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
@@ -106,8 +126,8 @@ class Ieltssci_Writing_Settings {
 		$commonGeneralFields = [ 
 			$settingsConfigInstance->createApiProviderField(),
 			$settingsConfigInstance->createModelPickerField( 'apiProvider', $defaultModelOptions ),
-			$settingsConfigInstance->createPromptField( 'englishPrompt', 'English Prompt', 'Message sent to the model {|parameter_name|}' ),
-			$settingsConfigInstance->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', 'Message sent to the model {|parameter_name|}' ),
+			$settingsConfigInstance->createPromptField( 'englishPrompt', 'English Prompt', 'Message sent to the model {|parameter_name|}', $writingMergeTags ),
+			$settingsConfigInstance->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', 'Message sent to the model {|parameter_name|}', $writingMergeTags ),
 		];
 
 		$commonAdvancedFields = [ 
@@ -140,8 +160,8 @@ class Ieltssci_Writing_Settings {
 									$settingsConfigInstance->createField( 'multiModalField', 'form-token', 'Multi Modal Field(s)', '', null, [], 'enableMultiModal', [ 
 										'suggestions' => [ 'ocr_image_ids', 'chart_image_ids' ],
 									] ),
-									$settingsConfigInstance->createPromptField( 'englishPrompt', 'English Prompt', 'Message sent to the model {|parameter_name|}' ),
-									$settingsConfigInstance->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', 'Message sent to the model {|parameter_name|}' ),
+									$settingsConfigInstance->createPromptField( 'englishPrompt', 'English Prompt', 'Message sent to the model {|parameter_name|}', $writingMergeTags ),
+									$settingsConfigInstance->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', 'Message sent to the model {|parameter_name|}', $writingMergeTags ),
 								] ),
 								$settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields )
 							] )
@@ -189,8 +209,8 @@ class Ieltssci_Writing_Settings {
 							$settingsConfigInstance->createSection( 'general-setting', [ 
 								$settingsConfigInstance->createApiProviderField( 'home-server' ),
 								$settingsConfigInstance->createModelPickerField( 'apiProvider', $defaultModelOptions, 'bihungba1101/segmenting-paragraph' ),
-								$settingsConfigInstance->createPromptField( 'englishPrompt', 'English Prompt', '{|each_paragraph_in_essay|}' ),
-								$settingsConfigInstance->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', '{|each_paragraph_in_essay|}' ),
+								$settingsConfigInstance->createPromptField( 'englishPrompt', 'English Prompt', '{|each_paragraph_in_essay|}', $writingMergeTags ),
+								$settingsConfigInstance->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', '{|each_paragraph_in_essay|}', $writingMergeTags ),
 							] ),
 							$settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields )
 						] )
