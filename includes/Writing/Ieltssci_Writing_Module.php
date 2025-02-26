@@ -8,6 +8,9 @@ class Ieltssci_Writing_Module {
 		add_action( 'wp_enqueue_scripts', [ $this, 'register_writing_assets' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_writing_assets' ] );
 		add_filter( 'ielts_science_lms_module_pages_data', [ $this, 'provide_module_pages_data' ] );
+
+		// Add custom rewrite rules for UUID child slugs
+		add_action( 'init', [ $this, 'register_custom_rewrite_rules' ] );
 	}
 
 	/**
@@ -258,6 +261,37 @@ class Ieltssci_Writing_Module {
 
 			// Localize script (pass data to the React app)
 			wp_localize_script( $script_handle, 'ielts_writing_data', $localized_data );
+		}
+	}
+
+	/**
+	 * Register custom rewrite rules for UUID child slugs
+	 * 
+	 * @return void
+	 */
+	public function register_custom_rewrite_rules() {
+		$ielts_pages = get_option( 'ielts_science_lms_pages', [] );
+
+		// Check if result_task_2 page is set
+		if ( ! empty( $ielts_pages['result_task_2'] ) ) {
+			$result_task_2_page = get_post( $ielts_pages['result_task_2'] );
+
+			if ( $result_task_2_page ) {
+				$slug = $result_task_2_page->post_name;
+
+				// Add rewrite rule for UUIDs (8-4-4-4-12 format)
+				add_rewrite_rule(
+					'^' . $slug . '/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/?$',
+					'index.php?pagename=' . $slug . '&entry_id=$matches[1]',
+					'top'
+				);
+
+				// Register the query var
+				add_filter( 'query_vars', function ($query_vars) {
+					$query_vars[] = 'entry_id';
+					return $query_vars;
+				} );
+			}
 		}
 	}
 

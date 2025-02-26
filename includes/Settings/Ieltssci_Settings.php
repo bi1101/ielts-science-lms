@@ -422,6 +422,10 @@ class Ieltssci_Settings {
 			$sanitized_input[ $key ] = intval( $value ); // Ensure it's an integer
 		}
 
+		// Flush rewrite rules after saving settings
+		// This ensures our custom rewrite rules take effect
+		flush_rewrite_rules();
+
 		return $sanitized_input;
 	}
 }
