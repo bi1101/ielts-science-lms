@@ -6,6 +6,7 @@ class Ieltssci_Core_Module {
 	private $db_schema;
 	public function __construct() {
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
+		new \IeltsScienceLMS\Writing\Ieltssci_Writing_REST();
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Settings();
 		new \IeltsScienceLMS\Settings\Ieltssci_Settings();
 		new \IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_REST();

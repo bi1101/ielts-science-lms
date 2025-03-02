@@ -3,7 +3,7 @@
 namespace IeltsScienceLMS\Core;
 class Ieltssci_Database_Schema {
 	private const TABLE_PREFIX = 'ieltssci_';
-	private $db_version = '0.0.1';
+	private $db_version = '0.0.2'; // Updated version number
 	private \wpdb $wpdb;
 
 	public function __construct( \wpdb $wpdb = null ) {
@@ -21,6 +21,12 @@ class Ieltssci_Database_Schema {
 			$this->create_api_feed_rate_limit_rule_table();
 			$this->create_role_rate_limit_rule_table();
 			$this->create_api_key_table();
+
+			// Add new tables
+			$this->create_essays_table();
+			$this->create_segment_table();
+			$this->create_segment_feedback_table();
+			$this->create_essay_feedback_table();
 
 			update_option( 'ieltssci_db_version', $this->db_version );
 			$this->wpdb->query( 'COMMIT' );
@@ -156,6 +162,108 @@ class Ieltssci_Database_Schema {
             PRIMARY KEY  (id),
             KEY api_provider (api_provider)
         ) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	private function create_essays_table() {
+		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'essays';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			uuid varchar(36) NOT NULL,
+			original_id bigint(20) UNSIGNED DEFAULT NULL,
+			ocr_image_ids text DEFAULT NULL,
+			chart_image_ids text DEFAULT NULL,
+			essay_type varchar(50) NOT NULL,
+			question text NOT NULL,
+			essay_content longtext NOT NULL,
+			created_at datetime DEFAULT CURRENT_TIMESTAMP,
+			created_by bigint(20) UNSIGNED NOT NULL,
+			PRIMARY KEY (id),
+			UNIQUE KEY uuid (uuid)
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	private function create_segment_table() {
+		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'segment';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			essay_id bigint(20) UNSIGNED NOT NULL,
+			type varchar(50) NOT NULL,
+			`order` int(11) NOT NULL,
+			title text NOT NULL,
+			content longtext NOT NULL,
+			PRIMARY KEY (id),
+			KEY essay_id (essay_id),
+			CONSTRAINT fk_segment_essay
+				FOREIGN KEY (essay_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "essays(id)
+				ON DELETE CASCADE
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	private function create_segment_feedback_table() {
+		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'segment_feedback';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			feedback_criteria varchar(191) NOT NULL,
+			segment_id bigint(20) UNSIGNED NOT NULL,
+			feedback_language varchar(50) NOT NULL,
+			source varchar(20) NOT NULL,
+			cot_content longtext DEFAULT NULL,
+			score_content longtext DEFAULT NULL,
+			feedback_content longtext DEFAULT NULL,
+			created_at datetime DEFAULT CURRENT_TIMESTAMP,
+			created_by bigint(20) UNSIGNED NOT NULL,
+			PRIMARY KEY (id),
+			KEY segment_id (segment_id),
+			KEY feedback_criteria (feedback_criteria(191)),
+			KEY feedback_language (feedback_language),
+			KEY source (source),
+			CONSTRAINT fk_segment_feedback_segment
+				FOREIGN KEY (segment_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "segment(id)
+				ON DELETE CASCADE
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	private function create_essay_feedback_table() {
+		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'essay_feedback';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			feedback_criteria varchar(191) NOT NULL,
+			essay_id bigint(20) UNSIGNED NOT NULL,
+			feedback_language varchar(50) NOT NULL,
+			source varchar(20) NOT NULL,
+			cot_content longtext DEFAULT NULL,
+			score_content longtext DEFAULT NULL,
+			feedback_content longtext DEFAULT NULL,
+			created_at datetime DEFAULT CURRENT_TIMESTAMP,
+			created_by bigint(20) UNSIGNED NOT NULL,
+			PRIMARY KEY (id),
+			KEY essay_id (essay_id),
+			KEY feedback_criteria (feedback_criteria(191)),
+			KEY feedback_language (feedback_language),
+			KEY source (source),
+			CONSTRAINT fk_essay_feedback_essay
+				FOREIGN KEY (essay_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "essays(id)
+				ON DELETE CASCADE
+		) $charset_collate";
 
 		return $this->execute_sql( $sql );
 	}
