@@ -53,6 +53,14 @@ class Ieltssci_ApiKeys_Settings {
 				'multiKey' => false,
 				'fields' => [ $settingsConfigInstance->createField( 'api-key', 'password', 'API Key', 'Enter your Huggingface API key.' ) ]
 			],
+			'google-console' => [ 
+				'label' => __( 'Google Console', 'ielts-science-lms' ),
+				'multiKey' => false,
+				'fields' => [ 
+					$settingsConfigInstance->createField( 'api-key', 'password', 'API Key', 'Enter your Google Console API key.' ),
+					$settingsConfigInstance->createField( 'client-id', 'text', 'Client ID', 'Enter your Google Console client ID.' ),
+				]
+			],
 		];
 	}
 }
