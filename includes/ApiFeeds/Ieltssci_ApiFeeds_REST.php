@@ -96,8 +96,11 @@ class Ieltssci_ApiFeeds_REST {
 			return [];
 		}
 
-		// Get feeds from database
-		$db_feeds = $this->db->get_all_api_feeds_settings();
+		// Get feeds from database using the more flexible get_api_feeds method
+		$db_feeds = $this->db->get_api_feeds( [ 
+			'limit' => 500, // Set a high limit to ensure we get all feeds
+			'include' => [ 'essay_types', 'meta' ] // Include necessary related data
+		] );
 
 		// Create a map of DB feeds by feedback_criteria for easy lookup
 		$db_feeds_map = [];
@@ -115,7 +118,7 @@ class Ieltssci_ApiFeeds_REST {
 				];
 
 				// Parse meta for steps data
-				if ( ! empty( $feed['meta'] ) ) {
+				if ( isset( $feed['meta'] ) ) {
 					$meta = json_decode( $feed['meta'], true );
 					if ( isset( $meta['steps'] ) ) {
 						$db_feeds_map[ $criteria ]['steps'] = $meta['steps'];
@@ -123,9 +126,13 @@ class Ieltssci_ApiFeeds_REST {
 				}
 			}
 
-			// Add essay type if exists
-			if ( ! empty( $feed['essay_type'] ) ) {
-				$db_feeds_map[ $criteria ]['essayType'][] = $feed['essay_type'];
+			// Get essay types from related essay_types data
+			if ( ! empty( $feed['essay_types'] ) ) {
+				foreach ( $feed['essay_types'] as $essay_type ) {
+					if ( ! in_array( $essay_type['essay_type'], $db_feeds_map[ $criteria ]['essayType'] ) ) {
+						$db_feeds_map[ $criteria ]['essayType'][] = $essay_type['essay_type'];
+					}
+				}
 			}
 		}
 
@@ -288,14 +295,19 @@ class Ieltssci_ApiFeeds_REST {
 
 		try {
 			// Get current process orders from DB for comparison
-			$current_settings = $this->db->get_all_api_feeds_settings();
+			$current_settings = $this->db->get_api_feeds( [ 
+				'limit' => 500,
+				'include' => [ 'essay_types' ]
+			] );
 			$current_orders = [];
 
 			// Create lookup of current process orders
 			foreach ( $current_settings as $feed ) {
-				if ( ! empty( $feed['essay_type'] ) ) {
-					$key = $feed['essay_type'] . '-' . $feed['id'];
-					$current_orders[ $key ] = (int) $feed['process_order'];
+				if ( ! empty( $feed['essay_types'] ) ) {
+					foreach ( $feed['essay_types'] as $essay_type ) {
+						$key = $essay_type['essay_type'] . '-' . $feed['id'];
+						$current_orders[ $key ] = (int) $essay_type['process_order'];
+					}
 				}
 			}
 

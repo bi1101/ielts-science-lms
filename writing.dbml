@@ -67,8 +67,8 @@ Table ieltssci_api_feed_essay_type {
 
 Table ieltssci_api_feed {
     id integer [primary key, increment]
-    feed_group_id integer [not null, note: 'ID của nhóm API feed, dùng để gộp các feed liên quan']
-    feed_group_name varchar [not null, note: 'Tên của nhóm API feed e.g Argument Enhance, Grammatical Range and Accuracy, etc.']
+    feed_title varchar [not null, note: 'Tiêu đề của API feed']
+    feed_desc text [not null, note: 'Mô tả của API feed']
     feedback_criteria varchar [not null, note: 'Tiêu chí feedback e.g relevance, clearAnswer (score, Cot, feedback), rewrite, logicDepth, etc.']
     apply_to varchar [not null, note: 'Áp dụng cho cả bài hay từng đoạn, mở thân, kết, vv']
     meta json [not null, note: 'Setting cho API feed, base URL, parameters, step vv']

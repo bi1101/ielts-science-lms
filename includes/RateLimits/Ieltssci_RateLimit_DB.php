@@ -2,13 +2,16 @@
 
 namespace IeltsScienceLMS\RateLimits;
 
+use wpdb;
+use Exception;
+
 class Ieltssci_RateLimit_DB {
-	private \wpdb $wpdb;
+	private wpdb $wpdb;
 	private string $rate_limit_table;
 	private string $role_rule_table;
 	private string $api_feed_rule_table;
 
-	public function __construct( \wpdb $wpdb = null ) {
+	public function __construct() {
 		global $wpdb;
 		$this->wpdb = $wpdb ?? $GLOBALS['wpdb'];
 		$this->rate_limit_table = $this->wpdb->prefix . 'ieltssci_rate_limit_rule';
@@ -16,28 +19,118 @@ class Ieltssci_RateLimit_DB {
 		$this->api_feed_rule_table = $this->wpdb->prefix . 'ieltssci_api_feed_rate_limit_rule';
 	}
 
-	public function get_rate_limits(): array {
-		$rules = $this->wpdb->get_results( "SELECT * FROM {$this->rate_limit_table}", ARRAY_A );
+	/**
+	 * Get rate limits with optional filtering
+	 *
+	 * @param array $args {
+	 *     Optional. Array of arguments for filtering rate limits.
+	 *     @type int    $rule_id          Specific rate limit rule ID to retrieve.
+	 *     @type int    $feed_id          Filter rate limits by specific API feed ID.
+	 *     @type string $role             Filter rate limits by user role.
+	 *     @type string $time_period_type Filter by time period type.
+	 *     @type array  $include          Specify what related data to include. Options: 'roles', 'feeds'.
+	 *                                   Default includes both.
+	 * }
+	 * @return array Array of rate limit rules
+	 */
+	public function get_rate_limits( array $args = [] ) {
+		$defaults = [ 
+			'rule_id' => 0,
+			'feed_id' => 0,
+			'role' => '',
+			'time_period_type' => '',
+			'include' => [ 'roles', 'feeds' ]
+		];
+
+		$args = wp_parse_args( $args, $defaults );
+
+		// Ensure include is an array
+		if ( ! is_array( $args['include'] ) ) {
+			$args['include'] = empty( $args['include'] ) ? [] : [ $args['include'] ];
+		}
+
+		// Start building the query
+		$query = "SELECT DISTINCT r.* FROM {$this->rate_limit_table} r";
+		$where_clauses = [];
+		$where_values = [];
+		$joins = [];
+
+		// Add conditions based on args
+		if ( ! empty( $args['rule_id'] ) ) {
+			$where_clauses[] = 'r.id = %d';
+			$where_values[] = (int) $args['rule_id'];
+		}
+
+		if ( ! empty( $args['feed_id'] ) ) {
+			$joins[] = "JOIN {$this->api_feed_rule_table} afr ON r.id = afr.rate_limit_rule_id";
+			$where_clauses[] = 'afr.api_feed_id = %d';
+			$where_values[] = (int) $args['feed_id'];
+		}
+
+		if ( ! empty( $args['role'] ) ) {
+			$joins[] = "JOIN {$this->role_rule_table} rr ON r.id = rr.rate_limit_rule_id";
+			$where_clauses[] = 'rr.role = %s';
+			$where_values[] = $args['role'];
+		}
+
+		if ( ! empty( $args['time_period_type'] ) ) {
+			$where_clauses[] = 'r.time_period_type = %s';
+			$where_values[] = $args['time_period_type'];
+		}
+
+		// Add joins to the query if needed
+		if ( ! empty( $joins ) ) {
+			$query .= ' ' . implode( ' ', array_unique( $joins ) );
+		}
+
+		// Add WHERE clause if needed
+		if ( ! empty( $where_clauses ) ) {
+			$query .= ' WHERE ' . implode( ' AND ', $where_clauses );
+		}
+
+		// Prepare the query if there are where values
+		if ( ! empty( $where_values ) ) {
+			$query = $this->wpdb->prepare( $query, $where_values );
+		}
+
+		// Execute the query
+		$rules = $this->wpdb->get_results( $query, ARRAY_A );
+
+		if ( ! $rules ) {
+			return [];
+		}
+
+		// Process the results
 		$finalRules = [];
 
-		if ( $rules ) {
-			foreach ( $rules as $rule ) {
-				$ruleId = $rule['id'];
+		foreach ( $rules as $rule ) {
+			$ruleId = $rule['id'];
+
+			$roleRows = [];
+			if ( in_array( 'roles', $args['include'], true ) ) {
 				$roleRows = $this->wpdb->get_col(
 					$this->wpdb->prepare(
 						"SELECT role FROM {$this->role_rule_table} WHERE rate_limit_rule_id = %d",
 						$ruleId
 					)
 				);
+			}
+
+			$apiFeedRows = [];
+			if ( in_array( 'feeds', $args['include'], true ) ) {
 				$apiFeedRows = $this->wpdb->get_col(
 					$this->wpdb->prepare(
 						"SELECT api_feed_id FROM {$this->api_feed_rule_table} WHERE rate_limit_rule_id = %d",
 						$ruleId
 					)
 				);
-
-				$finalRules[] = $this->format_rule_for_response( $rule, $roleRows, $apiFeedRows );
 			}
+
+			$rule['roles'] = $roleRows;
+			$rule['feed_ids'] = $apiFeedRows;
+			$rule['limit_rule'] = json_decode( $rule['limit_rule'], true );
+			$rule['message'] = json_decode( $rule['message'], true );
+			$finalRules[] = $rule;
 		}
 
 		return $finalRules;
@@ -52,7 +145,7 @@ class Ieltssci_RateLimit_DB {
 			foreach ( $rules as $rule ) {
 				$rule_id = $this->save_rule( $rule );
 				if ( ! $rule_id ) {
-					throw new \Exception( 'Failed to save rule' );
+					throw new Exception( 'Failed to save rule' );
 				}
 				$newIDs[] = $rule_id;
 			}
@@ -63,7 +156,7 @@ class Ieltssci_RateLimit_DB {
 			// Return the updated rules
 			return $this->get_rate_limits();
 
-		} catch (\Exception $e) {
+		} catch (Exception $e) {
 			$this->wpdb->query( 'ROLLBACK' );
 			throw $e;
 		}
@@ -91,7 +184,7 @@ class Ieltssci_RateLimit_DB {
 		}
 
 		if ( false === $success ) {
-			throw new \Exception( 'Failed to save rate limit rule' );
+			throw new Exception( 'Failed to save rate limit rule' );
 		}
 
 		$this->save_rule_associations( $rule_id, $rule['subject'] );
@@ -115,7 +208,7 @@ class Ieltssci_RateLimit_DB {
 				[ '%s', '%d' ]
 			);
 			if ( false === $success ) {
-				throw new \Exception( 'Failed to insert role rule' );
+				throw new Exception( 'Failed to insert role rule' );
 			}
 		}
 
@@ -131,7 +224,7 @@ class Ieltssci_RateLimit_DB {
 				[ '%s', '%d' ]
 			);
 			if ( false === $success ) {
-				throw new \Exception( 'Failed to insert API feed rule' );
+				throw new Exception( 'Failed to insert API feed rule' );
 			}
 		}
 	}
@@ -168,22 +261,6 @@ class Ieltssci_RateLimit_DB {
 				'message' => wp_json_encode( $rule['message'] ),
 			],
 			'format' => [ '%d', '%s', '%s', '%s' ],
-		];
-	}
-
-	private function format_rule_for_response( array $rule, array $roleRows, array $apiFeedRows ) {
-		return [ 
-			'ruleId' => (int) $rule['id'],
-			'subject' => [ 
-				'role' => implode( ',', $roleRows ),
-				'apiFeed' => implode( ',', $apiFeedRows ),
-			],
-			'timePeriod' => array_merge(
-				[ 'type' => $rule['time_period_type'] ],
-				json_decode( $rule['limit_rule'], true ) ?: []
-			),
-			'limit' => (int) $rule['rate_limit'],
-			'message' => json_decode( $rule['message'], true ) ?: [],
 		];
 	}
 }

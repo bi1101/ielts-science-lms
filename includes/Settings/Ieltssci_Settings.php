@@ -2,6 +2,8 @@
 
 namespace IeltsScienceLMS\Settings;
 
+use IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_DB;
+
 class Ieltssci_Settings {
 	private $settings_config;
 
@@ -102,7 +104,10 @@ class Ieltssci_Settings {
 				'nonce' => wp_create_nonce( 'wp_rest' ),
 				'roles' => wp_roles()->roles,
 				'feeds' => array_reduce(
-					( new \IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_DB() )->get_all_api_feeds_settings(),
+					( new Ieltssci_ApiFeeds_DB() )->get_api_feeds( [ 
+						'limit' => 500,
+						'include' => [ 'meta' ]
+					] ),
 					function ($result, $item) {
 							$id = $item['id'];
 							if ( ! isset( $result[ $id ] ) ) {

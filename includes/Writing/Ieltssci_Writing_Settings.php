@@ -31,26 +31,34 @@ class Ieltssci_Writing_Settings {
 	}
 
 	protected function essay_types() {
-		// Get all feeds with their essay types and process orders
-		$feeds = $this->db->get_all_api_feeds_settings();
+		// Get all feeds with their essay types and process orders using get_api_feeds
+		$feeds = $this->db->get_api_feeds( [ 
+			'limit' => 500, // High limit to get all feeds
+			'include' => [ 'essay_types' ] // Include essay types data
+		] );
 
 		// Group feeds by essay type
 		$grouped_feeds = [];
 		foreach ( $feeds as $feed ) {
-			if ( empty( $feed['essay_type'] ) )
+			if ( empty( $feed['essay_types'] ) ) {
 				continue;
-
-			if ( ! isset( $grouped_feeds[ $feed['essay_type'] ] ) ) {
-				$grouped_feeds[ $feed['essay_type'] ] = [];
 			}
 
-			$grouped_feeds[ $feed['essay_type'] ][] = [ 
-				'id' => (int) $feed['id'],
-				'feedName' => $feed['feedback_criteria'],
-				'feedTitle' => $feed['feed_title'],
-				'feedDesc' => $feed['feed_desc'],
-				'processOrder' => (int) $feed['process_order']
-			];
+			foreach ( $feed['essay_types'] as $essay_type_data ) {
+				$essay_type = $essay_type_data['essay_type'];
+
+				if ( ! isset( $grouped_feeds[ $essay_type ] ) ) {
+					$grouped_feeds[ $essay_type ] = [];
+				}
+
+				$grouped_feeds[ $essay_type ][] = [ 
+					'id' => (int) $feed['id'],
+					'feedName' => $feed['feedback_criteria'],
+					'feedTitle' => $feed['feed_title'],
+					'feedDesc' => $feed['feed_desc'],
+					'processOrder' => (int) $essay_type_data['process_order']
+				];
+			}
 		}
 
 		// Map to the required format
@@ -176,7 +184,7 @@ class Ieltssci_Writing_Settings {
 						'vocabulary-suggestions',
 						'Vocabulary Suggestions',
 						'essay',
-						[ 'task-2', 'task-2-ocr' ],
+						[ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ],
 						[ 
 							$settingsConfigInstance->createStep( 'feedback', $commonSections )
 						] ),
@@ -190,7 +198,7 @@ class Ieltssci_Writing_Settings {
 						'grammar-suggestions',
 						'Grammar Suggestions',
 						'essay',
-						[ 'task-2', 'task-2-ocr' ],
+						[ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ],
 						[ 
 							$settingsConfigInstance->createStep( 'feedback', $commonSections )
 						] ),
@@ -283,22 +291,22 @@ class Ieltssci_Writing_Settings {
 				'groupName' => 'lexical-resource',
 				'groupTitle' => 'Lexical Resource',
 				'feeds' => [ 
-					$settingsConfigInstance->createFeed( 'range-of-vocab', 'Range of Vocab', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+					$settingsConfigInstance->createFeed( 'range-of-vocab', 'Range of Vocab', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
 						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
 						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
 						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
 					] ),
-					$settingsConfigInstance->createFeed( 'word-choice-collocation-style', 'Word choice, Collocation, Style', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+					$settingsConfigInstance->createFeed( 'word-choice-collocation-style', 'Word choice, Collocation, Style', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
 						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
 						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
 						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
 					] ),
-					$settingsConfigInstance->createFeed( 'uncommon-vocab', 'Uncommon vocab', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+					$settingsConfigInstance->createFeed( 'uncommon-vocab', 'Uncommon vocab', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
 						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
 						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
 						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
 					] ),
-					$settingsConfigInstance->createFeed( 'spelling-word-form-error', 'Spelling, Word Form Error', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+					$settingsConfigInstance->createFeed( 'spelling-word-form-error', 'Spelling, Word Form Error', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
 						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
 						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
 						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
@@ -309,12 +317,12 @@ class Ieltssci_Writing_Settings {
 				'groupName' => 'grammatical-range-accuracy',
 				'groupTitle' => 'Grammatical Range & Accuracy',
 				'feeds' => [ 
-					$settingsConfigInstance->createFeed( 'range-of-structures', 'Range of Structures', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+					$settingsConfigInstance->createFeed( 'range-of-structures', 'Range of Structures', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
 						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
 						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
 						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
 					] ),
-					$settingsConfigInstance->createFeed( 'grammar-accuracy', 'Grammar Accuracy', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+					$settingsConfigInstance->createFeed( 'grammar-accuracy', 'Grammar Accuracy', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
 						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
 						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
 						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
@@ -325,22 +333,22 @@ class Ieltssci_Writing_Settings {
 				'groupName' => 'coherence-cohesion',
 				'groupTitle' => 'Coherence & Cohesion',
 				'feeds' => [ 
-					$settingsConfigInstance->createFeed( 'flow', 'Flow', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+					$settingsConfigInstance->createFeed( 'flow', 'Flow', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
 						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
 						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
 						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
 					] ),
-					$settingsConfigInstance->createFeed( 'paragraphing', 'Paragraphing', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+					$settingsConfigInstance->createFeed( 'paragraphing', 'Paragraphing', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
 						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
 						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
 						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
 					] ),
-					$settingsConfigInstance->createFeed( 'referencing', 'Referencing', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+					$settingsConfigInstance->createFeed( 'referencing', 'Referencing', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
 						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
 						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
 						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
 					] ),
-					$settingsConfigInstance->createFeed( 'use-of-cohesive-devices', 'Use of Cohesive Devices', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
+					$settingsConfigInstance->createFeed( 'use-of-cohesive-devices', 'Use of Cohesive Devices', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
 						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
 						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
 						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
