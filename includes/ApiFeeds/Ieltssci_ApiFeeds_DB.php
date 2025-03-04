@@ -36,7 +36,7 @@ class Ieltssci_ApiFeeds_DB {
 	 *     @type int    $limit             Maximum number of feeds to retrieve. Default 10.
 	 *     @type int    $offset            For pagination, skip a certain number of records. Default 0.
 	 *     @type array  $include           Specify which data to include in the response.
-	 *                                     Possible values: 'meta', 'essay_types', 'rate_limits'.
+	 *                                     Possible values: 'meta', 'essay_types', 'rate_limits', 'process_order'.
 	 *                                     If empty, only returns basic feed data.
 	 * }
 	 * @return array|WP_Error Array of API feeds or WP_Error on failure
@@ -84,10 +84,12 @@ class Ieltssci_ApiFeeds_DB {
 			$args['include'] = empty( $args['include'] ) ? [] : [ $args['include'] ];
 		}
 
-		// Special handling for process_order sort
-		if ( $special_order && ! empty( $essay_type ) ) {
-			// When ordering by process_order, we need to join with the essay_type table
-			$query = "SELECT f.* 
+		// Special handling for process_order sort or when process_order is included
+		$include_process_order = in_array( 'process_order', $args['include'], true );
+
+		if ( ( $special_order || $include_process_order ) && ! empty( $essay_type ) ) {
+			// When ordering by process_order or including it in results, we need to join with the essay_type table
+			$query = "SELECT f.*, et.process_order 
                  FROM {$this->api_feed_table} f
                  JOIN {$this->essay_type_table} et ON f.id = et.api_feed_id";
 
@@ -209,6 +211,19 @@ class Ieltssci_ApiFeeds_DB {
 				// Only include meta in response if requested
 				if ( ! in_array( 'meta', $args['include'], true ) ) {
 					unset( $feed['meta'] );
+				}
+			}
+
+			// If process_order isn't included and wasn't part of the query, get it separately
+			if ( in_array( 'process_order', $args['include'], true ) && ! isset( $feed['process_order'] ) && ! empty( $essay_type ) ) {
+				$process_order = $this->wpdb->get_var( $this->wpdb->prepare(
+					"SELECT process_order FROM $this->essay_type_table 
+					WHERE api_feed_id = %d AND essay_type = %s",
+					$feed['id'], $essay_type
+				) );
+
+				if ( $process_order !== null ) {
+					$feed['process_order'] = (int) $process_order;
 				}
 			}
 

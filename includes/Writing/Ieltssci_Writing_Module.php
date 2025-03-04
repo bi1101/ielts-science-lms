@@ -4,6 +4,7 @@ namespace IeltsScienceLMS\Writing;
 
 class Ieltssci_Writing_Module {
 	public function __construct() {
+		new Ieltssci_Writing_SSE_REST();
 		// Initialize the writing module
 		add_action( 'wp_enqueue_scripts', [ $this, 'register_writing_assets' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_writing_assets' ] );

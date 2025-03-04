@@ -14,12 +14,18 @@
     },
     "config": {
         "allow-plugins": {
-            "dealerdirect/phpcodesniffer-composer-installer": true
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "php-http/discovery": true
         }
     },
     "autoload": {
         "psr-4": {
             "IeltsScienceLMS\\": "includes/"
         }
+    },
+    "require": {
+        "openai-php/client": "^0.10.3",
+        "symfony/http-client": "^7.2",
+        "nyholm/psr7": "^1.8"
     }
 }
