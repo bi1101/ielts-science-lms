@@ -5,7 +5,12 @@ namespace IeltsScienceLMS\Writing;
 use WP_REST_Server;
 use WP_REST_Request;
 use WP_Error;
+use Exception;
 use IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_DB;
+use GuzzleHttp\Promise\FulfilledPromise;
+use GuzzleHttp\Promise\RejectedPromise;
+use GuzzleHttp\Pool;
+use GuzzleHttp\Client;
 
 /**
  * Class Ieltssci_Writing_SSE_REST
@@ -89,8 +94,6 @@ class Ieltssci_Writing_SSE_REST {
 		$uuid = $request->get_param( 'UUID' );
 		$essay_type = $request->get_param( 'essay_type' );
 
-		$this->set_sse_headers();
-
 		// Get all feeds that need processing based on the essay type
 		$feeds = $this->api_feeds_db->get_api_feeds( [ 
 			'essay_type' => $essay_type,
@@ -101,43 +104,52 @@ class Ieltssci_Writing_SSE_REST {
 		] );
 
 		if ( is_wp_error( $feeds ) ) {
-			$this->send_error( 'error', [ 
-				'title' => 'Error Retrieving Feedback',
-				'message' => 'Could not retrieve feedback information. Please try again.',
-				'ctaTitle' => 'Reload Page',
-				'ctaLink' => '#'
-			] );
-			exit;
+			return $feeds;
 		}
 
 		if ( empty( $feeds ) ) {
-			$this->send_error( 'error', [ 
-				'title' => 'No Feedback Available',
-				'message' => 'No feedback is configured for this essay type.',
-				'ctaTitle' => 'Return to Essays',
-				'ctaLink' => '#essays'
-			] );
-			exit;
+			return new WP_Error( 500, 'No feedback available for this essay type.' );
 		}
 
-		// Send each feed as a message
-		foreach ( $feeds as $feed ) {
+		// No error, start streaming feedback
+		$this->set_sse_headers();
 
-			$this->send_message( 'feedback_step', [ 
-				'id' => $feed['id'],
-				'process_order' => $feed['process_order'],
-				'title' => $feed['feed_title'],
-				'criteria' => $feed['feedback_criteria'],
-				'apply_to' => $feed['apply_to'],
-				'meta' => json_decode( $feed['meta'] ),
+		// Group feeds by process_order
+		$feeds_by_process_order = [];
+		foreach ( $feeds as $feed ) {
+			$process_order = (int) $feed['process_order'];
+			if ( ! isset( $feeds_by_process_order[ $process_order ] ) ) {
+				$feeds_by_process_order[ $process_order ] = [];
+			}
+			$feeds_by_process_order[ $process_order ][] = $feed;
+		}
+
+		// Process each group in order
+		foreach ( $feeds_by_process_order as $process_order => $group_feeds ) {
+			$this->send_message( 'processing_group', [ 
+				'process_order' => $process_order,
+				'feed_count' => count( $group_feeds ),
 			] );
 
+			// Process each feed in the group concurrently
+			$this->process_feeds_concurrently( $group_feeds, $uuid );
 		}
 
 		// Signal completion
 		$this->send_done( 'END' );
 
 		exit;
+	}
+
+	/**
+	 * Process a group of feeds concurrently
+	 *
+	 * @param array $feeds Array of feed data to process
+	 * @param string $uuid The UUID of the essay
+	 * @param int $concurrency Maximum number of concurrent operations
+	 */
+	private function process_feeds_concurrently( $feeds, $uuid, $concurrency = 3 ) {
+
 	}
 
 	/**
