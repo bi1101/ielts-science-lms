@@ -353,16 +353,6 @@ class Ieltssci_ApiFeeds_DB {
 			foreach ( $current as $record ) {
 				if ( $record['essay_type'] === $essay_type ) {
 					$found = true;
-					// Update process_order if different
-					if ( (int) $record['process_order'] !== $new_index ) {
-						$this->wpdb->update(
-							$table,
-							[ 'process_order' => $new_index ],
-							[ 'id' => $record['id'] ],
-							[ '%d' ],
-							[ '%d' ]
-						);
-					}
 					break;
 				}
 			}
