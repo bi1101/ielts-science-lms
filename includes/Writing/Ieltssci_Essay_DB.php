@@ -109,156 +109,329 @@ class Ieltssci_Essay_DB {
 	 * @return array|int|WP_Error Essays data, count, or error
 	 */
 	public function get_essays( $args = [] ) {
-		$defaults = [ 
-			'id' => null,
-			'uuid' => null,
-			'original_id' => null,
-			'essay_type' => null,
-			'created_by' => null,
-			'search' => null,
-			'date_query' => null,
-			'orderby' => 'id',
-			'order' => 'DESC',
-			'per_page' => 10,
-			'page' => 1,
-			'count' => false
-		];
+		try {
+			$defaults = [ 
+				'id' => null,
+				'uuid' => null,
+				'original_id' => null,
+				'essay_type' => null,
+				'created_by' => null,
+				'search' => null,
+				'date_query' => null,
+				'orderby' => 'id',
+				'order' => 'DESC',
+				'per_page' => 10,
+				'page' => 1,
+				'count' => false
+			];
 
-		$args = wp_parse_args( $args, $defaults );
-		$select = $args['count'] ? "COUNT(*)" : "*";
-		$from = $this->essays_table;
-		$where = [ "1=1" ];
-		$prepare_values = [];
+			$args = wp_parse_args( $args, $defaults );
+			$select = $args['count'] ? "COUNT(*)" : "*";
+			$from = $this->essays_table;
+			$where = [ "1=1" ];
+			$prepare_values = [];
 
-		// Process ID filter
-		if ( ! is_null( $args['id'] ) ) {
-			if ( is_array( $args['id'] ) ) {
-				$placeholders = array_fill( 0, count( $args['id'] ), '%d' );
-				$where[] = "id IN (" . implode( ',', $placeholders ) . ")";
-				$prepare_values = array_merge( $prepare_values, $args['id'] );
-			} else {
-				$where[] = "id = %d";
-				$prepare_values[] = $args['id'];
-			}
-		}
-
-		// Process UUID filter
-		if ( ! is_null( $args['uuid'] ) ) {
-			if ( is_array( $args['uuid'] ) ) {
-				$placeholders = array_fill( 0, count( $args['uuid'] ), '%s' );
-				$where[] = "uuid IN (" . implode( ',', $placeholders ) . ")";
-				$prepare_values = array_merge( $prepare_values, $args['uuid'] );
-			} else {
-				$where[] = "uuid = %s";
-				$prepare_values[] = $args['uuid'];
-			}
-		}
-
-		// Process original_id filter
-		if ( ! is_null( $args['original_id'] ) ) {
-			if ( is_array( $args['original_id'] ) ) {
-				$placeholders = array_fill( 0, count( $args['original_id'] ), '%d' );
-				$where[] = "original_id IN (" . implode( ',', $placeholders ) . ")";
-				$prepare_values = array_merge( $prepare_values, $args['original_id'] );
-			} else {
-				$where[] = "original_id = %d";
-				$prepare_values[] = $args['original_id'];
-			}
-		}
-
-		// Process essay_type filter
-		if ( ! is_null( $args['essay_type'] ) ) {
-			if ( is_array( $args['essay_type'] ) ) {
-				$placeholders = array_fill( 0, count( $args['essay_type'] ), '%s' );
-				$where[] = "essay_type IN (" . implode( ',', $placeholders ) . ")";
-				$prepare_values = array_merge( $prepare_values, $args['essay_type'] );
-			} else {
-				$where[] = "essay_type = %s";
-				$prepare_values[] = $args['essay_type'];
-			}
-		}
-
-		// Process created_by filter
-		if ( ! is_null( $args['created_by'] ) ) {
-			if ( is_array( $args['created_by'] ) ) {
-				$placeholders = array_fill( 0, count( $args['created_by'] ), '%d' );
-				$where[] = "created_by IN (" . implode( ',', $placeholders ) . ")";
-				$prepare_values = array_merge( $prepare_values, $args['created_by'] );
-			} else {
-				$where[] = "created_by = %d";
-				$prepare_values[] = $args['created_by'];
-			}
-		}
-
-		// Process search
-		if ( ! is_null( $args['search'] ) ) {
-			$where[] = "(question LIKE %s OR essay_content LIKE %s)";
-			$search_term = '%' . $this->wpdb->esc_like( $args['search'] ) . '%';
-			$prepare_values[] = $search_term;
-			$prepare_values[] = $search_term;
-		}
-
-		// Process date query (simplified approach)
-		if ( ! is_null( $args['date_query'] ) && is_array( $args['date_query'] ) ) {
-			if ( ! empty( $args['date_query']['after'] ) ) {
-				$where[] = "created_at >= %s";
-				$prepare_values[] = $args['date_query']['after'];
-			}
-			if ( ! empty( $args['date_query']['before'] ) ) {
-				$where[] = "created_at <= %s";
-				$prepare_values[] = $args['date_query']['before'];
-			}
-		}
-
-		// Build query
-		$sql = "SELECT $select FROM $from WHERE " . implode( ' AND ', $where );
-
-		// Add order if not counting
-		if ( ! $args['count'] ) {
-			// Sanitize orderby field
-			$allowed_orderby = [ 'id', 'uuid', 'essay_type', 'created_at', 'created_by' ];
-			$orderby = in_array( $args['orderby'], $allowed_orderby ) ? $args['orderby'] : 'id';
-
-			// Sanitize order direction
-			$order = strtoupper( $args['order'] ) === 'ASC' ? 'ASC' : 'DESC';
-
-			$sql .= " ORDER BY $orderby $order";
-
-			// Add pagination
-			$per_page = max( 1, intval( $args['per_page'] ) );
-			$page = max( 1, intval( $args['page'] ) );
-			$offset = ( $page - 1 ) * $per_page;
-
-			$sql .= " LIMIT %d OFFSET %d";
-			$prepare_values[] = $per_page;
-			$prepare_values[] = $offset;
-		}
-
-		// Prepare and execute query
-		$prepared_sql = $this->wpdb->prepare( $sql, $prepare_values );
-
-		if ( $args['count'] ) {
-			return (int) $this->wpdb->get_var( $prepared_sql );
-		} else {
-			$results = $this->wpdb->get_results( $prepared_sql, ARRAY_A );
-
-			// Process array fields for each result
-			foreach ( $results as &$essay ) {
-				if ( ! empty( $essay['ocr_image_ids'] ) ) {
-					$essay['ocr_image_ids'] = json_decode( $essay['ocr_image_ids'], true );
+			// Process ID filter
+			if ( ! is_null( $args['id'] ) ) {
+				if ( is_array( $args['id'] ) ) {
+					$placeholders = array_fill( 0, count( $args['id'] ), '%d' );
+					$where[] = "id IN (" . implode( ',', $placeholders ) . ")";
+					$prepare_values = array_merge( $prepare_values, $args['id'] );
 				} else {
-					$essay['ocr_image_ids'] = [];
-				}
-
-				if ( ! empty( $essay['chart_image_ids'] ) ) {
-					$essay['chart_image_ids'] = json_decode( $essay['chart_image_ids'], true );
-				} else {
-					$essay['chart_image_ids'] = [];
+					$where[] = "id = %d";
+					$prepare_values[] = $args['id'];
 				}
 			}
 
-			return $results;
+			// Process UUID filter
+			if ( ! is_null( $args['uuid'] ) ) {
+				if ( is_array( $args['uuid'] ) ) {
+					$placeholders = array_fill( 0, count( $args['uuid'] ), '%s' );
+					$where[] = "uuid IN (" . implode( ',', $placeholders ) . ")";
+					$prepare_values = array_merge( $prepare_values, $args['uuid'] );
+				} else {
+					$where[] = "uuid = %s";
+					$prepare_values[] = $args['uuid'];
+				}
+			}
+
+			// Process original_id filter
+			if ( ! is_null( $args['original_id'] ) ) {
+				if ( is_array( $args['original_id'] ) ) {
+					$placeholders = array_fill( 0, count( $args['original_id'] ), '%d' );
+					$where[] = "original_id IN (" . implode( ',', $placeholders ) . ")";
+					$prepare_values = array_merge( $prepare_values, $args['original_id'] );
+				} else {
+					$where[] = "original_id = %d";
+					$prepare_values[] = $args['original_id'];
+				}
+			}
+
+			// Process essay_type filter
+			if ( ! is_null( $args['essay_type'] ) ) {
+				if ( is_array( $args['essay_type'] ) ) {
+					$placeholders = array_fill( 0, count( $args['essay_type'] ), '%s' );
+					$where[] = "essay_type IN (" . implode( ',', $placeholders ) . ")";
+					$prepare_values = array_merge( $prepare_values, $args['essay_type'] );
+				} else {
+					$where[] = "essay_type = %s";
+					$prepare_values[] = $args['essay_type'];
+				}
+			}
+
+			// Process created_by filter
+			if ( ! is_null( $args['created_by'] ) ) {
+				if ( is_array( $args['created_by'] ) ) {
+					$placeholders = array_fill( 0, count( $args['created_by'] ), '%d' );
+					$where[] = "created_by IN (" . implode( ',', $placeholders ) . ")";
+					$prepare_values = array_merge( $prepare_values, $args['created_by'] );
+				} else {
+					$where[] = "created_by = %d";
+					$prepare_values[] = $args['created_by'];
+				}
+			}
+
+			// Process search
+			if ( ! is_null( $args['search'] ) ) {
+				$where[] = "(question LIKE %s OR essay_content LIKE %s)";
+				$search_term = '%' . $this->wpdb->esc_like( $args['search'] ) . '%';
+				$prepare_values[] = $search_term;
+				$prepare_values[] = $search_term;
+			}
+
+			// Process date query (simplified approach)
+			if ( ! is_null( $args['date_query'] ) && is_array( $args['date_query'] ) ) {
+				if ( ! empty( $args['date_query']['after'] ) ) {
+					$where[] = "created_at >= %s";
+					$prepare_values[] = $args['date_query']['after'];
+				}
+				if ( ! empty( $args['date_query']['before'] ) ) {
+					$where[] = "created_at <= %s";
+					$prepare_values[] = $args['date_query']['before'];
+				}
+			}
+
+			// Build query
+			$sql = "SELECT $select FROM $from WHERE " . implode( ' AND ', $where );
+
+			// Add order if not counting
+			if ( ! $args['count'] ) {
+				// Sanitize orderby field
+				$allowed_orderby = [ 'id', 'uuid', 'essay_type', 'created_at', 'created_by' ];
+				$orderby = in_array( $args['orderby'], $allowed_orderby ) ? $args['orderby'] : 'id';
+
+				// Sanitize order direction
+				$order = strtoupper( $args['order'] ) === 'ASC' ? 'ASC' : 'DESC';
+
+				$sql .= " ORDER BY $orderby $order";
+
+				// Add pagination
+				$per_page = max( 1, intval( $args['per_page'] ) );
+				$page = max( 1, intval( $args['page'] ) );
+				$offset = ( $page - 1 ) * $per_page;
+
+				$sql .= " LIMIT %d OFFSET %d";
+				$prepare_values[] = $per_page;
+				$prepare_values[] = $offset;
+			}
+
+			// Prepare and execute query
+			$prepared_sql = $this->wpdb->prepare( $sql, $prepare_values );
+
+			if ( $args['count'] ) {
+				$result = $this->wpdb->get_var( $prepared_sql );
+				if ( $result === null && $this->wpdb->last_error ) {
+					throw new \Exception( $this->wpdb->last_error );
+				}
+				return (int) $result;
+			} else {
+				$results = $this->wpdb->get_results( $prepared_sql, ARRAY_A );
+				if ( $results === null && $this->wpdb->last_error ) {
+					throw new \Exception( $this->wpdb->last_error );
+				}
+
+				// Process array fields for each result
+				foreach ( $results as &$essay ) {
+					if ( ! empty( $essay['ocr_image_ids'] ) ) {
+						$essay['ocr_image_ids'] = json_decode( $essay['ocr_image_ids'], true );
+					} else {
+						$essay['ocr_image_ids'] = [];
+					}
+
+					if ( ! empty( $essay['chart_image_ids'] ) ) {
+						$essay['chart_image_ids'] = json_decode( $essay['chart_image_ids'], true );
+					} else {
+						$essay['chart_image_ids'] = [];
+					}
+				}
+
+				return $results;
+			}
+		} catch (\Exception $e) {
+			return new WP_Error( 'database_error', 'Failed to retrieve essays: ' . $e->getMessage(), [ 'status' => 500 ] );
 		}
 	}
 
+	/**
+	 * Get segments with flexible query arguments
+	 *
+	 * @param array $args {
+	 *     Optional. Arguments to retrieve segments.
+	 *     @type int|array    $segment_id    Segment ID or array of IDs.
+	 *     @type int|array    $essay_id      Essay ID or array of IDs.
+	 *     @type string|array $type          Segment type or array of types.
+	 *     @type int|array    $order         Order position or array of positions.
+	 *     @type string       $search        Search term to look for in title or content.
+	 *     @type string       $orderby       Field to order results by. Default 'order'.
+	 *                                       Accepts 'id', 'essay_id', 'type', 'order'.
+	 *     @type string       $order         Order direction. Default 'ASC'.
+	 *                                       Accepts 'ASC', 'DESC'.
+	 *     @type int          $number        Number of segments to return. Default 10.
+	 *     @type int          $offset        Offset for pagination. Default 0.
+	 *     @type string|array $fields        Fields to return. Default 'all'.
+	 *     @type bool         $count         If true, return only the count. Default false.
+	 * }
+	 * @return array|int|WP_Error Segments data, count, or error
+	 */
+	public function get_segments( $args = [] ) {
+		try {
+			$defaults = [ 
+				'segment_id' => null,
+				'essay_id' => null,
+				'type' => null,
+				'search' => null,
+				'orderby' => 'order',
+				'order' => 'ASC',
+				'number' => 10,
+				'offset' => 0,
+				'fields' => 'all',
+				'count' => false
+			];
+
+			$args = wp_parse_args( $args, $defaults );
+
+			// Determine what to select
+			if ( $args['count'] ) {
+				$select = "COUNT(*)";
+			} elseif ( $args['fields'] !== 'all' && is_array( $args['fields'] ) ) {
+				// Sanitize field names
+				$allowed_fields = [ 'id', 'essay_id', 'type', 'order', 'title', 'content' ];
+				$fields = array_intersect( $args['fields'], $allowed_fields );
+				if ( empty( $fields ) ) {
+					return new WP_Error( 'invalid_fields', 'No valid fields specified', [ 'status' => 400 ] );
+				}
+				$select = implode( ', ', $fields );
+			} else {
+				$select = "*";
+			}
+
+			$from = $this->segment_table;
+			$where = [ "1=1" ];
+			$prepare_values = [];
+
+			// Process segment_id filter
+			if ( ! is_null( $args['segment_id'] ) ) {
+				if ( is_array( $args['segment_id'] ) ) {
+					$placeholders = array_fill( 0, count( $args['segment_id'] ), '%d' );
+					$where[] = "id IN (" . implode( ',', $placeholders ) . ")";
+					$prepare_values = array_merge( $prepare_values, $args['segment_id'] );
+				} else {
+					$where[] = "id = %d";
+					$prepare_values[] = $args['segment_id'];
+				}
+			}
+
+			// Process essay_id filter
+			if ( ! is_null( $args['essay_id'] ) ) {
+				if ( is_array( $args['essay_id'] ) ) {
+					$placeholders = array_fill( 0, count( $args['essay_id'] ), '%d' );
+					$where[] = "essay_id IN (" . implode( ',', $placeholders ) . ")";
+					$prepare_values = array_merge( $prepare_values, $args['essay_id'] );
+				} else {
+					$where[] = "essay_id = %d";
+					$prepare_values[] = $args['essay_id'];
+				}
+			}
+
+			// Process type filter
+			if ( ! is_null( $args['type'] ) ) {
+				if ( is_array( $args['type'] ) ) {
+					$placeholders = array_fill( 0, count( $args['type'] ), '%s' );
+					$where[] = "type IN (" . implode( ',', $placeholders ) . ")";
+					$prepare_values = array_merge( $prepare_values, $args['type'] );
+				} else {
+					$where[] = "type = %s";
+					$prepare_values[] = $args['type'];
+				}
+			}
+
+			// Process order filter
+			if ( ! is_null( $args['order'] ) && ! in_array( strtoupper( $args['order'] ), [ 'ASC', 'DESC' ] ) ) {
+				// If order is used as a filter not as sort direction
+				if ( is_array( $args['order'] ) ) {
+					$placeholders = array_fill( 0, count( $args['order'] ), '%d' );
+					$where[] = "`order` IN (" . implode( ',', $placeholders ) . ")";
+					$prepare_values = array_merge( $prepare_values, $args['order'] );
+				} else {
+					$where[] = "`order` = %d";
+					$prepare_values[] = $args['order'];
+				}
+			}
+
+			// Process search
+			if ( ! is_null( $args['search'] ) ) {
+				$where[] = "(title LIKE %s OR content LIKE %s)";
+				$search_term = '%' . $this->wpdb->esc_like( $args['search'] ) . '%';
+				$prepare_values[] = $search_term;
+				$prepare_values[] = $search_term;
+			}
+
+			// Build query
+			$sql = "SELECT $select FROM $from WHERE " . implode( ' AND ', $where );
+
+			// Add order if not counting
+			if ( ! $args['count'] ) {
+				// Sanitize orderby field
+				$allowed_orderby = [ 'id', 'essay_id', 'type', 'order' ];
+				$orderby = in_array( $args['orderby'], $allowed_orderby ) ? $args['orderby'] : 'order';
+
+				// For 'order' field, we need to escape it as it's a reserved word in SQL
+				if ( $orderby === 'order' ) {
+					$orderby = '`order`';
+				}
+
+				// Sanitize order direction
+				$order_dir = strtoupper( $args['order'] ) === 'DESC' ? 'DESC' : 'ASC';
+
+				$sql .= " ORDER BY $orderby $order_dir";
+
+				// Add pagination
+				$number = max( 1, intval( $args['number'] ) );
+				$offset = max( 0, intval( $args['offset'] ) );
+
+				$sql .= " LIMIT %d OFFSET %d";
+				$prepare_values[] = $number;
+				$prepare_values[] = $offset;
+			}
+
+			// Prepare and execute query
+			$prepared_sql = $this->wpdb->prepare( $sql, $prepare_values );
+
+			if ( $args['count'] ) {
+				$result = $this->wpdb->get_var( $prepared_sql );
+				if ( $result === null && $this->wpdb->last_error ) {
+					throw new \Exception( $this->wpdb->last_error );
+				}
+				return (int) $result;
+			} else {
+				$results = $this->wpdb->get_results( $prepared_sql, ARRAY_A );
+				if ( $results === null && $this->wpdb->last_error ) {
+					throw new \Exception( $this->wpdb->last_error );
+				}
+				return $results;
+			}
+		} catch (\Exception $e) {
+			return new WP_Error( 'database_error', 'Failed to retrieve segments: ' . $e->getMessage(), [ 'status' => 500 ] );
+		}
+	}
 }

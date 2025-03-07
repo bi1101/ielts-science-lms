@@ -224,56 +224,45 @@ class Ieltssci_Writing_REST {
 			}
 		}
 
-		try {
-			// Get total count for pagination headers
-			$count_args = $args;
-			$count_args['count'] = true;
-			$total = $this->essay_service->get_essays( $count_args );
+		// Get total count for pagination headers
+		$count_args = $args;
+		$count_args['count'] = true;
+		$total = $this->essay_service->get_essays( $count_args );
 
-			if ( is_wp_error( $total ) ) {
-				return $total;
-			}
-
-			// Get essays with current parameters
-			$essays = $this->essay_service->get_essays( $args );
-
-			if ( is_wp_error( $essays ) ) {
-				return $essays;
-			}
-
-			// Handle empty results properly
-			if ( empty( $essays ) ) {
-				$essays = [];
-			}
-
-			// Calculate pagination values
-			$per_page = isset( $args['per_page'] ) ? (int) $args['per_page'] : 10;
-			$page = isset( $args['page'] ) ? (int) $args['page'] : 1;
-			$total_pages = ceil( $total / $per_page );
-
-			// Build response with pagination headers
-			$response = new WP_REST_Response( $essays, 200 );
-			$response->header( 'X-WP-Total', (int) $total );
-			$response->header( 'X-WP-TotalPages', (int) $total_pages );
-
-			// Add Link header for pagination discovery (HATEOAS)
-			$this->add_pagination_headers( $response, [ 
-				'page' => $page,
-				'total_pages' => $total_pages,
-				'per_page' => $per_page
-			] );
-
-			return $response;
-		} catch (\Exception $e) {
-			return new WP_Error(
-				'api_error',
-				__( 'An error occurred while retrieving essays', 'ielts-science-lms' ),
-				[ 
-					'status' => 500,
-					'message' => $e->getMessage()
-				]
-			);
+		if ( is_wp_error( $total ) ) {
+			return $total; // Return the WP_Error directly from the DB layer
 		}
+
+		// Get essays with current parameters
+		$essays = $this->essay_service->get_essays( $args );
+
+		if ( is_wp_error( $essays ) ) {
+			return $essays; // Return the WP_Error directly from the DB layer
+		}
+
+		// Handle empty results properly
+		if ( empty( $essays ) ) {
+			$essays = [];
+		}
+
+		// Calculate pagination values
+		$per_page = isset( $args['per_page'] ) ? (int) $args['per_page'] : 10;
+		$page = isset( $args['page'] ) ? (int) $args['page'] : 1;
+		$total_pages = ceil( $total / $per_page );
+
+		// Build response with pagination headers
+		$response = new WP_REST_Response( $essays, 200 );
+		$response->header( 'X-WP-Total', (int) $total );
+		$response->header( 'X-WP-TotalPages', (int) $total_pages );
+
+		// Add Link header for pagination discovery (HATEOAS)
+		$this->add_pagination_headers( $response, [ 
+			'page' => $page,
+			'total_pages' => $total_pages,
+			'per_page' => $per_page
+		] );
+
+		return $response;
 	}
 
 	/**
@@ -449,11 +438,7 @@ class Ieltssci_Writing_REST {
 		$result = $this->essay_service->create_essay( $essay_data );
 
 		if ( is_wp_error( $result ) ) {
-			return new WP_Error(
-				$result->get_error_code(),
-				$result->get_error_message(),
-				$result->get_error_data()
-			);
+			return $result; // Return the WP_Error directly from the DB layer
 		}
 
 		return new WP_REST_Response( $result, 200 );
@@ -463,13 +448,21 @@ class Ieltssci_Writing_REST {
 	 * Get specific essay endpoint
 	 */
 	public function get_essay( WP_REST_Request $request ) {
+		$uuid = $request->get_param( 'uuid' );
+		$essays = $this->essay_service->get_essays( [ 'uuid' => $uuid ] );
 
-		$essay = $this->essay_service->get_essays( [ 'uuid' => $request->get_param( 'uuid' ) ] );
-
-		if ( is_wp_error( $essay ) ) {
-			return $essay;
+		if ( is_wp_error( $essays ) ) {
+			return $essays; // Return the WP_Error directly from the DB layer
 		}
 
-		return new WP_REST_Response( $essay, 200 );
+		if ( empty( $essays ) ) {
+			return new WP_Error(
+				'essay_not_found',
+				__( 'Essay not found', 'ielts-science-lms' ),
+				[ 'status' => 404 ]
+			);
+		}
+
+		return new WP_REST_Response( $essays[0], 200 );
 	}
 }
