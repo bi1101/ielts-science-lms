@@ -148,6 +148,7 @@ class Ieltssci_ApiKeys_DB {
 	 *     @type string $provider     Filter by provider name
 	 *     @type bool   $least_used   When true, returns the least used key
 	 *     @type array  $meta_query   Filter by meta value conditions
+	 *     @type bool   $increment_usage When true, increments usage count of returned key
 	 * }
 	 * @return array|null Single API key or null if not found
 	 */
@@ -156,6 +157,7 @@ class Ieltssci_ApiKeys_DB {
 			'provider' => '',
 			'least_used' => true,
 			'meta_query' => [],
+			'increment_usage' => false,
 		];
 
 		$args = wp_parse_args( $args, $defaults );
@@ -244,6 +246,17 @@ class Ieltssci_ApiKeys_DB {
 
 		if ( empty( $row ) ) {
 			return null;
+		}
+
+		// Increment the usage count if requested
+		if ( $args['increment_usage'] ) {
+			$this->wpdb->update(
+				$this->table_name,
+				[ 'usage_count' => (int) $row['usage_count'] + 1 ],
+				[ 'id' => (int) $row['id'] ],
+				[ '%d' ],
+				[ '%d' ]
+			);
 		}
 
 		// Format single key result

@@ -188,13 +188,9 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @return string The concatenated responses from all API calls
 	 */
 	private function make_parallel_api_calls( $api_provider, $model, $prompts, $temperature, $max_tokens, $feed, $step_type ) {
-		// Get API key
-		$apiKeysDB = new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_DB();
-		$api_key = $apiKeysDB->get_api_key( 0, [ 'provider' => $api_provider ] );
+		// Get client settings
+		$client_settings = $this->get_client_settings( $api_provider );
 
-		if ( ! $api_key ) {
-			throw new Exception( "API key not found for provider: {$api_provider}" );
-		}
 		// Decider Function: Determines IF a request should be retried.
 		$decider = function ($retries, $request, $response, $exception) {
 			// 1. Limit the maximum number of retries.
@@ -205,11 +201,11 @@ class Ieltssci_Writing_Feedback_Processor {
 			return true;
 		};
 
-		// Initialize Guzzle client with appropriate settings based on provider
-		$client_settings = $this->get_client_settings( $api_provider, $api_key, false );
+		// Add handler stack with retry middleware
 		$stack = HandlerStack::create();
 		$stack->push( Middleware::retry( $decider ) );
 		$client_settings['handler'] = $stack;
+
 		$client = new \GuzzleHttp\Client( $client_settings );
 
 		// Track results and errors
@@ -224,11 +220,14 @@ class Ieltssci_Writing_Feedback_Processor {
 				// Prepare request payload for this prompt
 				$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, false );
 
+				// Get headers including API key
+				$headers = $this->get_request_headers( $api_provider, false );
+
 				// Yield request with index metadata
 				yield $index => new Request(
 					'POST',
 					'chat/completions',
-					[ 'Content-Type' => 'application/json' ],
+					$headers,
 					json_encode( $payload )
 				);
 			}
@@ -346,13 +345,14 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @return string The response from the API
 	 */
 	private function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type ) {
-		// Get API key
-		$apiKeysDB = new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_DB();
-		$api_key = $apiKeysDB->get_api_key( 0, [ 'provider' => $api_provider ] );
+		// Get client settings
+		$client_settings = $this->get_client_settings( $api_provider );
 
-		if ( ! $api_key ) {
-			throw new Exception( "API key not found for provider: {$api_provider}" );
-		}
+		// Get headers including API key
+		$headers = $this->get_request_headers( $api_provider, true );
+
+		// Combine settings and headers
+		$client_settings['headers'] = $headers;
 
 		// Decider Function: Determines IF a request should be retried.
 		$decider = function ($retries, $request, $response, $exception) {
@@ -364,11 +364,11 @@ class Ieltssci_Writing_Feedback_Processor {
 			return true;
 		};
 
-		// Initialize Guzzle client with appropriate settings based on provider
-		$client_settings = $this->get_client_settings( $api_provider, $api_key, true );
+		// Add handler stack with retry middleware
 		$stack = HandlerStack::create();
 		$stack->push( Middleware::retry( $decider ) );
 		$client_settings['handler'] = $stack;
+
 		$client = new \GuzzleHttp\Client( $client_settings );
 
 		// Prepare request payload based on the API provider
@@ -898,50 +898,79 @@ class Ieltssci_Writing_Feedback_Processor {
 	}
 
 	/**
+	 * Build API request headers
+	 * 
+	 * @param string $provider API provider name
+	 * @param bool $streaming Whether this is for streaming requests
+	 * @return array Request headers
+	 */
+	private function get_request_headers( $provider, $streaming = true ) {
+		// Get API key
+		$apiKeysDB = new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_DB();
+		$api_key = $apiKeysDB->get_api_key( 0, [ 
+			'provider' => $provider,
+			'increment_usage' => true,
+		] );
+
+		if ( ! $api_key ) {
+			throw new Exception( "API key not found for provider: {$provider}" );
+		}
+
+		$accept_header = $streaming ? 'text/event-stream' : 'application/json';
+
+		switch ( $provider ) {
+			case 'google':
+				return [ 
+					'Authorization' => 'Bearer ' . $api_key["meta"]["api-key"],
+					'Content-Type' => 'application/json',
+					'Accept' => $accept_header,
+				];
+
+			case 'openai':
+			case 'open-key-ai':
+				return [ 
+					'Authorization' => 'Bearer ' . $api_key["meta"]["api-key"],
+					'Content-Type' => 'application/json',
+					'Accept' => $accept_header,
+				];
+
+			default:
+				// Default to OpenAI-style headers
+				return [ 
+					'Authorization' => 'Bearer ' . $api_key["meta"]["api-key"],
+					'Content-Type' => 'application/json',
+					'Accept' => $accept_header,
+				];
+		}
+	}
+
+	/**
 	 * Get client settings based on API provider
 	 * 
 	 * @param string $provider API provider name
-	 * @param array $api_key API key data
-	 * @param bool $streaming Whether this is for streaming requests
-	 * @return array Client configuration
+	 * @return array Client configuration without headers
 	 */
-	private function get_client_settings( $provider, $api_key, $streaming = true ) {
+	private function get_client_settings( $provider ) {
 		$settings = [ 
 			'connect_timeout' => 5,
 			'timeout' => 120,
 			'read_timeout' => 120,
 		];
 
-		$accept_header = $streaming ? 'text/event-stream' : 'application/json';
-
+		// Get the base URI for the provider
 		switch ( $provider ) {
 			case 'google':
 				$settings['base_uri'] = 'https://generativelanguage.googleapis.com/v1beta/openai/';
-				$settings['headers'] = [ 
-					'Authorization' => 'Bearer ' . $api_key["meta"]["api-key"],
-					'Content-Type' => 'application/json',
-					'Accept' => $accept_header,
-				];
 				break;
 
 			case 'openai':
 			case 'open-key-ai':
 				$settings['base_uri'] = 'https://api.openai.com/v1/';
-				$settings['headers'] = [ 
-					'Authorization' => 'Bearer ' . $api_key["meta"]["api-key"],
-					'Content-Type' => 'application/json',
-					'Accept' => $accept_header,
-				];
 				break;
 
 			default:
 				// Default to OpenAI
 				$settings['base_uri'] = 'https://api.openai.com/v1/';
-				$settings['headers'] = [ 
-					'Authorization' => 'Bearer ' . $api_key["meta"]["api-key"],
-					'Content-Type' => 'application/json',
-					'Accept' => $accept_header,
-				];
 		}
 
 		return $settings;
