@@ -299,7 +299,7 @@ class Ieltssci_ApiFeeds_DB {
 		$data = [ 
 			'feedback_criteria' => $feed_data['feedName'],
 			'feed_title' => $feed_data['feedTitle'],
-			'feed_desc' => $feed_data['feedDesc'],
+			'feed_desc' => $feed_data['feedDesc'] ?? '',
 			'apply_to' => $feed_data['applyTo'],
 			'meta' => json_encode( [ 'steps' => $feed_data['steps'] ] )
 		];
@@ -346,7 +346,7 @@ class Ieltssci_ApiFeeds_DB {
 		);
 		$current = $this->wpdb->get_results( $query, ARRAY_A );
 
-		// Process new list: update process_order if changed; insert new records as needed
+		// Process new list: insert new records as needed
 		foreach ( $new_essay_types as $new_index => $essay_type ) {
 			// Try to find a matching current record
 			$found = false;

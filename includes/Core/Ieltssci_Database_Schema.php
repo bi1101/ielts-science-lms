@@ -6,9 +6,9 @@ class Ieltssci_Database_Schema {
 	private $db_version = '0.0.2'; // Updated version number
 	private \wpdb $wpdb;
 
-	public function __construct( \wpdb $wpdb = null ) {
+	public function __construct() {
 		global $wpdb;
-		$this->wpdb = $wpdb ?? $GLOBALS['wpdb'];
+		$this->wpdb = $wpdb;
 	}
 
 	public function create_tables() {
