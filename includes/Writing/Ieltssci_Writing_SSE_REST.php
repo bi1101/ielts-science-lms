@@ -5,12 +5,6 @@ namespace IeltsScienceLMS\Writing;
 use WP_REST_Server;
 use WP_REST_Request;
 use WP_Error;
-use Exception;
-use IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_DB;
-use GuzzleHttp\Promise\FulfilledPromise;
-use GuzzleHttp\Promise\RejectedPromise;
-use GuzzleHttp\Pool;
-use GuzzleHttp\Client;
 
 /**
  * Class Ieltssci_Writing_SSE_REST
@@ -29,25 +23,9 @@ class Ieltssci_Writing_SSE_REST {
 	private $base = 'writing';
 
 	/**
-	 * Database handler for essays
-	 * 
-	 * @var Ieltssci_Essay_DB
-	 */
-	private $essays_db;
-
-	/**
-	 * API Feeds database handler
-	 * 
-	 * @var Ieltssci_ApiFeeds_DB
-	 */
-	private $api_feeds_db;
-
-	/**
 	 * Constructor
 	 */
 	public function __construct() {
-		$this->essays_db = new Ieltssci_Essay_DB();
-		$this->api_feeds_db = new Ieltssci_ApiFeeds_DB();
 		add_action( 'rest_api_init', [ $this, 'register_routes' ] );
 	}
 
@@ -59,7 +37,7 @@ class Ieltssci_Writing_SSE_REST {
 			$this->namespace,
 			'/' . $this->base . '/feedback',
 			array(
-				'methods' => WP_REST_Server::CREATABLE,
+				'methods' => WP_REST_Server::READABLE,
 				'callback' => array( $this, 'get_essay_feedback' ),
 				'permission_callback' => '__return_true', // Accessible to anyone
 				'args' => array(
@@ -70,12 +48,12 @@ class Ieltssci_Writing_SSE_REST {
 						},
 						'sanitize_callback' => 'sanitize_text_field',
 					),
-					'essay_type' => array(
+					'feed_id' => array(
 						'required' => true,
 						'validate_callback' => function ($param) {
-							return is_string( $param ) && ! empty( $param );
+							return is_numeric( $param ) && intval( $param ) > 0;
 						},
-						'sanitize_callback' => 'sanitize_text_field',
+						'sanitize_callback' => 'absint',
 					),
 				),
 			)
@@ -92,47 +70,29 @@ class Ieltssci_Writing_SSE_REST {
 	public function get_essay_feedback( $request ) {
 		// Get parameters
 		$uuid = $request->get_param( 'UUID' );
-		$essay_type = $request->get_param( 'essay_type' );
+		$feed_id = $request->get_param( 'feed_id' );
 
-		// Get all feeds that need processing based on the essay type
-		$feeds = $this->api_feeds_db->get_api_feeds( [ 
-			'essay_type' => $essay_type,
-			'order_by' => 'process_order',
-			'order_direction' => 'ASC',
-			'limit' => 50,
-			'include' => [ 'meta', 'process_order' ],
-		] );
-
-		if ( is_wp_error( $feeds ) ) {
-			return $feeds;
-		}
-
-		if ( empty( $feeds ) ) {
-			return new WP_Error( 500, 'No feedback available for this essay type.' );
-		}
-
-		// No error, start streaming feedback
+		// Set up SSE headers
 		$this->set_sse_headers();
 
-		// Group feeds by process_order
-		$feeds_by_process_order = [];
-		foreach ( $feeds as $feed ) {
-			$process_order = (int) $feed['process_order'];
-			if ( ! isset( $feeds_by_process_order[ $process_order ] ) ) {
-				$feeds_by_process_order[ $process_order ] = [];
+		// Create feedback processor with message callback
+		$processor = new Ieltssci_Writing_Feedback_Processor(
+			// Pass the message sending function as a callback
+			function ($event_type, $data, $is_error = false) {
+				if ( $is_error ) {
+					$this->send_error( $event_type, $data );
+				} else {
+					$this->send_message( $event_type, $data );
+				}
 			}
-			$feeds_by_process_order[ $process_order ][] = $feed;
-		}
+		);
 
-		// Process each group in order
-		foreach ( $feeds_by_process_order as $process_order => $group_feeds ) {
-			$this->send_message( 'processing_group', [ 
-				'process_order' => $process_order,
-				'feed_count' => count( $group_feeds ),
-			] );
+		// Process the specific feed
+		$result = $processor->process_feed_by_id( $feed_id, $uuid );
 
-			// Process each feed in the group concurrently
-			$this->process_feeds_concurrently( $group_feeds, $uuid );
+		// Handle errors
+		if ( is_wp_error( $result ) ) {
+			return $result;
 		}
 
 		// Signal completion
@@ -142,32 +102,32 @@ class Ieltssci_Writing_SSE_REST {
 	}
 
 	/**
-	 * Process a group of feeds concurrently
-	 *
-	 * @param array $feeds Array of feed data to process
-	 * @param string $uuid The UUID of the essay
-	 * @param int $concurrency Maximum number of concurrent operations
-	 */
-	private function process_feeds_concurrently( $feeds, $uuid, $concurrency = 3 ) {
-
-	}
-
-	/**
 	 * Set headers for SSE
 	 */
 	private function set_sse_headers() {
-		header( 'Content-Type: text/event-stream' );
-		header( 'Cache-Control: no-cache' );
-		header( 'Connection: keep-alive' );
-		header( 'X-Accel-Buffering: no' ); // Disable buffering for Nginx
-
-		// Prevent output buffering
-		if ( ob_get_level() ) {
+		// Disable output buffering at all levels
+		while ( ob_get_level() ) {
 			ob_end_clean();
 		}
 
-		// Disable time limit
+		// Prevent PHP from buffering and sending content in chunks
+		if ( function_exists( 'apache_setenv' ) ) {
+			apache_setenv( 'no-gzip', '1' );
+		}
+
+		// Disable compression
+		ini_set( 'zlib.output_compression', '0' );
+
+		// Set headers for SSE
+		header( 'Content-Type: text/event-stream' );
+		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
+		header( 'Pragma: no-cache' );
+		header( 'Connection: keep-alive' );
+		header( 'X-Accel-Buffering: no' ); // Disable buffering for Nginx
+
+		// Ensure output is not buffered
 		set_time_limit( 0 );
+		// ignore_user_abort( true );
 	}
 
 	/**
@@ -181,7 +141,10 @@ class Ieltssci_Writing_SSE_REST {
 		echo "event: {$event_type}\n";
 		echo "data: {$json_data}\n\n";
 
-		// Flush output buffer
+		// Force flush the output buffer
+		if ( ob_get_level() > 0 ) {
+			ob_flush();
+		}
 		flush();
 	}
 
@@ -197,6 +160,9 @@ class Ieltssci_Writing_SSE_REST {
 		echo "event: {$event_type}\n";
 		echo "data: {$error_data}\n\n";
 
+		if ( ob_get_level() > 0 ) {
+			ob_flush();
+		}
 		flush();
 	}
 
@@ -209,7 +175,9 @@ class Ieltssci_Writing_SSE_REST {
 		echo "event: {$event_type}\n";
 		echo "data: [DONE]\n\n";
 
+		if ( ob_get_level() > 0 ) {
+			ob_flush();
+		}
 		flush();
 	}
-
 }
