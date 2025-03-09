@@ -154,6 +154,10 @@ class Ieltssci_Writing_Feedback_Processor {
 		}
 
 		$english_prompt = $config["general-setting"]["englishPrompt"];
+		$api_provider = $config["general-setting"]["apiProvider"];
+		$model = $config["general-setting"]["model"];
+		$temperature = $config["advanced-setting"]["temperature"];
+		$max_tokens = $config["advanced-setting"]["maxToken"];
 
 		// Process merge tags in the prompt
 		$processed_prompt = $this->process_merge_tags( $english_prompt, $uuid );
@@ -912,7 +916,7 @@ class Ieltssci_Writing_Feedback_Processor {
 			'increment_usage' => true,
 		] );
 
-		if ( ! $api_key ) {
+		if ( ! $api_key && $provider !== 'home-server' ) {
 			throw new Exception( "API key not found for provider: {$provider}" );
 		}
 
@@ -927,12 +931,23 @@ class Ieltssci_Writing_Feedback_Processor {
 				];
 
 			case 'openai':
+				return [ 
+					'Authorization' => 'Bearer ' . $api_key["meta"]["api-key"],
+					'Content-Type' => 'application/json',
+					'Accept' => $accept_header,
+				];
 			case 'open-key-ai':
 				return [ 
 					'Authorization' => 'Bearer ' . $api_key["meta"]["api-key"],
 					'Content-Type' => 'application/json',
 					'Accept' => $accept_header,
 				];
+			case 'home-server':
+				return
+					[ 
+						'Content-Type' => 'application/json',
+						'Accept' => $accept_header,
+					];
 
 			default:
 				// Default to OpenAI-style headers
@@ -964,8 +979,10 @@ class Ieltssci_Writing_Feedback_Processor {
 				break;
 
 			case 'openai':
-			case 'open-key-ai':
 				$settings['base_uri'] = 'https://api.openai.com/v1/';
+				break;
+			case 'open-key-ai':
+				$settings['base_uri'] = 'https://api.hakai.shop/v1/';
 				break;
 
 			default:
