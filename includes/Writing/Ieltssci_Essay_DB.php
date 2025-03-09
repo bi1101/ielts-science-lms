@@ -1,25 +1,14 @@
 <?php
 /**
- * This class is responsible for handling user authentication.
- * It provides methods to register, login, and logout users.
+ * IELTS Science LMS Essay Database Handler
  *
- * Methods:
- * - register(array $userData): Registers a new user with the provided data.
- * - login(string $username, string $password): Authenticates a user with the given credentials.
- * - logout(): Logs out the currently authenticated user.
- *
- * Properties:
- * - $db: Database connection instance.
- * - $session: Session management instance.
- *
- * Usage:
- * $auth = new Auth($db, $session);
- * $auth->register($userData);
- * $auth->login($username, $password);
- * $auth->logout();
+ * This file contains the database operations class for managing IELTS essays,
+ * including creating, retrieving, and managing essay data, segments, and feedback.
  *
  * @package IELTS_Science_LMS
  * @subpackage Writing
+ * @since 1.0.0
+ * @version 1.0.0
  */
 
 namespace IeltsScienceLMS\Writing;
@@ -31,6 +20,14 @@ use wpdb;
  * Class Ieltssci_Essay_DB
  *
  * Handles database operations for IELTS Science LMS essays.
+ *
+ * This class provides methods to:
+ * - Create and retrieve essays
+ * - Manage essay segments
+ * - Handle essay and segment feedback
+ * - Query essay data with flexible parameters
+ *
+ * @since 1.0.0
  */
 class Ieltssci_Essay_DB {
 	/**
