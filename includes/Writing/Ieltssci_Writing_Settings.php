@@ -8,37 +8,39 @@ class Ieltssci_Writing_Settings {
 	private $db;
 
 	public function __construct() {
-		add_filter( 'ieltssci_settings_config', [ $this, 'register_settings_config' ] );
+		add_filter( 'ieltssci_settings_config', array( $this, 'register_settings_config' ) );
 		$this->db = new Ieltssci_ApiFeeds_DB();
 	}
 
 	public function register_settings_config( $settings ) {
 
-		$writing_settings = [ 
-			'writing-apis' => [ 
+		$writing_settings = array(
+			'writing-apis'               => array(
 				'tab_label' => __( 'Writing APIs', 'ielts-science-lms' ),
-				'tab_type' => 'api-feeds',
-				'settings' => $this->writing_apis_settings(),
-			],
-			'writing-apis-process-order' => [ 
+				'tab_type'  => 'api-feeds',
+				'settings'  => $this->writing_apis_settings(),
+			),
+			'writing-apis-process-order' => array(
 				'tab_label' => __( 'Writing APIs Process Order', 'ielts-science-lms' ),
-				'tab_type' => 'api-feeds-process-order',
-				'settings' => $this->essay_types(),
-			]
-		];
+				'tab_type'  => 'api-feeds-process-order',
+				'settings'  => $this->essay_types(),
+			),
+		);
 
 		return array_merge( $settings, $writing_settings );
 	}
 
 	protected function essay_types() {
 		// Get all feeds with their essay types and process orders using get_api_feeds
-		$feeds = $this->db->get_api_feeds( [ 
-			'limit' => 500, // High limit to get all feeds
-			'include' => [ 'essay_types' ] // Include essay types data
-		] );
+		$feeds = $this->db->get_api_feeds(
+			array(
+				'limit'   => 500, // High limit to get all feeds
+				'include' => array( 'essay_types' ), // Include essay types data
+			)
+		);
 
 		// Group feeds by essay type
-		$grouped_feeds = [];
+		$grouped_feeds = array();
 		foreach ( $feeds as $feed ) {
 			if ( empty( $feed['essay_types'] ) ) {
 				continue;
@@ -48,42 +50,42 @@ class Ieltssci_Writing_Settings {
 				$essay_type = $essay_type_data['essay_type'];
 
 				if ( ! isset( $grouped_feeds[ $essay_type ] ) ) {
-					$grouped_feeds[ $essay_type ] = [];
+					$grouped_feeds[ $essay_type ] = array();
 				}
 
-				$grouped_feeds[ $essay_type ][] = [ 
-					'id' => (int) $feed['id'],
-					'feedName' => $feed['feedback_criteria'],
-					'feedTitle' => $feed['feed_title'],
-					'feedDesc' => $feed['feed_desc'],
-					'processOrder' => (int) $essay_type_data['process_order']
-				];
+				$grouped_feeds[ $essay_type ][] = array(
+					'id'           => (int) $feed['id'],
+					'feedName'     => $feed['feedback_criteria'],
+					'feedTitle'    => $feed['feed_title'],
+					'feedDesc'     => $feed['feed_desc'],
+					'processOrder' => (int) $essay_type_data['process_order'],
+				);
 			}
 		}
 
 		// Map to the required format
-		return [ 
-			[ 
-				'groupName' => 'task-1',
+		return array(
+			array(
+				'groupName'  => 'task-1',
 				'groupTitle' => 'Task 1',
-				'feeds' => $grouped_feeds['task-1'] ?? []
-			],
-			[ 
-				'groupName' => 'task-2',
+				'feeds'      => $grouped_feeds['task-1'] ?? array(),
+			),
+			array(
+				'groupName'  => 'task-2',
 				'groupTitle' => 'Task 2',
-				'feeds' => $grouped_feeds['task-2'] ?? []
-			],
-			[ 
-				'groupName' => 'task-1-ocr',
+				'feeds'      => $grouped_feeds['task-2'] ?? array(),
+			),
+			array(
+				'groupName'  => 'task-1-ocr',
 				'groupTitle' => 'Task 1 OCR',
-				'feeds' => $grouped_feeds['task-1-ocr'] ?? []
-			],
-			[ 
-				'groupName' => 'task-2-ocr',
+				'feeds'      => $grouped_feeds['task-1-ocr'] ?? array(),
+			),
+			array(
+				'groupName'  => 'task-2-ocr',
 				'groupTitle' => 'Task 2 OCR',
-				'feeds' => $grouped_feeds['task-2-ocr'] ?? []
-			],
-		];
+				'feeds'      => $grouped_feeds['task-2-ocr'] ?? array(),
+			),
+		);
 	}
 
 	protected function writing_apis_settings() {
@@ -91,348 +93,607 @@ class Ieltssci_Writing_Settings {
 		$settingsConfigInstance = new \IeltsScienceLMS\Settings\Ieltssci_Settings_Config();
 
 		// Define writing specific merge tags.
-		$writingMergeTags = [ 
-			[ 
+		$writingMergeTags = array(
+			array(
 				'groupLabel' => 'Essay level',
-				'items' => [ 
-					[ 'label' => 'Essay Content', 'info' => '{|essay:essay_content|}', 'value' => '{|essay:essay_content|}' ],
-					[ 'label' => 'Question', 'info' => '{|essay:question|}', 'value' => '{|essay:question|}' ],
-				],
-			],
-			[ 
+				'items'      => array(
+					array(
+						'label' => 'Essay Content',
+						'info'  => '{|essay:essay_content|}',
+						'value' => '{|essay:essay_content|}',
+					),
+					array(
+						'label' => 'Question',
+						'info'  => '{|essay:question|}',
+						'value' => '{|essay:question|}',
+					),
+				),
+			),
+			array(
 				'groupLabel' => 'Segment level',
-				'items' => [ 
-					[ 'label' => 'Introduction Content', 'info' => '{|segment:content[type:introduction]|}', 'value' => '{|segment:content[type:introduction]|}' ],
-				],
-			]
-		];
+				'items'      => array(
+					array(
+						'label' => 'Introduction Content',
+						'info'  => '{|segment:content[type:introduction]|}',
+						'value' => '{|segment:content[type:introduction]|}',
+					),
+				),
+			),
+		);
 
 		// Apply filter to allow other plugins to add more writing merge tags.
 		$writingMergeTags = apply_filters( 'ieltssci_writing_merge_tags', $writingMergeTags );
 
-		$defaultModelOptions = $settingsConfigInstance->getModelOptions( [ 
-			'open-key-ai' => [ 
-				[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-				[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-			],
-			'open-ai' => [ 
-				[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-				[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-			],
-			'google' => [ 
-				[ 'label' => 'gemini-1.5-flash', 'value' => 'gemini-1.5-flash' ],
-				[ 'label' => 'gemini-1.5-pro', 'value' => 'gemini-1.5-pro' ],
-				[ 'label' => 'gemini-2.0-flash', 'value' => 'gemini-2.0-flash' ],
-			],
-			'azure' => [ 
-				[ 'label' => 'gpt-4o-mini', 'value' => 'gpt-4o-mini' ],
-				[ 'label' => 'gpt-4o', 'value' => 'gpt-4o' ],
-			],
-			'home-server' => [],
-		] );
+		$defaultModelOptions = $settingsConfigInstance->getModelOptions(
+			array(
+				'open-key-ai' => array(
+					array(
+						'label' => 'gpt-4o-mini',
+						'value' => 'gpt-4o-mini',
+					),
+					array(
+						'label' => 'gpt-4o',
+						'value' => 'gpt-4o',
+					),
+				),
+				'open-ai'     => array(
+					array(
+						'label' => 'gpt-4o-mini',
+						'value' => 'gpt-4o-mini',
+					),
+					array(
+						'label' => 'gpt-4o',
+						'value' => 'gpt-4o',
+					),
+				),
+				'google'      => array(
+					array(
+						'label' => 'gemini-1.5-flash',
+						'value' => 'gemini-1.5-flash',
+					),
+					array(
+						'label' => 'gemini-1.5-pro',
+						'value' => 'gemini-1.5-pro',
+					),
+					array(
+						'label' => 'gemini-2.0-flash',
+						'value' => 'gemini-2.0-flash',
+					),
+				),
+				'azure'       => array(
+					array(
+						'label' => 'gpt-4o-mini',
+						'value' => 'gpt-4o-mini',
+					),
+					array(
+						'label' => 'gpt-4o',
+						'value' => 'gpt-4o',
+					),
+				),
+				'home-server' => array(),
+			)
+		);
 
-		$commonGeneralFields = [ 
+		$commonGeneralFields = array(
 			$settingsConfigInstance->createApiProviderField(),
 			$settingsConfigInstance->createModelPickerField( 'apiProvider', $defaultModelOptions ),
 			$settingsConfigInstance->createPromptField( 'englishPrompt', 'English Prompt', 'Message sent to the model {|parameter_name|}', $writingMergeTags ),
 			$settingsConfigInstance->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', 'Message sent to the model {|parameter_name|}', $writingMergeTags ),
-		];
+		);
 
-		$commonAdvancedFields = [ 
+		$commonAdvancedFields = array(
 			$settingsConfigInstance->createField( 'maxToken', 'number', 'Max Token', 'The maximum number of tokens to generate.', 2048 ),
 			$settingsConfigInstance->createField( 'temperature', 'number', 'Temperature', 'The value used to module the next token probabilities.', 0.1 ),
-		];
+		);
 
-		$commonSections = [ 
+		$commonSections = array(
 			$settingsConfigInstance->createSection( 'general-setting', $commonGeneralFields ),
 			$settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields ),
-		];
+		);
 
-		$writing_apis_settings = [ 
-			[ 
-				'groupName' => 'ocr',
+		$writing_apis_settings = array(
+			array(
+				'groupName'  => 'ocr',
 				'groupTitle' => 'OCR',
-				'feeds' => [ 
+				'feeds'      => array(
 					$settingsConfigInstance->createFeed(
 						'ocr-essay',
 						'OCR Essay',
 						'essay',
-						[ 'task-1-ocr', 'task-2-ocr' ],
-						[ 
-							$settingsConfigInstance->createStep( 'feedback', [ 
-								$settingsConfigInstance->createSection( 'general-setting', [ 
-									$settingsConfigInstance->createApiProviderField(),
-									$settingsConfigInstance->createModelPickerField( 'apiProvider', $defaultModelOptions ),
-									// Toggle to enable/disable multi-modal field
-									$settingsConfigInstance->createField( 'enableMultiModal', 'toggle', 'Enable Multi Modal Input', 'Enable Multi Modal input or not', false ),
-									$settingsConfigInstance->createField( 'multiModalField', 'form-token', 'Multi Modal Field(s)', '', null, [], 'enableMultiModal', [ 
-										'suggestions' => [ 'ocr_image_ids', 'chart_image_ids' ],
-									] ),
-									$settingsConfigInstance->createPromptField( 'englishPrompt', 'English Prompt', 'Message sent to the model {|parameter_name|}', $writingMergeTags ),
-									$settingsConfigInstance->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', 'Message sent to the model {|parameter_name|}', $writingMergeTags ),
-								] ),
-								$settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields )
-							] )
-						] ),
-				],
-			],
-			[ 
-				'groupName' => 'vocabulary-suggestions',
+						array( 'task-1-ocr', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep(
+								'feedback',
+								array(
+									$settingsConfigInstance->createSection(
+										'general-setting',
+										array(
+											$settingsConfigInstance->createApiProviderField(),
+											$settingsConfigInstance->createModelPickerField( 'apiProvider', $defaultModelOptions ),
+											// Toggle to enable/disable multi-modal field
+											$settingsConfigInstance->createField( 'enableMultiModal', 'toggle', 'Enable Multi Modal Input', 'Enable Multi Modal input or not', false ),
+											$settingsConfigInstance->createField(
+												'multiModalField',
+												'form-token',
+												'Multi Modal Field(s)',
+												'',
+												null,
+												array(),
+												'enableMultiModal',
+												array(
+													'suggestions' => array( 'ocr_image_ids', 'chart_image_ids' ),
+												)
+											),
+											$settingsConfigInstance->createPromptField( 'englishPrompt', 'English Prompt', 'Message sent to the model {|parameter_name|}', $writingMergeTags ),
+											$settingsConfigInstance->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', 'Message sent to the model {|parameter_name|}', $writingMergeTags ),
+										)
+									),
+									$settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields ),
+								)
+							),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'vocabulary-suggestions',
 				'groupTitle' => 'Vocabulary Suggestions',
-				'feeds' => [ 
+				'feeds'      => array(
 					$settingsConfigInstance->createFeed(
 						'vocabulary-suggestions',
 						'Vocabulary Suggestions',
 						'essay',
-						[ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ],
-						[ 
-							$settingsConfigInstance->createStep( 'feedback', $commonSections )
-						] ),
-				],
-			],
-			[ 
-				'groupName' => 'grammar-suggestions',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'grammar-suggestions',
 				'groupTitle' => 'Grammar Suggestions',
-				'feeds' => [ 
+				'feeds'      => array(
 					$settingsConfigInstance->createFeed(
 						'grammar-suggestions',
 						'Grammar Suggestions',
 						'essay',
-						[ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ],
-						[ 
-							$settingsConfigInstance->createStep( 'feedback', $commonSections )
-						] ),
-				],
-			],
-			[ 
-				'groupName' => 'argument-enhance',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'argument-enhance',
 				'groupTitle' => 'Argument Enhance',
-				'feeds' => [ 
+				'feeds'      => array(
 					$settingsConfigInstance->createFeed(
 						'segmenting',
 						'Segmenting',
 						'paragraph',
-						[ 'task-2', 'task-2-ocr' ],
-						[ $settingsConfigInstance->createStep( 'output', [ 
-							$settingsConfigInstance->createSection( 'general-setting', [ 
-								$settingsConfigInstance->createApiProviderField( 'home-server' ),
-								$settingsConfigInstance->createModelPickerField( 'apiProvider', $defaultModelOptions, 'bihungba1101/segmenting-paragraph' ),
-								$settingsConfigInstance->createPromptField( 'englishPrompt', 'English Prompt', '{|each_paragraph_in_essay|}', $writingMergeTags ),
-								$settingsConfigInstance->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', '{|each_paragraph_in_essay|}', $writingMergeTags ),
-							] ),
-							$settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields )
-						] )
-						] ),
-					$settingsConfigInstance->createFeed( 'introduction-relevance', 'Introduction Relevance', 'introduction', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'introduction-clear-answer', 'Introduction Clear Answer/Clear Opinion', 'introduction', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'introduction-brief-overview', 'Introduction Brief Overview', 'introduction', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'introduction-rewrite', 'Introduction Rewrite', 'introduction', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'feedback', [ $settingsConfigInstance->createSection( 'general-setting', $commonGeneralFields ), $settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields ) ] )
-					] ),
-					$settingsConfigInstance->createFeed( 'topic-sentence-linking', 'Topic Sentence Linking', 'topic-sentence', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'topic-sentence-relevance', 'Topic Sentence Relevance', 'topic-sentence', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'topic-sentence-rewrite', 'Topic Sentence Rewrite', 'topic-sentence', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'feedback', [ $settingsConfigInstance->createSection( 'general-setting', $commonGeneralFields ), $settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields ) ] )
-					] ),
-					$settingsConfigInstance->createFeed( 'main-point-logic-depth', 'Main Point Logic & Depth', 'main-point', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'main-point-overgeneralize', 'Main Point Overgeneralize', 'main-point', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'main-point-relevance', 'Main Point Relevance', 'main-point', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'main-point-rewrite', 'Main Point Rewrite', 'main-point', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'feedback', [ $settingsConfigInstance->createSection( 'general-setting', $commonGeneralFields ), $settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields ) ] )
-					] ),
-					$settingsConfigInstance->createFeed( 'conclusion-relevance', 'Conclusion Relevance', 'conclusion', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'conclusion-clear-answer', 'Conclusion Clear Answer/Clear Opinion', 'conclusion', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'conclusion-rewrite', 'Conclusion Rewrite', 'conclusion', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'feedback', [ $settingsConfigInstance->createSection( 'general-setting', $commonGeneralFields ), $settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields ) ] )
-					] ),
-				],
-			],
-			[ 
-				'groupName' => 'lexical-resource',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep(
+								'output',
+								array(
+									$settingsConfigInstance->createSection(
+										'general-setting',
+										array(
+											$settingsConfigInstance->createApiProviderField( 'home-server' ),
+											$settingsConfigInstance->createModelPickerField( 'apiProvider', $defaultModelOptions, 'bihungba1101/segmenting-paragraph' ),
+											$settingsConfigInstance->createPromptField( 'englishPrompt', 'English Prompt', '{|each_paragraph_in_essay|}', $writingMergeTags ),
+											$settingsConfigInstance->createPromptField( 'vietnamesePrompt', 'Vietnamese Prompt', '{|each_paragraph_in_essay|}', $writingMergeTags ),
+										)
+									),
+									$settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields ),
+								)
+							),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'introduction-relevance',
+						'Introduction Relevance',
+						'introduction',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'introduction-clear-answer',
+						'Introduction Clear Answer/Clear Opinion',
+						'introduction',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'introduction-brief-overview',
+						'Introduction Brief Overview',
+						'introduction',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'introduction-rewrite',
+						'Introduction Rewrite',
+						'introduction',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'feedback', array( $settingsConfigInstance->createSection( 'general-setting', $commonGeneralFields ), $settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields ) ) ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'topic-sentence-linking',
+						'Topic Sentence Linking',
+						'topic-sentence',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'topic-sentence-relevance',
+						'Topic Sentence Relevance',
+						'topic-sentence',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'topic-sentence-rewrite',
+						'Topic Sentence Rewrite',
+						'topic-sentence',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'feedback', array( $settingsConfigInstance->createSection( 'general-setting', $commonGeneralFields ), $settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields ) ) ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'main-point-logic-depth',
+						'Main Point Logic & Depth',
+						'main-point',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'main-point-overgeneralize',
+						'Main Point Overgeneralize',
+						'main-point',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'main-point-relevance',
+						'Main Point Relevance',
+						'main-point',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'main-point-rewrite',
+						'Main Point Rewrite',
+						'main-point',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'feedback', array( $settingsConfigInstance->createSection( 'general-setting', $commonGeneralFields ), $settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields ) ) ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'conclusion-relevance',
+						'Conclusion Relevance',
+						'conclusion',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'conclusion-clear-answer',
+						'Conclusion Clear Answer/Clear Opinion',
+						'conclusion',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'conclusion-rewrite',
+						'Conclusion Rewrite',
+						'conclusion',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'feedback', array( $settingsConfigInstance->createSection( 'general-setting', $commonGeneralFields ), $settingsConfigInstance->createSection( 'advanced-setting', $commonAdvancedFields ) ) ),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'lexical-resource',
 				'groupTitle' => 'Lexical Resource',
-				'feeds' => [ 
-					$settingsConfigInstance->createFeed( 'range-of-vocab', 'Range of Vocab', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'word-choice-collocation-style', 'Word choice, Collocation, Style', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'uncommon-vocab', 'Uncommon vocab', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'spelling-word-form-error', 'Spelling, Word Form Error', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-				],
-			],
-			[ 
-				'groupName' => 'grammatical-range-accuracy',
+				'feeds'      => array(
+					$settingsConfigInstance->createFeed(
+						'range-of-vocab',
+						'Range of Vocab',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'word-choice-collocation-style',
+						'Word choice, Collocation, Style',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'uncommon-vocab',
+						'Uncommon vocab',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'spelling-word-form-error',
+						'Spelling, Word Form Error',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'grammatical-range-accuracy',
 				'groupTitle' => 'Grammatical Range & Accuracy',
-				'feeds' => [ 
-					$settingsConfigInstance->createFeed( 'range-of-structures', 'Range of Structures', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'grammar-accuracy', 'Grammar Accuracy', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-				],
-			],
-			[ 
-				'groupName' => 'coherence-cohesion',
+				'feeds'      => array(
+					$settingsConfigInstance->createFeed(
+						'range-of-structures',
+						'Range of Structures',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'grammar-accuracy',
+						'Grammar Accuracy',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'coherence-cohesion',
 				'groupTitle' => 'Coherence & Cohesion',
-				'feeds' => [ 
-					$settingsConfigInstance->createFeed( 'flow', 'Flow', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'paragraphing', 'Paragraphing', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'referencing', 'Referencing', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'use-of-cohesive-devices', 'Use of Cohesive Devices', 'essay', [ 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-				],
-			],
-			[ 
-				'groupName' => 'task-response',
+				'feeds'      => array(
+					$settingsConfigInstance->createFeed(
+						'flow',
+						'Flow',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'paragraphing',
+						'Paragraphing',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'referencing',
+						'Referencing',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'use-of-cohesive-devices',
+						'Use of Cohesive Devices',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'task-response',
 				'groupTitle' => 'Task Response',
-				'feeds' => [ 
-					$settingsConfigInstance->createFeed( 'relevance', 'Relevance', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'clear-opinion', 'Clear Opinion', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-					$settingsConfigInstance->createFeed( 'idea-development', 'Idea Development', 'essay', [ 'task-2', 'task-2-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections ),
-					] ),
-				],
-			],
-			[ 
-				'groupName' => 'task-achievement',
+				'feeds'      => array(
+					$settingsConfigInstance->createFeed(
+						'relevance',
+						'Relevance',
+						'essay',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'clear-opinion',
+						'Clear Opinion',
+						'essay',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'idea-development',
+						'Idea Development',
+						'essay',
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'task-achievement',
 				'groupTitle' => 'Task Achievement',
-				'feeds' => [ 
-					$settingsConfigInstance->createFeed( 'use-data-accurately', 'Use data accurately', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections )
-					] ),
-					$settingsConfigInstance->createFeed( 'present-key-features', 'Present key features', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections )
-					] ),
-					$settingsConfigInstance->createFeed( 'use-data', 'Use data', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections )
-					] ),
-					$settingsConfigInstance->createFeed( 'present-an-overview', 'Present an overview', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections )
-					] ),
-					$settingsConfigInstance->createFeed( 'format', 'Format', 'essay', [ 'task-1', 'task-1-ocr' ], [ 
-						$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
-						$settingsConfigInstance->createStep( 'scoring', $commonSections ),
-						$settingsConfigInstance->createStep( 'feedback', $commonSections )
-					] ),
-				],
-			],
-			[ 
-				'groupName' => 'improve-essay',
+				'feeds'      => array(
+					$settingsConfigInstance->createFeed(
+						'use-data-accurately',
+						'Use data accurately',
+						'essay',
+						array( 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'present-key-features',
+						'Present key features',
+						'essay',
+						array( 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'use-data',
+						'Use data',
+						'essay',
+						array( 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'present-an-overview',
+						'Present an overview',
+						'essay',
+						array( 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+					$settingsConfigInstance->createFeed(
+						'format',
+						'Format',
+						'essay',
+						array( 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'chain-of-thought', $commonSections ),
+							$settingsConfigInstance->createStep( 'scoring', $commonSections ),
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'improve-essay',
 				'groupTitle' => 'Improve Essay',
-				'feeds' => [ 
+				'feeds'      => array(
 					$settingsConfigInstance->createFeed(
 						'improve-essay-task-2',
 						'Improve Essay Task 2',
 						'essay',
-						[ 'task-2', 'task-2-ocr' ],
-						[ 
-							$settingsConfigInstance->createStep( 'feedback', $commonSections )
-						]
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
 					),
 					$settingsConfigInstance->createFeed(
 						'improve-essay-task-1',
 						'Improve Essay Task 1',
 						'essay',
-						[ 'task-1', 'task-1-ocr' ],
-						[ 
-							$settingsConfigInstance->createStep( 'feedback', $commonSections )
-						]
+						array( 'task-1', 'task-1-ocr' ),
+						array(
+							$settingsConfigInstance->createStep( 'feedback', $commonSections ),
+						)
 					),
-				],
-			],
+				),
+			),
 
-		];
+		);
 
 		return $writing_apis_settings;
 	}

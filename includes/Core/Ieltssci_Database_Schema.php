@@ -1,9 +1,10 @@
 <?php
 
 namespace IeltsScienceLMS\Core;
+
 class Ieltssci_Database_Schema {
 	private const TABLE_PREFIX = 'ieltssci_';
-	private $db_version = '0.0.2'; // Updated version number
+	private $db_version        = '0.0.2'; // Updated version number
 	private \wpdb $wpdb;
 
 	public function __construct() {
@@ -31,7 +32,7 @@ class Ieltssci_Database_Schema {
 			update_option( 'ieltssci_db_version', $this->db_version );
 			$this->wpdb->query( 'COMMIT' );
 			return;
-		} catch (\Exception $e) {
+		} catch ( \Exception $e ) {
 			$this->wpdb->query( 'ROLLBACK' );
 			error_log( 'Database creation failed: ' . $e->getMessage() );
 			return new \WP_Error( 500, 'Database creation failed' );
@@ -39,7 +40,7 @@ class Ieltssci_Database_Schema {
 	}
 
 	private function create_api_feeds_table() {
-		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_feed';
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_feed';
 		$charset_collate = $this->wpdb->get_charset_collate();
 
 		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -59,7 +60,7 @@ class Ieltssci_Database_Schema {
 	}
 
 	private function create_api_feed_essay_type_table() {
-		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_feed_essay_type';
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_feed_essay_type';
 		$charset_collate = $this->wpdb->get_charset_collate();
 
 		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -82,7 +83,7 @@ class Ieltssci_Database_Schema {
 	}
 
 	private function create_rate_limit_rule_table() {
-		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'rate_limit_rule';
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'rate_limit_rule';
 		$charset_collate = $this->wpdb->get_charset_collate();
 
 		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -101,7 +102,7 @@ class Ieltssci_Database_Schema {
 	}
 
 	private function create_api_feed_rate_limit_rule_table() {
-		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_feed_rate_limit_rule';
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_feed_rate_limit_rule';
 		$charset_collate = $this->wpdb->get_charset_collate();
 
 		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -127,7 +128,7 @@ class Ieltssci_Database_Schema {
 	}
 
 	private function create_role_rate_limit_rule_table() {
-		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'role_rate_limit_rule';
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'role_rate_limit_rule';
 		$charset_collate = $this->wpdb->get_charset_collate();
 
 		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -149,7 +150,7 @@ class Ieltssci_Database_Schema {
 	}
 
 	private function create_api_key_table() {
-		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_key';
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_key';
 		$charset_collate = $this->wpdb->get_charset_collate();
 
 		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -167,7 +168,7 @@ class Ieltssci_Database_Schema {
 	}
 
 	private function create_essays_table() {
-		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'essays';
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'essays';
 		$charset_collate = $this->wpdb->get_charset_collate();
 
 		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -189,7 +190,7 @@ class Ieltssci_Database_Schema {
 	}
 
 	private function create_segment_table() {
-		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'segment';
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'segment';
 		$charset_collate = $this->wpdb->get_charset_collate();
 
 		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -211,7 +212,7 @@ class Ieltssci_Database_Schema {
 	}
 
 	private function create_segment_feedback_table() {
-		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'segment_feedback';
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'segment_feedback';
 		$charset_collate = $this->wpdb->get_charset_collate();
 
 		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -240,7 +241,7 @@ class Ieltssci_Database_Schema {
 	}
 
 	private function create_essay_feedback_table() {
-		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'essay_feedback';
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'essay_feedback';
 		$charset_collate = $this->wpdb->get_charset_collate();
 
 		$sql = "CREATE TABLE IF NOT EXISTS $table_name (

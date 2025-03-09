@@ -9,11 +9,11 @@ use WP_REST_Server;
 
 class Ieltssci_Writing_REST {
 	private $namespace = 'ieltssci/v1';
-	private $base = 'writing';
+	private $base      = 'writing';
 	private $essay_service;
 
 	public function __construct() {
-		add_action( 'rest_api_init', [ $this, 'register_routes' ] );
+		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
 		$this->essay_service = new Ieltssci_Essay_DB();
 	}
 
@@ -24,40 +24,40 @@ class Ieltssci_Writing_REST {
 		register_rest_route(
 			$this->namespace,
 			"/{$this->base}/essays",
-			[ 
-				[ 
-					'methods' => WP_REST_Server::READABLE,
-					'callback' => [ $this, 'get_essays' ],
-					'permission_callback' => [ $this, 'get_essays_permissions_check' ],
-					'args' => $this->get_essays_args(),
-				],
-				[ 
-					'methods' => WP_REST_Server::CREATABLE,
-					'callback' => [ $this, 'create_essay' ],
-					'permission_callback' => [ $this, 'create_essay_permissions_check' ],
-					'args' => $this->get_essay_creation_args(),
-				],
-			]
+			array(
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'get_essays' ),
+					'permission_callback' => array( $this, 'get_essays_permissions_check' ),
+					'args'                => $this->get_essays_args(),
+				),
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'create_essay' ),
+					'permission_callback' => array( $this, 'create_essay_permissions_check' ),
+					'args'                => $this->get_essay_creation_args(),
+				),
+			)
 		);
 
 		register_rest_route(
 			$this->namespace,
 			"/{$this->base}/essays/(?P<uuid>[a-zA-Z0-9-]+)",
-			[ 
-				[ 
-					'methods' => WP_REST_Server::READABLE,
-					'callback' => [ $this, 'get_essay' ],
-					'permission_callback' => [ $this, 'get_essay_permissions_check' ],
-					'args' => [ 
-						'uuid' => [ 
-							'required' => true,
-							'validate_callback' => function ($param) {
+			array(
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'get_essay' ),
+					'permission_callback' => array( $this, 'get_essay_permissions_check' ),
+					'args'                => array(
+						'uuid' => array(
+							'required'          => true,
+							'validate_callback' => function ( $param ) {
 								return is_string( $param ) && ! empty( $param );
 							},
-						],
-					],
-				],
-			]
+						),
+					),
+				),
+			)
 		);
 	}
 
@@ -72,11 +72,11 @@ class Ieltssci_Writing_REST {
 	 * Get arguments for the essays list endpoint
 	 */
 	public function get_essays_args() {
-		return [ 
-			'id' => [ 
-				'description' => 'Essay ID or array of IDs',
-				'type' => [ 'integer', 'array' ],
-				'validate_callback' => function ($param) {
+		return array(
+			'id'          => array(
+				'description'       => 'Essay ID or array of IDs',
+				'type'              => array( 'integer', 'array' ),
+				'validate_callback' => function ( $param ) {
 					if ( is_array( $param ) ) {
 						foreach ( $param as $id ) {
 							if ( ! is_numeric( $id ) || $id <= 0 ) {
@@ -87,11 +87,11 @@ class Ieltssci_Writing_REST {
 					}
 					return is_numeric( $param ) && $param > 0;
 				},
-			],
-			'uuid' => [ 
-				'description' => 'Essay UUID or array of UUIDs',
-				'type' => [ 'string', 'array' ],
-				'validate_callback' => function ($param) {
+			),
+			'uuid'        => array(
+				'description'       => 'Essay UUID or array of UUIDs',
+				'type'              => array( 'string', 'array' ),
+				'validate_callback' => function ( $param ) {
 					if ( is_array( $param ) ) {
 						foreach ( $param as $uuid ) {
 							if ( ! is_string( $uuid ) || empty( $uuid ) ) {
@@ -102,11 +102,11 @@ class Ieltssci_Writing_REST {
 					}
 					return is_string( $param ) && ! empty( $param );
 				},
-			],
-			'original_id' => [ 
-				'description' => 'Original essay ID or array of IDs',
-				'type' => [ 'integer', 'array' ],
-				'validate_callback' => function ($param) {
+			),
+			'original_id' => array(
+				'description'       => 'Original essay ID or array of IDs',
+				'type'              => array( 'integer', 'array' ),
+				'validate_callback' => function ( $param ) {
 					if ( is_array( $param ) ) {
 						foreach ( $param as $id ) {
 							if ( ! is_numeric( $id ) || $id <= 0 ) {
@@ -117,21 +117,21 @@ class Ieltssci_Writing_REST {
 					}
 					return is_numeric( $param ) && $param > 0;
 				},
-			],
-			'essay_type' => [ 
-				'description' => 'Essay type or array of types',
-				'type' => [ 'string', 'array' ],
-				'sanitize_callback' => function ($param) {
+			),
+			'essay_type'  => array(
+				'description'       => 'Essay type or array of types',
+				'type'              => array( 'string', 'array' ),
+				'sanitize_callback' => function ( $param ) {
 					if ( is_array( $param ) ) {
 						return array_map( 'sanitize_text_field', $param );
 					}
 					return sanitize_text_field( $param );
 				},
-			],
-			'created_by' => [ 
-				'description' => 'User ID or array of user IDs who created the essays',
-				'type' => [ 'integer', 'array' ],
-				'validate_callback' => function ($param) {
+			),
+			'created_by'  => array(
+				'description'       => 'User ID or array of user IDs who created the essays',
+				'type'              => array( 'integer', 'array' ),
+				'validate_callback' => function ( $param ) {
 					if ( is_array( $param ) ) {
 						foreach ( $param as $id ) {
 							if ( ! is_numeric( $id ) || $id <= 0 ) {
@@ -142,64 +142,72 @@ class Ieltssci_Writing_REST {
 					}
 					return is_numeric( $param ) && $param > 0;
 				},
-			],
-			'search' => [ 
-				'description' => 'Search term to look for in question or content',
-				'type' => 'string',
+			),
+			'search'      => array(
+				'description'       => 'Search term to look for in question or content',
+				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_text_field',
-			],
-			'after' => [ 
+			),
+			'after'       => array(
 				'description' => 'Get essays after this date',
-				'type' => 'string',
-				'format' => 'date-time',
-			],
-			'before' => [ 
+				'type'        => 'string',
+				'format'      => 'date-time',
+			),
+			'before'      => array(
 				'description' => 'Get essays before this date',
-				'type' => 'string',
-				'format' => 'date-time',
-			],
-			'orderby' => [ 
+				'type'        => 'string',
+				'format'      => 'date-time',
+			),
+			'orderby'     => array(
 				'description' => 'Field to order results by',
-				'type' => 'string',
-				'default' => 'id',
-				'enum' => [ 'id', 'uuid', 'essay_type', 'created_at', 'created_by' ],
-			],
-			'order' => [ 
+				'type'        => 'string',
+				'default'     => 'id',
+				'enum'        => array( 'id', 'uuid', 'essay_type', 'created_at', 'created_by' ),
+			),
+			'order'       => array(
 				'description' => 'Order direction',
-				'type' => 'string',
-				'default' => 'DESC',
-				'enum' => [ 'ASC', 'DESC', 'asc', 'desc' ],
-			],
-			'per_page' => [ 
+				'type'        => 'string',
+				'default'     => 'DESC',
+				'enum'        => array( 'ASC', 'DESC', 'asc', 'desc' ),
+			),
+			'per_page'    => array(
 				'description' => 'Number of essays to return per page',
-				'type' => 'integer',
-				'default' => 10,
-				'minimum' => 1,
-				'maximum' => 100,
-			],
-			'page' => [ 
+				'type'        => 'integer',
+				'default'     => 10,
+				'minimum'     => 1,
+				'maximum'     => 100,
+			),
+			'page'        => array(
 				'description' => 'Page number',
-				'type' => 'integer',
-				'default' => 1,
-				'minimum' => 1,
-			],
-		];
+				'type'        => 'integer',
+				'default'     => 1,
+				'minimum'     => 1,
+			),
+		);
 	}
 
 	/**
 	 * Get essays endpoint
-	 * 
+	 *
 	 * @param WP_REST_Request $request The request object
 	 * @return WP_REST_Response|WP_Error Response object or error
 	 */
 	public function get_essays( WP_REST_Request $request ) {
-		$args = [];
+		$args = array();
 
 		// Get parameters that can be directly passed to get_essays
-		$direct_params = [ 
-			'id', 'uuid', 'original_id', 'essay_type', 'created_by', 'search',
-			'orderby', 'order', 'per_page', 'page'
-		];
+		$direct_params = array(
+			'id',
+			'uuid',
+			'original_id',
+			'essay_type',
+			'created_by',
+			'search',
+			'orderby',
+			'order',
+			'per_page',
+			'page',
+		);
 
 		foreach ( $direct_params as $param ) {
 			$value = $request->get_param( $param );
@@ -209,11 +217,11 @@ class Ieltssci_Writing_REST {
 		}
 
 		// Handle date query parameters
-		$after = $request->get_param( 'after' );
+		$after  = $request->get_param( 'after' );
 		$before = $request->get_param( 'before' );
 
 		if ( $after || $before ) {
-			$args['date_query'] = [];
+			$args['date_query'] = array();
 
 			if ( $after ) {
 				$args['date_query']['after'] = $after;
@@ -225,9 +233,9 @@ class Ieltssci_Writing_REST {
 		}
 
 		// Get total count for pagination headers
-		$count_args = $args;
+		$count_args          = $args;
 		$count_args['count'] = true;
-		$total = $this->essay_service->get_essays( $count_args );
+		$total               = $this->essay_service->get_essays( $count_args );
 
 		if ( is_wp_error( $total ) ) {
 			return $total; // Return the WP_Error directly from the DB layer
@@ -242,12 +250,12 @@ class Ieltssci_Writing_REST {
 
 		// Handle empty results properly
 		if ( empty( $essays ) ) {
-			$essays = [];
+			$essays = array();
 		}
 
 		// Calculate pagination values
-		$per_page = isset( $args['per_page'] ) ? (int) $args['per_page'] : 10;
-		$page = isset( $args['page'] ) ? (int) $args['page'] : 1;
+		$per_page    = isset( $args['per_page'] ) ? (int) $args['per_page'] : 10;
+		$page        = isset( $args['page'] ) ? (int) $args['page'] : 1;
 		$total_pages = ceil( $total / $per_page );
 
 		// Build response with pagination headers
@@ -256,11 +264,14 @@ class Ieltssci_Writing_REST {
 		$response->header( 'X-WP-TotalPages', (int) $total_pages );
 
 		// Add Link header for pagination discovery (HATEOAS)
-		$this->add_pagination_headers( $response, [ 
-			'page' => $page,
-			'total_pages' => $total_pages,
-			'per_page' => $per_page
-		] );
+		$this->add_pagination_headers(
+			$response,
+			array(
+				'page'        => $page,
+				'total_pages' => $total_pages,
+				'per_page'    => $per_page,
+			)
+		);
 
 		return $response;
 	}
@@ -269,40 +280,40 @@ class Ieltssci_Writing_REST {
 	 * Add pagination Link headers to a response
 	 *
 	 * @param WP_REST_Response $response The response object
-	 * @param array $pagination Pagination information
+	 * @param array            $pagination Pagination information
 	 */
 	private function add_pagination_headers( WP_REST_Response $response, array $pagination ) {
-		$base = rest_url( $this->namespace . '/' . $this->base . '/essays' );
+		$base    = rest_url( $this->namespace . '/' . $this->base . '/essays' );
 		$request = $this->get_current_request_params();
 
 		$max_pages = $pagination['total_pages'];
-		$page = $pagination['page'];
+		$page      = $pagination['page'];
 
-		$links = [];
+		$links = array();
 
 		// First page
-		$first_args = $request;
+		$first_args         = $request;
 		$first_args['page'] = 1;
-		$links[] = '<' . add_query_arg( $first_args, $base ) . '>; rel="first"';
+		$links[]            = '<' . add_query_arg( $first_args, $base ) . '>; rel="first"';
 
 		// Previous page
 		if ( $page > 1 ) {
-			$prev_args = $request;
+			$prev_args         = $request;
 			$prev_args['page'] = $page - 1;
-			$links[] = '<' . add_query_arg( $prev_args, $base ) . '>; rel="prev"';
+			$links[]           = '<' . add_query_arg( $prev_args, $base ) . '>; rel="prev"';
 		}
 
 		// Next page
 		if ( $max_pages > $page ) {
-			$next_args = $request;
+			$next_args         = $request;
 			$next_args['page'] = $page + 1;
-			$links[] = '<' . add_query_arg( $next_args, $base ) . '>; rel="next"';
+			$links[]           = '<' . add_query_arg( $next_args, $base ) . '>; rel="next"';
 		}
 
 		// Last page
-		$last_args = $request;
+		$last_args         = $request;
 		$last_args['page'] = $max_pages;
-		$links[] = '<' . add_query_arg( $last_args, $base ) . '>; rel="last"';
+		$links[]           = '<' . add_query_arg( $last_args, $base ) . '>; rel="last"';
 
 		if ( ! empty( $links ) ) {
 			$response->header( 'Link', implode( ', ', $links ) );
@@ -311,12 +322,12 @@ class Ieltssci_Writing_REST {
 
 	/**
 	 * Get current request parameters (excluding pagination ones)
-	 * 
+	 *
 	 * @return array Request parameters
 	 */
 	private function get_current_request_params() {
-		$request = [];
-		$params = $_GET;
+		$request = array();
+		$params  = $_GET;
 
 		if ( ! empty( $params ) ) {
 			foreach ( $params as $key => $value ) {
@@ -348,49 +359,49 @@ class Ieltssci_Writing_REST {
 	 * Get arguments for the create essay endpoint
 	 */
 	public function get_essay_creation_args() {
-		return [ 
-			'uuid' => [ 
-				'required' => true,
-				'type' => 'string',
-				'validate_callback' => function ($param) {
+		return array(
+			'uuid'            => array(
+				'required'          => true,
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
 					return is_string( $param ) && ! empty( $param );
 				},
-			],
-			'essay_type' => [ 
-				'required' => true,
-				'type' => 'string',
+			),
+			'essay_type'      => array(
+				'required'          => true,
+				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_text_field',
-				'validate_callback' => function ($param) {
+				'validate_callback' => function ( $param ) {
 					return is_string( $param ) && ! empty( $param );
 				},
-			],
-			'question' => [ 
-				'required' => true,
-				'type' => 'string',
+			),
+			'question'        => array(
+				'required'          => true,
+				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_textarea_field',
-				'validate_callback' => function ($param) {
+				'validate_callback' => function ( $param ) {
 					return is_string( $param ) && ! empty( $param );
 				},
-			],
-			'essay_content' => [ 
-				'required' => true,
-				'type' => 'string',
+			),
+			'essay_content'   => array(
+				'required'          => true,
+				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_textarea_field',
-				'validate_callback' => function ($param) {
+				'validate_callback' => function ( $param ) {
 					return is_string( $param ) && ! empty( $param );
 				},
-			],
-			'original_id' => [ 
-				'required' => false,
-				'type' => 'integer',
-				'validate_callback' => function ($param) {
+			),
+			'original_id'     => array(
+				'required'          => false,
+				'type'              => 'integer',
+				'validate_callback' => function ( $param ) {
 					return is_numeric( $param ) && $param > 0;
 				},
-			],
-			'ocr_image_ids' => [ 
-				'required' => false,
-				'type' => 'array',
-				'validate_callback' => function ($param) {
+			),
+			'ocr_image_ids'   => array(
+				'required'          => false,
+				'type'              => 'array',
+				'validate_callback' => function ( $param ) {
 					if ( ! is_array( $param ) ) {
 						return false;
 					}
@@ -401,11 +412,11 @@ class Ieltssci_Writing_REST {
 					}
 					return true;
 				},
-			],
-			'chart_image_ids' => [ 
-				'required' => false,
-				'type' => 'array',
-				'validate_callback' => function ($param) {
+			),
+			'chart_image_ids' => array(
+				'required'          => false,
+				'type'              => 'array',
+				'validate_callback' => function ( $param ) {
 					if ( ! is_array( $param ) ) {
 						return false;
 					}
@@ -416,24 +427,24 @@ class Ieltssci_Writing_REST {
 					}
 					return true;
 				},
-			],
-		];
+			),
+		);
 	}
 
 	/**
 	 * Create essay endpoint
 	 */
 	public function create_essay( WP_REST_Request $request ) {
-		$essay_data = [ 
-			'uuid' => $request->get_param( 'uuid' ),
-			'essay_type' => $request->get_param( 'essay_type' ),
-			'question' => $request->get_param( 'question' ),
-			'essay_content' => $request->get_param( 'essay_content' ),
-			'original_id' => $request->get_param( 'original_id' ),
-			'ocr_image_ids' => $request->get_param( 'ocr_image_ids' ),
+		$essay_data = array(
+			'uuid'            => $request->get_param( 'uuid' ),
+			'essay_type'      => $request->get_param( 'essay_type' ),
+			'question'        => $request->get_param( 'question' ),
+			'essay_content'   => $request->get_param( 'essay_content' ),
+			'original_id'     => $request->get_param( 'original_id' ),
+			'ocr_image_ids'   => $request->get_param( 'ocr_image_ids' ),
 			'chart_image_ids' => $request->get_param( 'chart_image_ids' ),
-			'created_by' => get_current_user_id(),
-		];
+			'created_by'      => get_current_user_id(),
+		);
 
 		$result = $this->essay_service->create_essay( $essay_data );
 
@@ -448,8 +459,8 @@ class Ieltssci_Writing_REST {
 	 * Get specific essay endpoint
 	 */
 	public function get_essay( WP_REST_Request $request ) {
-		$uuid = $request->get_param( 'uuid' );
-		$essays = $this->essay_service->get_essays( [ 'uuid' => $uuid ] );
+		$uuid   = $request->get_param( 'uuid' );
+		$essays = $this->essay_service->get_essays( array( 'uuid' => $uuid ) );
 
 		if ( is_wp_error( $essays ) ) {
 			return $essays; // Return the WP_Error directly from the DB layer
@@ -459,7 +470,7 @@ class Ieltssci_Writing_REST {
 			return new WP_Error(
 				'essay_not_found',
 				__( 'Essay not found', 'ielts-science-lms' ),
-				[ 'status' => 404 ]
+				array( 'status' => 404 )
 			);
 		}
 

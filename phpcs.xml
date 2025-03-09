@@ -13,6 +13,10 @@
 
 	<file>.</file>
 
+	<!-- Specify PHP file extensions to check -->
+	<arg name="extensions" value="php" />
+
+
 	<!-- Exclude WP Core folders and files from being checked. -->
 	<exclude-pattern>/docroot/wp-admin/*</exclude-pattern>
 	<exclude-pattern>/docroot/wp-includes/*</exclude-pattern>
@@ -23,7 +27,7 @@
 
 	<!-- Exclude build folders -->
 	<exclude-pattern>*/build/*</exclude-pattern>
-	<exclude-pattern>*/public/*</exclude-pattern>
+	<exclude-pattern>^public/*</exclude-pattern>
 
 	<!-- Exclude the Composer Vendor directory. -->
 	<exclude-pattern>/vendor/*</exclude-pattern>

@@ -8,13 +8,13 @@ class Ieltssci_ApiKeys_DB {
 
 	public function __construct() {
 		global $wpdb;
-		$this->wpdb = $wpdb ?? $GLOBALS['wpdb'];
+		$this->wpdb       = $wpdb ?? $GLOBALS['wpdb'];
 		$this->table_name = $this->wpdb->prefix . 'ieltssci_api_key';
 	}
 
 	/**
 	 * Gets multiple API keys with flexible filtering options
-	 * 
+	 *
 	 * @param array $args {
 	 *     Optional. Arguments to filter API keys.
 	 *     @type string|array $provider    Filter by provider name(s)
@@ -26,30 +26,30 @@ class Ieltssci_ApiKeys_DB {
 	 * }
 	 * @return array Array of API keys grouped by provider
 	 */
-	public function get_api_keys( $args = [] ) {
-		$defaults = [ 
-			'provider' => '',
-			'order_by' => 'id',
-			'order' => 'ASC',
-			'limit' => 0,
+	public function get_api_keys( $args = array() ) {
+		$defaults = array(
+			'provider'   => '',
+			'order_by'   => 'id',
+			'order'      => 'ASC',
+			'limit'      => 0,
 			'least_used' => false,
-			'meta_query' => [],
-		];
+			'meta_query' => array(),
+		);
 
 		$args = wp_parse_args( $args, $defaults );
 
-		$where_clauses = [];
-		$where_values = [];
+		$where_clauses = array();
+		$where_values  = array();
 
 		// Filter by provider
 		if ( ! empty( $args['provider'] ) ) {
 			if ( is_array( $args['provider'] ) ) {
-				$placeholders = implode( ',', array_fill( 0, count( $args['provider'] ), '%s' ) );
+				$placeholders    = implode( ',', array_fill( 0, count( $args['provider'] ), '%s' ) );
 				$where_clauses[] = "api_provider IN ($placeholders)";
-				$where_values = array_merge( $where_values, $args['provider'] );
+				$where_values    = array_merge( $where_values, $args['provider'] );
 			} else {
-				$where_clauses[] = "api_provider = %s";
-				$where_values[] = $args['provider'];
+				$where_clauses[] = 'api_provider = %s';
+				$where_values[]  = $args['provider'];
 			}
 		}
 
@@ -61,22 +61,22 @@ class Ieltssci_ApiKeys_DB {
 				}
 
 				$compare = $query['compare'] ?? '=';
-				$key = $query['key'];
-				$value = $query['value'];
+				$key     = $query['key'];
+				$value   = $query['value'];
 
 				// For JSON fields, we need to use JSON_EXTRACT or JSON_CONTAINS based on compare operator
 				switch ( $compare ) {
 					case '=':
 						$where_clauses[] = "JSON_EXTRACT(meta, '$.{$key}') = %s";
-						$where_values[] = $value;
+						$where_values[]  = $value;
 						break;
 					case 'LIKE':
 						$where_clauses[] = "JSON_EXTRACT(meta, '$.{$key}') LIKE %s";
-						$where_values[] = '%' . $this->wpdb->esc_like( $value ) . '%';
+						$where_values[]  = '%' . $this->wpdb->esc_like( $value ) . '%';
 						break;
 					case 'CONTAINS':
 						$where_clauses[] = "JSON_CONTAINS(meta, %s, '$.{$key}')";
-						$where_values[] = json_encode( $value );
+						$where_values[]  = json_encode( $value );
 						break;
 					case 'EXISTS':
 						$where_clauses[] = "JSON_EXTRACT(meta, '$.{$key}') IS NOT NULL";
@@ -89,24 +89,24 @@ class Ieltssci_ApiKeys_DB {
 		$query = "SELECT * FROM {$this->table_name}";
 
 		if ( ! empty( $where_clauses ) ) {
-			$query .= " WHERE " . implode( " AND ", $where_clauses );
+			$query .= ' WHERE ' . implode( ' AND ', $where_clauses );
 		}
 
 		// Order results
-		$allowed_order_columns = [ 'id', 'api_provider', 'usage_count', 'created_at', 'updated_at' ];
-		$order_by = in_array( $args['order_by'], $allowed_order_columns ) ? $args['order_by'] : 'id';
-		$order = strtoupper( $args['order'] ) === 'DESC' ? 'DESC' : 'ASC';
+		$allowed_order_columns = array( 'id', 'api_provider', 'usage_count', 'created_at', 'updated_at' );
+		$order_by              = in_array( $args['order_by'], $allowed_order_columns ) ? $args['order_by'] : 'id';
+		$order                 = strtoupper( $args['order'] ) === 'DESC' ? 'DESC' : 'ASC';
 
 		if ( $args['least_used'] ) {
 			$order_by = 'usage_count';
-			$order = 'ASC';
+			$order    = 'ASC';
 		}
 
 		$query .= " ORDER BY {$order_by} {$order}";
 
 		// Apply limit
 		if ( ! empty( $args['limit'] ) && is_numeric( $args['limit'] ) ) {
-			$query .= " LIMIT %d";
+			$query         .= ' LIMIT %d';
 			$where_values[] = (int) $args['limit'];
 		}
 
@@ -120,20 +120,20 @@ class Ieltssci_ApiKeys_DB {
 		$results = $this->wpdb->get_results( $prepared_query, ARRAY_A );
 
 		// Format results grouped by provider
-		$api_keys = [];
+		$api_keys = array();
 		foreach ( $results as $row ) {
 			$provider = $row['api_provider'];
 			if ( ! isset( $api_keys[ $provider ] ) ) {
-				$api_keys[ $provider ] = [ 'keys' => [] ];
+				$api_keys[ $provider ] = array( 'keys' => array() );
 			}
 
-			$api_keys[ $provider ]['keys'][] = [ 
-				'id' => (int) $row['id'],
-				'meta' => json_decode( $row['meta'], true ),
+			$api_keys[ $provider ]['keys'][] = array(
+				'id'          => (int) $row['id'],
+				'meta'        => json_decode( $row['meta'], true ),
 				'usage_count' => (int) $row['usage_count'],
-				'created_at' => $row['created_at'],
-				'updated_at' => $row['updated_at'],
-			];
+				'created_at'  => $row['created_at'],
+				'updated_at'  => $row['updated_at'],
+			);
 		}
 
 		return $api_keys;
@@ -141,8 +141,8 @@ class Ieltssci_ApiKeys_DB {
 
 	/**
 	 * Gets a single API key by ID or other criteria
-	 * 
-	 * @param int $key_id  Key ID to search for
+	 *
+	 * @param int   $key_id  Key ID to search for
 	 * @param array $args {
 	 *     Optional. Additional arguments for finding the key.
 	 *     @type string $provider     Filter by provider name
@@ -152,15 +152,15 @@ class Ieltssci_ApiKeys_DB {
 	 * }
 	 * @return array|null Single API key or null if not found
 	 */
-	public function get_api_key( $key_id = 0, $args = [] ) {
-		$defaults = [ 
-			'provider' => '',
-			'least_used' => true,
-			'meta_query' => [],
+	public function get_api_key( $key_id = 0, $args = array() ) {
+		$defaults = array(
+			'provider'        => '',
+			'least_used'      => true,
+			'meta_query'      => array(),
 			'increment_usage' => false,
-		];
+		);
 
-		$args = wp_parse_args( $args, $defaults );
+		$args        = wp_parse_args( $args, $defaults );
 		$search_args = $args;
 
 		// Set ID if provided
@@ -170,23 +170,23 @@ class Ieltssci_ApiKeys_DB {
 
 		if ( $args['least_used'] ) {
 			$search_args['order_by'] = 'usage_count';
-			$search_args['order'] = 'ASC';
+			$search_args['order']    = 'ASC';
 		}
 
 		// Use the query building logic from above but always limit to one result
-		$where_clauses = [];
-		$where_values = [];
+		$where_clauses = array();
+		$where_values  = array();
 
 		// Filter by ID if provided
 		if ( ! empty( $search_args['id'] ) ) {
-			$where_clauses[] = "id = %d";
-			$where_values[] = (int) $search_args['id'];
+			$where_clauses[] = 'id = %d';
+			$where_values[]  = (int) $search_args['id'];
 		}
 
 		// Filter by provider
 		if ( ! empty( $search_args['provider'] ) ) {
-			$where_clauses[] = "api_provider = %s";
-			$where_values[] = $search_args['provider'];
+			$where_clauses[] = 'api_provider = %s';
+			$where_values[]  = $search_args['provider'];
 		}
 
 		// Handle meta query conditions
@@ -197,21 +197,21 @@ class Ieltssci_ApiKeys_DB {
 				}
 
 				$compare = $query['compare'] ?? '=';
-				$key = $query['key'];
-				$value = $query['value'];
+				$key     = $query['key'];
+				$value   = $query['value'];
 
 				switch ( $compare ) {
 					case '=':
 						$where_clauses[] = "JSON_EXTRACT(meta, '$.{$key}') = %s";
-						$where_values[] = $value;
+						$where_values[]  = $value;
 						break;
 					case 'LIKE':
 						$where_clauses[] = "JSON_EXTRACT(meta, '$.{$key}') LIKE %s";
-						$where_values[] = '%' . $this->wpdb->esc_like( $value ) . '%';
+						$where_values[]  = '%' . $this->wpdb->esc_like( $value ) . '%';
 						break;
 					case 'CONTAINS':
 						$where_clauses[] = "JSON_CONTAINS(meta, %s, '$.{$key}')";
-						$where_values[] = json_encode( $value );
+						$where_values[]  = json_encode( $value );
 						break;
 					case 'EXISTS':
 						$where_clauses[] = "JSON_EXTRACT(meta, '$.{$key}') IS NOT NULL";
@@ -224,16 +224,16 @@ class Ieltssci_ApiKeys_DB {
 		$query = "SELECT * FROM {$this->table_name}";
 
 		if ( ! empty( $where_clauses ) ) {
-			$query .= " WHERE " . implode( " AND ", $where_clauses );
+			$query .= ' WHERE ' . implode( ' AND ', $where_clauses );
 		}
 
 		// Order by usage_count if least_used is true
 		if ( $args['least_used'] ) {
-			$query .= " ORDER BY usage_count ASC";
+			$query .= ' ORDER BY usage_count ASC';
 		}
 
 		// Always limit to 1 result for get_api_key
-		$query .= " LIMIT 1";
+		$query .= ' LIMIT 1';
 
 		// Prepare and execute query
 		if ( ! empty( $where_values ) ) {
@@ -252,22 +252,22 @@ class Ieltssci_ApiKeys_DB {
 		if ( $args['increment_usage'] ) {
 			$this->wpdb->update(
 				$this->table_name,
-				[ 'usage_count' => (int) $row['usage_count'] + 1 ],
-				[ 'id' => (int) $row['id'] ],
-				[ '%d' ],
-				[ '%d' ]
+				array( 'usage_count' => (int) $row['usage_count'] + 1 ),
+				array( 'id' => (int) $row['id'] ),
+				array( '%d' ),
+				array( '%d' )
 			);
 		}
 
 		// Format single key result
-		return [ 
-			'id' => (int) $row['id'],
-			'provider' => $row['api_provider'],
-			'meta' => json_decode( $row['meta'], true ),
+		return array(
+			'id'          => (int) $row['id'],
+			'provider'    => $row['api_provider'],
+			'meta'        => json_decode( $row['meta'], true ),
 			'usage_count' => (int) $row['usage_count'],
-			'created_at' => $row['created_at'],
-			'updated_at' => $row['updated_at'],
-		];
+			'created_at'  => $row['created_at'],
+			'updated_at'  => $row['updated_at'],
+		);
 	}
 
 	public function update_api_keys( array $api_keys ): array {
@@ -281,7 +281,7 @@ class Ieltssci_ApiKeys_DB {
 			);
 
 			$existing_ids = array_column( $existing_keys, 'id' );
-			$updated_ids = [];
+			$updated_ids  = array();
 
 			// Process each provider's keys
 			foreach ( $api_keys as $provider => $data ) {
@@ -310,32 +310,32 @@ class Ieltssci_ApiKeys_DB {
 			$this->wpdb->query( 'COMMIT' );
 			return $this->get_api_keys();
 
-		} catch (\Exception $e) {
+		} catch ( \Exception $e ) {
 			$this->wpdb->query( 'ROLLBACK' );
 			throw $e;
 		}
 	}
 
 	private function save_api_key( string $provider, array $key ): ?int {
-		$data = [ 
+		$data    = array(
 			'api_provider' => $provider,
-			'meta' => wp_json_encode( $key['meta'] ),
-		];
-		$formats = [ '%s', '%s' ];
+			'meta'         => wp_json_encode( $key['meta'] ),
+		);
+		$formats = array( '%s', '%s' );
 
 		// Add usage count if provided
 		if ( isset( $key['usage_count'] ) ) {
 			$data['usage_count'] = (int) $key['usage_count'];
-			$formats[] = '%d';
+			$formats[]           = '%d';
 		}
 
 		if ( ! empty( $key['id'] ) ) {
 			$result = $this->wpdb->update(
 				$this->table_name,
 				$data,
-				[ 'id' => $key['id'] ],
+				array( 'id' => $key['id'] ),
 				$formats,
-				[ '%d' ]
+				array( '%d' )
 			);
 			return $result !== false ? $key['id'] : null;
 		} else {

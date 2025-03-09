@@ -17,12 +17,12 @@ class Ieltssci_Settings_Config {
 	 *
 	 * @return array The field configuration array.
 	 */
-	public function createField( string $id, string $type, string $label, string $help = '', $default = null, array $options = [], string $dependency = '', array $extra_attrs = [] ): array {
-		$field = [ 
-			'id' => $id,
-			'type' => $type,
+	public function createField( string $id, string $type, string $label, string $help = '', $default = null, array $options = array(), string $dependency = '', array $extra_attrs = array() ): array {
+		$field = array(
+			'id'    => $id,
+			'type'  => $type,
 			'label' => $label,
-		];
+		);
 
 		if ( $help ) {
 			$field['help'] = $help;
@@ -56,13 +56,28 @@ class Ieltssci_Settings_Config {
 			'API Provider',
 			'Select which API provider to use.',
 			$default,
-			[ 
-				[ 'label' => 'Open Key AI', 'value' => 'open-key-ai' ],
-				[ 'label' => 'Open AI', 'value' => 'open-ai' ],
-				[ 'label' => 'Google', 'value' => 'google' ],
-				[ 'label' => 'Azure', 'value' => 'azure' ],
-				[ 'label' => 'Home Server', 'value' => 'home-server' ],
-			]
+			array(
+				array(
+					'label' => 'Open Key AI',
+					'value' => 'open-key-ai',
+				),
+				array(
+					'label' => 'Open AI',
+					'value' => 'open-ai',
+				),
+				array(
+					'label' => 'Google',
+					'value' => 'google',
+				),
+				array(
+					'label' => 'Azure',
+					'value' => 'azure',
+				),
+				array(
+					'label' => 'Home Server',
+					'value' => 'home-server',
+				),
+			)
 		);
 	}
 
@@ -94,7 +109,7 @@ class Ieltssci_Settings_Config {
 	 * @return array Combined options, including the "Other:" option.
 	 */
 	public function getModelOptions( array $providerOptions ): array {
-		$options = [];
+		$options = array();
 		foreach ( $providerOptions as $provider => $models ) {
 			$options[ $provider ] = $models;
 			// Check if 'Other:' already exists, if not add. Avoid duplicates
@@ -106,7 +121,10 @@ class Ieltssci_Settings_Config {
 				}
 			}
 			if ( ! $hasOther ) {
-				$options[ $provider ][] = [ 'label' => 'Other:', 'value' => 'other' ];
+				$options[ $provider ][] = array(
+					'label' => 'Other:',
+					'value' => 'other',
+				);
 			}
 		}
 		return $options;
@@ -121,15 +139,19 @@ class Ieltssci_Settings_Config {
 	 *
 	 * @return array The prompt field configuration.
 	 */
-	public function createPromptField( string $id, string $label, string $default, array $merge_tags = [] ): array {
-		$default_merge_tags = [ 
-			[ 
+	public function createPromptField( string $id, string $label, string $default, array $merge_tags = array() ): array {
+		$default_merge_tags = array(
+			array(
 				'groupLabel' => 'General',
-				'items' => [ 
-					[ 'label' => 'Site URL', 'info' => '{site_url}', 'value' => '{site_url}' ],
-				],
-			]
-		];
+				'items'      => array(
+					array(
+						'label' => 'Site URL',
+						'info'  => '{site_url}',
+						'value' => '{site_url}',
+					),
+				),
+			),
+		);
 		// Get default merge tags through filter
 		$filtered_merge_tags = apply_filters( 'ieltssci_merge_tags', $default_merge_tags );
 
@@ -142,9 +164,9 @@ class Ieltssci_Settings_Config {
 			$label,
 			'The message to send to LLM',
 			$default,
-			[],
+			array(),
 			'',
-			[ 'merge_tags' => $combined_merge_tags ]
+			array( 'merge_tags' => $combined_merge_tags )
 		);
 	}
 
@@ -157,10 +179,10 @@ class Ieltssci_Settings_Config {
 	 * @return array The section configuration.
 	 */
 	public function createSection( string $sectionName, array $fields ): array {
-		return [ 
+		return array(
 			'section' => $sectionName,
-			'fields' => $fields,
-		];
+			'fields'  => $fields,
+		);
 	}
 
 	/**
@@ -172,10 +194,10 @@ class Ieltssci_Settings_Config {
 	 * @return array The step configuration.
 	 */
 	public function createStep( string $stepName, array $sections ): array {
-		return [ 
-			'step' => $stepName,
+		return array(
+			'step'     => $stepName,
 			'sections' => $sections,
-		];
+		);
 	}
 
 	/**
@@ -184,18 +206,18 @@ class Ieltssci_Settings_Config {
 	 * @param string $feedName
 	 * @param string $feedTitle
 	 * @param string $applyTo
-	 * @param array $essayType
-	 * @param array $steps
+	 * @param array  $essayType
+	 * @param array  $steps
 	 * @return array
 	 */
 	public function createFeed( string $feedName, string $feedTitle, string $applyTo, array $essayType, array $steps ): array {
-		return [ 
-			'feedName' => $feedName,
+		return array(
+			'feedName'  => $feedName,
 			'feedTitle' => $feedTitle,
-			'applyTo' => $applyTo,
+			'applyTo'   => $applyTo,
 			'essayType' => $essayType,
-			'steps' => $steps
-		];
+			'steps'     => $steps,
+		);
 	}
 
 	/**
@@ -206,17 +228,17 @@ class Ieltssci_Settings_Config {
 	 * @return array The settings configuration, or null if the tab is not found.
 	 */
 	public function get_settings_config( $tab = null ) {
-		$all_settings = apply_filters( 'ieltssci_settings_config', [] );
+		$all_settings = apply_filters( 'ieltssci_settings_config', array() );
 
 		if ( $tab === null ) {
 			// Return only the tab list (id and label)
-			$tab_list = [];
+			$tab_list = array();
 			foreach ( $all_settings as $tab_id => $tab_data ) {
-				$tab_list[] = [ 
-					'id' => $tab_id,
+				$tab_list[] = array(
+					'id'    => $tab_id,
 					'label' => $tab_data['tab_label'],
-					'type' => $tab_data['tab_type'],
-				];
+					'type'  => $tab_data['tab_type'],
+				);
 			}
 			return $tab_list;
 		} else {
@@ -224,7 +246,7 @@ class Ieltssci_Settings_Config {
 			if ( isset( $all_settings[ $tab ] ) && isset( $all_settings[ $tab ]['settings'] ) ) {
 				return $all_settings[ $tab ]['settings'];
 			} else {
-				return [];
+				return array();
 			}
 		}
 	}

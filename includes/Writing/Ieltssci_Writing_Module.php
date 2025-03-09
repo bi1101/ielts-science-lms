@@ -6,12 +6,12 @@ class Ieltssci_Writing_Module {
 	public function __construct() {
 		new Ieltssci_Writing_SSE_REST();
 		// Initialize the writing module
-		add_action( 'wp_enqueue_scripts', [ $this, 'register_writing_assets' ] );
-		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_writing_assets' ] );
-		add_filter( 'ielts_science_lms_module_pages_data', [ $this, 'provide_module_pages_data' ] );
+		add_action( 'wp_enqueue_scripts', array( $this, 'register_writing_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_writing_assets' ) );
+		add_filter( 'ielts_science_lms_module_pages_data', array( $this, 'provide_module_pages_data' ) );
 
 		// Add custom rewrite rules for UUID child slugs
-		add_action( 'init', [ $this, 'register_custom_rewrite_rules' ] );
+		add_action( 'init', array( $this, 'register_custom_rewrite_rules' ) );
 	}
 
 	/**
@@ -23,36 +23,36 @@ class Ieltssci_Writing_Module {
 	 * @return void
 	 */
 	public function register_writing_assets() {
-		$build_path = plugin_dir_path( __FILE__ ) . '../../public/writing/build/';
+		$build_path  = plugin_dir_path( __FILE__ ) . '../../public/writing/build/';
 		$asset_files = glob( $build_path . '*.asset.php' );
 
 		foreach ( $asset_files as $asset_file ) {
-			$asset = include( $asset_file );
+			$asset  = include $asset_file;
 			$handle = 'ielts-science-' . basename( $asset_file, '.asset.php' );
-			$src = plugin_dir_url( __FILE__ ) . '../../public/writing/build/' . basename( $asset_file, '.asset.php' ) . '.js';
-			$deps = $asset['dependencies'];
-			$ver = $asset['version'];
+			$src    = plugin_dir_url( __FILE__ ) . '../../public/writing/build/' . basename( $asset_file, '.asset.php' ) . '.js';
+			$deps   = $asset['dependencies'];
+			$ver    = $asset['version'];
 
 			wp_register_script( $handle, $src, $deps, $ver, true );
 
 			$css_file = str_replace( '.asset.php', '.css', $asset_file );
 			if ( file_exists( $css_file ) ) {
 				$css_handle = $handle . '-css';
-				$css_src = plugin_dir_url( __FILE__ ) . '../../public/writing/build/' . basename( $css_file );
-				wp_register_style( $css_handle, $css_src, [], $ver );
+				$css_src    = plugin_dir_url( __FILE__ ) . '../../public/writing/build/' . basename( $css_file );
+				wp_register_style( $css_handle, $css_src, array(), $ver );
 			}
 		}
 	}
 
 	public function enqueue_writing_assets() {
 		// Get the saved page settings
-		$ielts_pages = get_option( 'ielts_science_lms_pages', [] );
+		$ielts_pages = get_option( 'ielts_science_lms_pages', array() );
 
 		// Get module pages data for current module
-		$module_pages_data = $this->provide_module_pages_data( [] );
+		$module_pages_data = $this->provide_module_pages_data( array() );
 
 		// Extract writing module pages
-		$writing_module_pages = [];
+		$writing_module_pages = array();
 		if ( isset( $module_pages_data['writing_module']['pages'] ) ) {
 			$writing_module_pages = $module_pages_data['writing_module']['pages'];
 		}
@@ -70,8 +70,8 @@ class Ieltssci_Writing_Module {
 
 		if ( $should_enqueue ) {
 			// Define the handle for the index script and style.
-			$script_handle = 'ielts-science-index';
-			$style_handle = 'ielts-science-index-css';
+			$script_handle  = 'ielts-science-index';
+			$style_handle   = 'ielts-science-index-css';
 			$runtime_handle = 'ielts-science-runtime';
 
 			// Enqueue the runtime script if it's registered.
@@ -89,14 +89,14 @@ class Ieltssci_Writing_Module {
 			}
 
 			// Prepare data for localization using writing module pages
-			$page_data_for_js = [];
+			$page_data_for_js = array();
 			foreach ( $writing_module_pages as $page_key => $page_label ) {
 				if ( isset( $ielts_pages[ $page_key ] ) ) {
 					$page_id = $ielts_pages[ $page_key ];
 					// Check if this page is set as the front page
 					$is_front_page = ( $page_id == get_option( 'page_on_front' ) );
 					// Use empty string for homepage URI to match root route
-					$uri = $is_front_page ? '' : get_page_uri( $page_id );
+					$uri                           = $is_front_page ? '' : get_page_uri( $page_id );
 					$page_data_for_js[ $page_key ] = $uri;
 				}
 			}
@@ -112,15 +112,15 @@ class Ieltssci_Writing_Module {
 			// Function to get the menu item icon
 			function get_menu_item_icon( $item ) {
 				// Use locate_template to find the class files, respecting child themes
-				$meta_file = locate_template( 'inc/plugins/buddyboss-menu-icons/includes/meta.php' );
+				$meta_file  = locate_template( 'inc/plugins/buddyboss-menu-icons/includes/meta.php' );
 				$front_file = locate_template( 'inc/plugins/buddyboss-menu-icons/includes/front.php' );
 
 				// Include the necessary class files if they exist
 				if ( file_exists( $meta_file ) ) {
-					require_once( $meta_file );
+					require_once $meta_file;
 				}
 				if ( file_exists( $front_file ) ) {
-					require_once( $front_file );
+					require_once $front_file;
 				}
 
 				$icon = false;
@@ -145,24 +145,24 @@ class Ieltssci_Writing_Module {
 					$icon = wp_kses(
 						$icon,
 						array(
-							'i' => array(
+							'i'    => array(
 								'class' => array(),
 							),
-							'svg' => array(
-								'class' => array(),
+							'svg'  => array(
+								'class'       => array(),
 								'aria-hidden' => array(),
-								'role' => array(),
-								'focusable' => array(),
-								'xmlns' => array(),
-								'width' => array(),
-								'height' => array(),
-								'viewbox' => array(),
+								'role'        => array(),
+								'focusable'   => array(),
+								'xmlns'       => array(),
+								'width'       => array(),
+								'height'      => array(),
+								'viewbox'     => array(),
 							),
 							'path' => array(
-								'd' => array(),
+								'd'    => array(),
 								'fill' => array(),
 							),
-							'use' => array(
+							'use'  => array(
 								'xlink:href' => array(),
 							),
 						)
@@ -178,11 +178,11 @@ class Ieltssci_Writing_Module {
 				foreach ( $items as $item ) {
 					if ( $item->menu_item_parent == $parent ) {
 						$menu_item = array(
-							'id' => $item->ID,
-							'title' => $item->title,
-							'url' => html_entity_decode( $item->url ),
+							'id'       => $item->ID,
+							'title'    => $item->title,
+							'url'      => html_entity_decode( $item->url ),
 							'children' => build_hierarchical_menu( $items, $item->ID ), // Recursively find children
-							'icon' => get_menu_item_icon( $item ), // Get the icon data
+							'icon'     => get_menu_item_icon( $item ), // Get the icon data
 							// ... add other fields you need from the menu item object (e.g., classes, target, etc.) ...
 						);
 						$menu[] = $menu_item;
@@ -192,24 +192,24 @@ class Ieltssci_Writing_Module {
 			}
 
 			// --- Header Menu ---
-			$header_menu_name = 'header-menu';
+			$header_menu_name  = 'header-menu';
 			$header_menu_items = array();
 
 			if ( ( $header_locations = get_nav_menu_locations() ) && isset( $header_locations[ $header_menu_name ] ) ) {
-				$header_menu = wp_get_nav_menu_object( $header_locations[ $header_menu_name ] );
-				$header_menu_items = wp_get_nav_menu_items( $header_menu->term_id, array( 'order' => 'ASC' ) );
+				$header_menu                 = wp_get_nav_menu_object( $header_locations[ $header_menu_name ] );
+				$header_menu_items           = wp_get_nav_menu_items( $header_menu->term_id, array( 'order' => 'ASC' ) );
 				$formatted_header_menu_items = build_hierarchical_menu( $header_menu_items );
 			} else {
 				$formatted_header_menu_items = array(); // Empty array if menu not found
 			}
 
 			// --- Account Menu ---
-			$account_menu_name = 'header-my-account';
+			$account_menu_name  = 'header-my-account';
 			$account_menu_items = array();
 
 			if ( ( $account_locations = get_nav_menu_locations() ) && isset( $account_locations[ $account_menu_name ] ) ) {
-				$account_menu = wp_get_nav_menu_object( $account_locations[ $account_menu_name ] );
-				$account_menu_items = wp_get_nav_menu_items( $account_menu->term_id, array( 'order' => 'ASC' ) );
+				$account_menu                 = wp_get_nav_menu_object( $account_locations[ $account_menu_name ] );
+				$account_menu_items           = wp_get_nav_menu_items( $account_menu->term_id, array( 'order' => 'ASC' ) );
 				$formatted_account_menu_items = build_hierarchical_menu( $account_menu_items );
 			} else {
 				$formatted_account_menu_items = array();
@@ -218,10 +218,10 @@ class Ieltssci_Writing_Module {
 
 			// --- User Data ---
 			$current_user = wp_get_current_user();
-			$user_link = '';
+			$user_link    = '';
 			$display_name = '';
 			$user_mention = '';
-			$user_avatar = '';
+			$user_avatar  = '';
 
 			if ( is_user_logged_in() ) {
 				// BuddyBoss-specific functions (if BuddyBoss is active)
@@ -247,18 +247,18 @@ class Ieltssci_Writing_Module {
 			}
 
 			// Combine all data to be localized
-			$localized_data = [ 
-				'pages' => $page_data_for_js,
-				'nonce' => $nonce,
-				'root_url' => $root_url,
-				'is_logged_in' => is_user_logged_in(),
-				'header_menu' => $formatted_header_menu_items,
-				'account_menu' => $formatted_account_menu_items,
-				'user_link' => $user_link,
+			$localized_data = array(
+				'pages'             => $page_data_for_js,
+				'nonce'             => $nonce,
+				'root_url'          => $root_url,
+				'is_logged_in'      => is_user_logged_in(),
+				'header_menu'       => $formatted_header_menu_items,
+				'account_menu'      => $formatted_account_menu_items,
+				'user_link'         => $user_link,
 				'user_display_name' => $display_name,
-				'user_mention' => $user_mention,
-				'user_avatar' => $user_avatar,
-			];
+				'user_mention'      => $user_mention,
+				'user_avatar'       => $user_avatar,
+			);
 
 			// Localize script (pass data to the React app)
 			wp_localize_script( $script_handle, 'ielts_writing_data', $localized_data );
@@ -267,11 +267,11 @@ class Ieltssci_Writing_Module {
 
 	/**
 	 * Register custom rewrite rules for UUID child slugs
-	 * 
+	 *
 	 * @return void
 	 */
 	public function register_custom_rewrite_rules() {
-		$ielts_pages = get_option( 'ielts_science_lms_pages', [] );
+		$ielts_pages = get_option( 'ielts_science_lms_pages', array() );
 
 		// Check if result_task_2 page is set
 		if ( ! empty( $ielts_pages['result_task_2'] ) ) {
@@ -288,28 +288,30 @@ class Ieltssci_Writing_Module {
 				);
 
 				// Register the query var
-				add_filter( 'query_vars', function ($query_vars) {
-					$query_vars[] = 'entry_id';
-					return $query_vars;
-				} );
+				add_filter(
+					'query_vars',
+					function ( $query_vars ) {
+						$query_vars[] = 'entry_id';
+						return $query_vars;
+					}
+				);
 			}
 		}
 	}
 
 	public function provide_module_pages_data( $module_data ) {
-		$module_data['writing_module'] = [ 
-			'module_name' => 'writing_module',
+		$module_data['writing_module'] = array(
+			'module_name'   => 'writing_module',
 			'section_title' => __( 'Writing Module Pages', 'ielts-science-lms' ),
-			'section_desc' => __( 'Select the pages for the Writing Module.', 'ielts-science-lms' ),
-			'pages' => [ 
-				'writing_submission' => __( 'IELTS Science Writing', 'ielts-science-lms' ),
-				'result_task_2' => __( 'Result Task 2', 'ielts-science-lms' ),
-				'result_task_1' => __( 'Result Task 1', 'ielts-science-lms' ),
+			'section_desc'  => __( 'Select the pages for the Writing Module.', 'ielts-science-lms' ),
+			'pages'         => array(
+				'writing_submission'   => __( 'IELTS Science Writing', 'ielts-science-lms' ),
+				'result_task_2'        => __( 'Result Task 2', 'ielts-science-lms' ),
+				'result_task_1'        => __( 'Result Task 1', 'ielts-science-lms' ),
 				'result_general_essay' => __( 'Result General Essay', 'ielts-science-lms' ),
-			],
-		];
+			),
+		);
 
 		return $module_data;
 	}
-
 }

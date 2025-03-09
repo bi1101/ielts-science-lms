@@ -9,12 +9,12 @@ class Ieltssci_Settings {
 
 	public function __construct() {
 		$this->settings_config = new Ieltssci_Settings_Config();
-		add_action( 'admin_menu', [ $this, 'register_admin_menu' ] );
-		add_action( 'admin_enqueue_scripts', [ $this, 'register_settings_assets' ] );
-		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_scripts' ] );
-		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_settings_assets' ] );
-		add_action( 'admin_init', [ $this, 'register_settings' ] );
-		add_action( 'wp_ajax_ielts_create_page_ajax', [ $this, 'handle_create_page_ajax' ] );
+		add_action( 'admin_menu', array( $this, 'register_admin_menu' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'register_settings_assets' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_scripts' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_settings_assets' ) );
+		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'wp_ajax_ielts_create_page_ajax', array( $this, 'handle_create_page_ajax' ) );
 	}
 
 	public function register_admin_menu() {
@@ -23,7 +23,7 @@ class Ieltssci_Settings {
 			__( 'IELTS Science LMS', 'ielts-science-lms' ),
 			'manage_options',
 			'ielts-science-lms',
-			[ $this, 'settings_page' ],
+			array( $this, 'settings_page' ),
 			'dashicons-welcome-learn-more',
 			10
 		);
@@ -34,7 +34,7 @@ class Ieltssci_Settings {
 			__( 'Pages', 'ielts-science-lms' ),
 			'manage_options',
 			'ielts-science-lms-pages',
-			[ $this, 'pages_settings_page' ]
+			array( $this, 'pages_settings_page' )
 		);
 
 		add_submenu_page(
@@ -43,7 +43,7 @@ class Ieltssci_Settings {
 			__( 'Settings', 'ielts-science-lms' ),
 			'manage_options',
 			'ielts-science-lms-settings',
-			[ $this, 'settings_page' ]
+			array( $this, 'settings_page' )
 		);
 	}
 
@@ -71,8 +71,8 @@ class Ieltssci_Settings {
 		}
 
 		// Get the appropriate script handle for this tab
-		$script_handle = "ielts-science-wp-admin-{$current_tab_type}";
-		$style_handle = "{$script_handle}-css";
+		$script_handle  = "ielts-science-wp-admin-{$current_tab_type}";
+		$style_handle   = "{$script_handle}-css";
 		$runtime_handle = 'ielts-science-wp-admin-runtime';
 
 		// Enqueue the runtime script if it's registered
@@ -93,46 +93,60 @@ class Ieltssci_Settings {
 		wp_enqueue_style( 'wp-components' );
 
 		match ( $current_tab_type ) {
-			'api-feeds' => wp_localize_script( $script_handle, 'ieltssciSettings', [ 
-				'apiRoot' => esc_url_raw( rest_url() ),
-				'nonce' => wp_create_nonce( 'wp_rest' ),
-				'settingsConfig' => $this->settings_config->get_settings_config( $current_tab ),
-				'currentTab' => $current_tab
-			] ),
-			'rate-limits' => wp_localize_script( $script_handle, 'ieltssciRateLimits', [ 
-				'apiRoot' => esc_url_raw( rest_url() ),
-				'nonce' => wp_create_nonce( 'wp_rest' ),
-				'roles' => wp_roles()->roles,
-				'feeds' => array_reduce(
-					( new Ieltssci_ApiFeeds_DB() )->get_api_feeds( [ 
-						'limit' => 500,
-						'include' => [ 'meta' ]
-					] ),
-					function ($result, $item) {
-							$id = $item['id'];
+			'api-feeds' => wp_localize_script(
+				$script_handle,
+				'ieltssciSettings', array(
+					'apiRoot'        => esc_url_raw( rest_url() ),
+					'nonce'          => wp_create_nonce( 'wp_rest' ),
+					'settingsConfig' => $this->settings_config->get_settings_config( $current_tab ),
+					'currentTab'     => $current_tab,
+				)
+			),
+			'rate-limits' => wp_localize_script(
+				$script_handle,
+				'ieltssciRateLimits', array(
+					'apiRoot' => esc_url_raw( rest_url() ),
+					'nonce'   => wp_create_nonce( 'wp_rest' ),
+					'roles'   => wp_roles()->roles,
+					'feeds'   => array_reduce(
+						( new Ieltssci_ApiFeeds_DB() )->get_api_feeds(
+							array(
+								'limit'   => 500,
+								'include' => array( 'meta' ),
+							)
+						),
+						function ( $result, $item ) {
+								$id = $item['id'];
 							if ( ! isset( $result[ $id ] ) ) {
 								$result[ $id ] = $item;
 							}
-							return $result;
+								return $result;
 						},
-					[]
-				),
-			] ),
-			'api-feeds-process-order' => wp_localize_script( $script_handle, 'ieltssciProcessOrder', [ 
-				'apiRoot' => esc_url_raw( rest_url() ),
-				'nonce' => wp_create_nonce( 'wp_rest' ),
-				'settingsConfig' => $this->settings_config->get_settings_config( $current_tab ),
-				'currentTab' => $current_tab
-			] ),
-			default => wp_localize_script( $script_handle, 'ieltssciSettings', [ 
-				'apiRoot' => esc_url_raw( rest_url() ),
-				'nonce' => wp_create_nonce( 'wp_rest' ),
-				'settingsConfig' => $this->settings_config->get_settings_config( $current_tab ),
-				'currentTab' => $current_tab
-			] ),
+						array()
+					),
+				)
+			),
+			'api-feeds-process-order' => wp_localize_script(
+				$script_handle,
+				'ieltssciProcessOrder', array(
+					'apiRoot'        => esc_url_raw( rest_url() ),
+					'nonce'          => wp_create_nonce( 'wp_rest' ),
+					'settingsConfig' => $this->settings_config->get_settings_config( $current_tab ),
+					'currentTab'     => $current_tab,
+				)
+			),
+			default => wp_localize_script(
+				$script_handle,
+				'ieltssciSettings',
+				array(
+					'apiRoot'        => esc_url_raw( rest_url() ),
+					'nonce'          => wp_create_nonce( 'wp_rest' ),
+					'settingsConfig' => $this->settings_config->get_settings_config( $current_tab ),
+					'currentTab'     => $current_tab,
+				)
+			),
 		};
 		// Localize the script with the REST API URL, nonce & settings config
-
 	}
 
 	public function settings_page() {
@@ -160,12 +174,13 @@ class Ieltssci_Settings {
 
 		?>
 		<nav class="nav-tab-wrapper">
-			<?php foreach ( $tabs as $tab ) :
-				$active_class = ( $current_tab === $tab["id"] ) ? 'nav-tab-active' : '';
-				$url = add_query_arg( 'tab', $tab["id"], menu_page_url( 'ielts-science-lms-settings', false ) ); // Use menu_page_url
+			<?php
+			foreach ( $tabs as $tab ) :
+				$active_class = ( $current_tab === $tab['id'] ) ? 'nav-tab-active' : '';
+				$url          = add_query_arg( 'tab', $tab['id'], menu_page_url( 'ielts-science-lms-settings', false ) ); // Use menu_page_url
 				?>
 				<a href="<?php echo esc_url( $url ); ?>" class="nav-tab <?php echo esc_attr( $active_class ); ?>">
-					<?php echo esc_html( $tab["label"] ); ?>
+					<?php echo esc_html( $tab['label'] ); ?>
 				</a>
 			<?php endforeach; ?>
 		</nav>
@@ -181,23 +196,23 @@ class Ieltssci_Settings {
 	 * @return void
 	 */
 	public function register_settings_assets() {
-		$build_path = plugin_dir_path( __FILE__ ) . '../../admin/settings/build/';
+		$build_path  = plugin_dir_path( __FILE__ ) . '../../admin/settings/build/';
 		$asset_files = glob( $build_path . '*.asset.php' );
 
 		foreach ( $asset_files as $asset_file ) {
-			$asset = include( $asset_file );
+			$asset  = include $asset_file;
 			$handle = 'ielts-science-wp-admin-' . basename( $asset_file, '.asset.php' );
-			$src = plugin_dir_url( __FILE__ ) . '../../admin/settings/build/' . basename( $asset_file, '.asset.php' ) . '.js';
-			$deps = $asset['dependencies'];
-			$ver = $asset['version'];
+			$src    = plugin_dir_url( __FILE__ ) . '../../admin/settings/build/' . basename( $asset_file, '.asset.php' ) . '.js';
+			$deps   = $asset['dependencies'];
+			$ver    = $asset['version'];
 
 			wp_register_script( $handle, $src, $deps, $ver, true );
 
 			$css_file = str_replace( '.asset.php', '.css', $asset_file );
 			if ( file_exists( $css_file ) ) {
 				$css_handle = $handle . '-css';
-				$css_src = plugin_dir_url( __FILE__ ) . '../../admin/settings/build/' . basename( $css_file );
-				wp_register_style( $css_handle, $css_src, [], $ver );
+				$css_src    = plugin_dir_url( __FILE__ ) . '../../admin/settings/build/' . basename( $css_file );
+				wp_register_style( $css_handle, $css_src, array(), $ver );
 			}
 		}
 	}
@@ -207,10 +222,10 @@ class Ieltssci_Settings {
 		$this->display_notices();
 
 		// Get current page assignments
-		$ielts_pages = get_option( 'ielts_science_lms_pages', [] );
+		$ielts_pages = get_option( 'ielts_science_lms_pages', array() );
 
 		// *** Apply Filter for Module Page Settings ***
-		$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', [] );
+		$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', array() );
 
 		?>
 		<div class="wrap">
@@ -221,13 +236,16 @@ class Ieltssci_Settings {
 			<form method="post" action="options.php">
 				<?php settings_fields( 'ielts_science_lms_pages_group' ); ?>
 
-				<?php // *** Loop Through Module Data ***
-						foreach ( $module_pages_data as $module_data ) : ?>
+				<?php
+				// *** Loop Through Module Data ***
+				foreach ( $module_pages_data as $module_data ) :
+					?>
 					<div class="card" style="max-width: none;">
 						<h2 class="title"><?php echo esc_html( $module_data['section_title'] ); ?></h2>
 						<p><?php echo esc_html( $module_data['section_desc'] ); ?></p>
 						<table class="form-table">
-							<?php foreach ( $module_data['pages'] as $page_key => $page_label ) :
+							<?php
+							foreach ( $module_data['pages'] as $page_key => $page_label ) :
 								$selected_page_id = isset( $ielts_pages[ $page_key ] ) ? $ielts_pages[ $page_key ] : 0;
 								?>
 								<tr>
@@ -237,13 +255,13 @@ class Ieltssci_Settings {
 									</th>
 									<td>
 										<?php
-										$dropdown_args = [ 
-											'name' => "ielts_science_lms_pages[{$page_key}]",
-											'id' => "ielts_science_lms_pages_" . esc_attr( $page_key ),
+										$dropdown_args = array(
+											'name'     => "ielts_science_lms_pages[{$page_key}]",
+											'id'       => 'ielts_science_lms_pages_' . esc_attr( $page_key ),
 											'selected' => $selected_page_id,
 											'show_option_none' => __( '- Select a page -', 'ielts-science-lms' ),
 											'option_none_value' => '0',
-										];
+										);
 										wp_dropdown_pages( $dropdown_args );
 										?>
 										<?php if ( $selected_page_id && get_post_status( $selected_page_id ) === 'publish' ) : ?>
@@ -307,19 +325,19 @@ class Ieltssci_Settings {
 	public function handle_create_page_ajax() {
 		// Check if user has the capability to manage options
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( [ 'message' => __( 'You do not have sufficient permissions to access this page.', 'ielts-science-lms' ) ] );
+			wp_send_json_error( array( 'message' => __( 'You do not have sufficient permissions to access this page.', 'ielts-science-lms' ) ) );
 		}
 
-		$page_key = isset( $_POST['page_key'] ) ? sanitize_text_field( $_POST['page_key'] ) : '';
+		$page_key    = isset( $_POST['page_key'] ) ? sanitize_text_field( $_POST['page_key'] ) : '';
 		$module_name = isset( $_POST['module'] ) ? sanitize_text_field( $_POST['module'] ) : '';
 
 		if ( empty( $page_key ) || empty( $module_name ) ) {
-			wp_send_json_error( [ 'message' => __( 'Invalid page key or module name.', 'ielts-science-lms' ) ] );
+			wp_send_json_error( array( 'message' => __( 'Invalid page key or module name.', 'ielts-science-lms' ) ) );
 		}
 
 		// Use the filter to get all module pages data
-		$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', [] );
-		$page_title = '';
+		$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', array() );
+		$page_title        = '';
 
 		// Find the page title from the corresponding module
 		foreach ( $module_pages_data as $module_data ) {
@@ -332,13 +350,13 @@ class Ieltssci_Settings {
 		}
 
 		if ( empty( $page_title ) ) {
-			wp_send_json_error( [ 'message' => __( 'Page title not found for the given key and module.', 'ielts-science-lms' ) ] );
+			wp_send_json_error( array( 'message' => __( 'Page title not found for the given key and module.', 'ielts-science-lms' ) ) );
 		}
 
 		$this->handle_page_action( $page_key, 'create_page', $page_title );
 
 		// Assume the page creation was successful
-		wp_send_json_success( [ 'message' => __( 'Page created successfully!', 'ielts-science-lms' ) ] );
+		wp_send_json_success( array( 'message' => __( 'Page created successfully!', 'ielts-science-lms' ) ) );
 	}
 
 	// Function to handle page creation
@@ -351,7 +369,7 @@ class Ieltssci_Settings {
 
 		if ( ! is_wp_error( $page_id ) ) {
 			// Update the option for this page key
-			$ielts_pages = get_option( 'ielts_science_lms_pages', [] );
+			$ielts_pages              = get_option( 'ielts_science_lms_pages', array() );
 			$ielts_pages[ $page_key ] = $page_id;
 			update_option( 'ielts_science_lms_pages', $ielts_pages );
 
@@ -365,13 +383,13 @@ class Ieltssci_Settings {
 
 	// Function to create a new page
 	private function create_page( $page_title, $page_slug ) {
-		$page_data = [ 
-			'post_type' => 'page',
-			'post_title' => $page_title,
-			'post_status' => 'publish',
-			'post_name' => $page_slug,
+		$page_data = array(
+			'post_type'     => 'page',
+			'post_title'    => $page_title,
+			'post_status'   => 'publish',
+			'post_name'     => $page_slug,
 			'page_template' => 'template-react-page.php',
-		];
+		);
 
 		$page_id = wp_insert_post( $page_data );
 
@@ -379,7 +397,7 @@ class Ieltssci_Settings {
 	}
 
 	private function display_notices() {
-		$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', [] );
+		$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', array() );
 
 		foreach ( $module_pages_data as $module_data ) {
 			foreach ( $module_data['pages'] as $page_key => $page_label ) {
@@ -401,7 +419,7 @@ class Ieltssci_Settings {
 					?>
 					<div class="notice notice-error is-dismissible">
 						<p>
-							<?php printf( esc_html__( 'Error creating %s page: %s', 'ielts-science-lms' ), $page_label, $error_message ); ?>
+							<?php printf( esc_html__( 'Error creating %1$s page: %2$s', 'ielts-science-lms' ), $page_label, $error_message ); ?>
 						</p>
 					</div>
 					<?php
@@ -416,12 +434,12 @@ class Ieltssci_Settings {
 		register_setting(
 			'ielts_science_lms_pages_group', // Settings group name
 			'ielts_science_lms_pages',        // Option name
-			[ $this, 'sanitize_page_settings' ]  // Sanitization callback
+			array( $this, 'sanitize_page_settings' )  // Sanitization callback
 		);
 	}
 
 	public function sanitize_page_settings( $input ) {
-		$sanitized_input = [];
+		$sanitized_input = array();
 
 		foreach ( $input as $key => $value ) {
 			$sanitized_input[ $key ] = intval( $value ); // Ensure it's an integer

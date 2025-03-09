@@ -8,7 +8,7 @@ use WP_Error;
 
 /**
  * Class Ieltssci_Writing_SSE_REST
- * 
+ *
  * Handles Server-Sent Events (SSE) REST endpoints for the IELTS Science Writing module.
  * This allows for real-time streaming of AI-generated feedback and other writing-related events.
  */
@@ -26,7 +26,7 @@ class Ieltssci_Writing_SSE_REST {
 	 * Constructor
 	 */
 	public function __construct() {
-		add_action( 'rest_api_init', [ $this, 'register_routes' ] );
+		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
 	}
 
 	/**
@@ -37,20 +37,20 @@ class Ieltssci_Writing_SSE_REST {
 			$this->namespace,
 			'/' . $this->base . '/feedback',
 			array(
-				'methods' => WP_REST_Server::READABLE,
-				'callback' => array( $this, 'get_essay_feedback' ),
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_essay_feedback' ),
 				'permission_callback' => '__return_true', // Accessible to anyone
-				'args' => array(
-					'UUID' => array(
-						'required' => true,
-						'validate_callback' => function ($param) {
+				'args'                => array(
+					'UUID'    => array(
+						'required'          => true,
+						'validate_callback' => function ( $param ) {
 							return is_string( $param ) && ! empty( $param );
 						},
 						'sanitize_callback' => 'sanitize_text_field',
 					),
 					'feed_id' => array(
-						'required' => true,
-						'validate_callback' => function ($param) {
+						'required'          => true,
+						'validate_callback' => function ( $param ) {
 							return is_numeric( $param ) && intval( $param ) > 0;
 						},
 						'sanitize_callback' => 'absint',
@@ -62,14 +62,14 @@ class Ieltssci_Writing_SSE_REST {
 
 	/**
 	 * Callback for the feedback endpoint
-	 * 
+	 *
 	 * Streams AI-generated feedback for an essay
-	 * 
+	 *
 	 * @param WP_REST_Request $request The request object.
 	 */
 	public function get_essay_feedback( $request ) {
 		// Get parameters
-		$uuid = $request->get_param( 'UUID' );
+		$uuid    = $request->get_param( 'UUID' );
 		$feed_id = $request->get_param( 'feed_id' );
 
 		// Set up SSE headers
@@ -78,7 +78,7 @@ class Ieltssci_Writing_SSE_REST {
 		// Create feedback processor with message callback
 		$processor = new Ieltssci_Writing_Feedback_Processor(
 			// Pass the message sending function as a callback
-			function ($event_type, $data, $is_error = false) {
+			function ( $event_type, $data, $is_error = false ) {
 				if ( $is_error ) {
 					$this->send_error( $event_type, $data );
 				} else {
@@ -132,12 +132,12 @@ class Ieltssci_Writing_SSE_REST {
 
 	/**
 	 * Send an SSE message
-	 * 
+	 *
 	 * @param string $event_type The event type.
-	 * @param mixed $data The data to send.
+	 * @param mixed  $data The data to send.
 	 */
 	private function send_message( $event_type, $data ) {
-		$json_data = json_encode( [ 'data' => $data ] );
+		$json_data = json_encode( array( 'data' => $data ) );
 		echo "event: {$event_type}\n";
 		echo "data: {$json_data}\n\n";
 
@@ -150,9 +150,9 @@ class Ieltssci_Writing_SSE_REST {
 
 	/**
 	 * Send an error message
-	 * 
+	 *
 	 * @param string $event_type The event type.
-	 * @param array $error Error details with title, message, ctaTitle, and ctaLink.
+	 * @param array  $error Error details with title, message, ctaTitle, and ctaLink.
 	 */
 	private function send_error( $event_type, $error ) {
 		$error_data = json_encode( array( 'error' => $error ) );
@@ -168,7 +168,7 @@ class Ieltssci_Writing_SSE_REST {
 
 	/**
 	 * Send a done signal for an event type
-	 * 
+	 *
 	 * @param string $event_type The event type.
 	 */
 	private function send_done( $event_type ) {

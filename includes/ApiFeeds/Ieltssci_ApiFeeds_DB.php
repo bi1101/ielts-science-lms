@@ -14,10 +14,10 @@ class Ieltssci_ApiFeeds_DB {
 
 	public function __construct() {
 		global $wpdb;
-		$this->wpdb = $wpdb ?? $GLOBALS['wpdb'];
-		$this->api_feed_table = "{$this->wpdb->prefix}ieltssci_api_feed";
+		$this->wpdb             = $wpdb ?? $GLOBALS['wpdb'];
+		$this->api_feed_table   = "{$this->wpdb->prefix}ieltssci_api_feed";
 		$this->essay_type_table = "{$this->wpdb->prefix}ieltssci_api_feed_essay_type";
-		$this->rate_limit_db = new Ieltssci_RateLimit_DB();
+		$this->rate_limit_db    = new Ieltssci_RateLimit_DB();
 	}
 
 	/**
@@ -41,31 +41,31 @@ class Ieltssci_ApiFeeds_DB {
 	 * }
 	 * @return array|WP_Error Array of API feeds or WP_Error on failure
 	 */
-	public function get_api_feeds( $args = [] ) {
+	public function get_api_feeds( $args = array() ) {
 
-		$defaults = [ 
-			'feed_id' => 0,
+		$defaults = array(
+			'feed_id'           => 0,
 			'feedback_criteria' => '',
-			'essay_type' => '',
-			'apply_to' => '',
-			'order_by' => 'id',
-			'order_direction' => 'ASC',
-			'limit' => 10,
-			'offset' => 0,
-			'include' => [],
-		];
+			'essay_type'        => '',
+			'apply_to'          => '',
+			'order_by'          => 'id',
+			'order_direction'   => 'ASC',
+			'limit'             => 10,
+			'offset'            => 0,
+			'include'           => array(),
+		);
 
 		$args = wp_parse_args( $args, $defaults );
 
 		// Sanitize and validate arguments
-		$feed_id = absint( $args['feed_id'] );
+		$feed_id           = absint( $args['feed_id'] );
 		$feedback_criteria = sanitize_text_field( $args['feedback_criteria'] );
-		$essay_type = sanitize_text_field( $args['essay_type'] );
-		$apply_to = sanitize_text_field( $args['apply_to'] );
+		$essay_type        = sanitize_text_field( $args['essay_type'] );
+		$apply_to          = sanitize_text_field( $args['apply_to'] );
 
 		// Validate order_by
-		$allowed_order_fields = [ 'id', 'created_at', 'updated_at', 'feedback_criteria', 'feed_title' ];
-		$special_order = false;
+		$allowed_order_fields = array( 'id', 'created_at', 'updated_at', 'feedback_criteria', 'feed_title' );
+		$special_order        = false;
 
 		if ( 'process_order' === $args['order_by'] ) {
 			$special_order = true;
@@ -75,13 +75,13 @@ class Ieltssci_ApiFeeds_DB {
 
 		// Validate order_direction
 		$args['order_direction'] = strtoupper( $args['order_direction'] );
-		if ( ! in_array( $args['order_direction'], [ 'ASC', 'DESC' ], true ) ) {
+		if ( ! in_array( $args['order_direction'], array( 'ASC', 'DESC' ), true ) ) {
 			$args['order_direction'] = 'ASC';
 		}
 
 		// Ensure include is an array
 		if ( ! is_array( $args['include'] ) ) {
-			$args['include'] = empty( $args['include'] ) ? [] : [ $args['include'] ];
+			$args['include'] = empty( $args['include'] ) ? array() : array( $args['include'] );
 		}
 
 		// Special handling for process_order sort or when process_order is included
@@ -93,22 +93,22 @@ class Ieltssci_ApiFeeds_DB {
                  FROM {$this->api_feed_table} f
                  JOIN {$this->essay_type_table} et ON f.id = et.api_feed_id";
 
-			$where_clauses = [ "et.essay_type = %s" ];
-			$where_values = [ $essay_type ];
+			$where_clauses = array( 'et.essay_type = %s' );
+			$where_values  = array( $essay_type );
 
 			if ( $feed_id > 0 ) {
 				$where_clauses[] = 'f.id = %d';
-				$where_values[] = $feed_id;
+				$where_values[]  = $feed_id;
 			}
 
 			if ( ! empty( $feedback_criteria ) ) {
 				$where_clauses[] = 'f.feedback_criteria = %s';
-				$where_values[] = $feedback_criteria;
+				$where_values[]  = $feedback_criteria;
 			}
 
 			if ( ! empty( $apply_to ) ) {
 				$where_clauses[] = 'f.apply_to = %s';
-				$where_values[] = $apply_to;
+				$where_values[]  = $apply_to;
 			}
 
 			// Add WHERE clause
@@ -125,23 +125,23 @@ class Ieltssci_ApiFeeds_DB {
 
 		} else {
 			// Standard query without process_order
-			$query = "SELECT * FROM $this->api_feed_table";
-			$where_clauses = [];
-			$where_values = [];
+			$query         = "SELECT * FROM $this->api_feed_table";
+			$where_clauses = array();
+			$where_values  = array();
 
 			if ( $feed_id > 0 ) {
 				$where_clauses[] = 'id = %d';
-				$where_values[] = $feed_id;
+				$where_values[]  = $feed_id;
 			}
 
 			if ( ! empty( $feedback_criteria ) ) {
 				$where_clauses[] = 'feedback_criteria = %s';
-				$where_values[] = $feedback_criteria;
+				$where_values[]  = $feedback_criteria;
 			}
 
 			if ( ! empty( $apply_to ) ) {
 				$where_clauses[] = 'apply_to = %s';
-				$where_values[] = $apply_to;
+				$where_values[]  = $apply_to;
 			}
 
 			// Handle essay_type filtering here
@@ -157,7 +157,7 @@ class Ieltssci_ApiFeeds_DB {
 					return new WP_Error(
 						500,
 						sprintf( 'Database error while getting feed IDs for essay type: %s', $essay_type ),
-						[ 'error' => $this->wpdb->last_error ]
+						array( 'error' => $this->wpdb->last_error )
 					);
 				}
 
@@ -165,7 +165,7 @@ class Ieltssci_ApiFeeds_DB {
 					$where_clauses[] = 'id IN (' . implode( ',', $feed_ids ) . ')';
 				} else {
 					// No feeds with this essay type
-					return [];
+					return array();
 				}
 			}
 
@@ -194,12 +194,15 @@ class Ieltssci_ApiFeeds_DB {
 			return new WP_Error(
 				'database_query_error',
 				'Database error retrieving API feeds',
-				[ 'error' => $this->wpdb->last_error, 'query' => $query ]
+				array(
+					'error' => $this->wpdb->last_error,
+					'query' => $query,
+				)
 			);
 		}
 
 		if ( empty( $feeds ) ) {
-			return [];
+			return array();
 		}
 
 		// Process includes
@@ -216,11 +219,14 @@ class Ieltssci_ApiFeeds_DB {
 
 			// If process_order isn't included and wasn't part of the query, get it separately
 			if ( in_array( 'process_order', $args['include'], true ) && ! isset( $feed['process_order'] ) && ! empty( $essay_type ) ) {
-				$process_order = $this->wpdb->get_var( $this->wpdb->prepare(
-					"SELECT process_order FROM $this->essay_type_table 
+				$process_order = $this->wpdb->get_var(
+					$this->wpdb->prepare(
+						"SELECT process_order FROM $this->essay_type_table 
 					WHERE api_feed_id = %d AND essay_type = %s",
-					$feed['id'], $essay_type
-				) );
+						$feed['id'],
+						$essay_type
+					)
+				);
 
 				if ( $process_order !== null ) {
 					$feed['process_order'] = (int) $process_order;
@@ -243,11 +249,11 @@ class Ieltssci_ApiFeeds_DB {
 			if ( in_array( 'rate_limits', $args['include'], true ) ) {
 				try {
 					$feed['rate_limits'] = $this->rate_limit_db->get_rate_limits( $feed['id'] );
-				} catch (\Exception $e) {
+				} catch ( \Exception $e ) {
 					return new WP_Error(
 						500,
 						sprintf( 'Error retrieving rate limits for feed: %s', $feed['id'] ),
-						[ 'error' => $e->getMessage() ]
+						array( 'error' => $e->getMessage() )
 					);
 				}
 			}
@@ -275,12 +281,11 @@ class Ieltssci_ApiFeeds_DB {
 			return new WP_Error(
 				500,
 				sprintf( 'Error retrieving feed: %s', values: $feed_id ),
-				[ 'error' => $this->wpdb->last_error ]
+				array( 'error' => $this->wpdb->last_error )
 			);
 		}
 
 		return $results;
-
 	}
 
 	public function start_transaction(): void {
@@ -296,24 +301,24 @@ class Ieltssci_ApiFeeds_DB {
 	}
 
 	public function update_feed( $feed_data ): int {
-		$data = [ 
+		$data = array(
 			'feedback_criteria' => $feed_data['feedName'],
-			'feed_title' => $feed_data['feedTitle'],
-			'feed_desc' => $feed_data['feedDesc'] ?? '',
-			'apply_to' => $feed_data['applyTo'],
-			'meta' => json_encode( [ 'steps' => $feed_data['steps'] ] )
-		];
+			'feed_title'        => $feed_data['feedTitle'],
+			'feed_desc'         => $feed_data['feedDesc'] ?? '',
+			'apply_to'          => $feed_data['applyTo'],
+			'meta'              => json_encode( array( 'steps' => $feed_data['steps'] ) ),
+		);
 
 		if ( empty( $feed_data['id'] ) ) {
 			// Insert new feed
 			$result = $this->wpdb->insert(
 				$this->api_feed_table,
 				$data,
-				[ '%s', '%s', '%s', '%s', '%s' ]
+				array( '%s', '%s', '%s', '%s', '%s' )
 			);
 
 			if ( $result === false ) {
-				throw new \Exception( "Failed to insert feed: " . $this->wpdb->last_error );
+				throw new \Exception( 'Failed to insert feed: ' . $this->wpdb->last_error );
 			}
 
 			$feed_id = $this->wpdb->insert_id;
@@ -322,13 +327,13 @@ class Ieltssci_ApiFeeds_DB {
 			$result = $this->wpdb->update(
 				$this->api_feed_table,
 				$data,
-				[ 'id' => $feed_data['id'] ],
-				[ '%s', '%s', '%s', '%s', '%s' ],
-				[ '%d' ]
+				array( 'id' => $feed_data['id'] ),
+				array( '%s', '%s', '%s', '%s', '%s' ),
+				array( '%d' )
 			);
 
 			if ( $result === false ) {
-				throw new \Exception( "Failed to update feed: " . $this->wpdb->last_error );
+				throw new \Exception( 'Failed to update feed: ' . $this->wpdb->last_error );
 			}
 
 			$feed_id = $feed_data['id'];
@@ -340,7 +345,7 @@ class Ieltssci_ApiFeeds_DB {
 	public function update_essay_types( $feed_id, $new_essay_types ): void {
 		$table = $this->essay_type_table;
 		// Fetch current essay types for this feed
-		$query = $this->wpdb->prepare(
+		$query   = $this->wpdb->prepare(
 			"SELECT id, essay_type, process_order FROM $table WHERE api_feed_id = %d ORDER BY process_order",
 			$feed_id
 		);
@@ -360,15 +365,15 @@ class Ieltssci_ApiFeeds_DB {
 			if ( ! $found ) {
 				$result = $this->wpdb->insert(
 					$table,
-					[ 
-						'api_feed_id' => $feed_id,
-						'essay_type' => $essay_type,
-						'process_order' => $new_index
-					],
-					[ '%d', '%s', '%d' ]
+					array(
+						'api_feed_id'   => $feed_id,
+						'essay_type'    => $essay_type,
+						'process_order' => $new_index,
+					),
+					array( '%d', '%s', '%d' )
 				);
 				if ( $result === false ) {
-					throw new \Exception( "Failed to insert essay type: " . $this->wpdb->last_error );
+					throw new \Exception( 'Failed to insert essay type: ' . $this->wpdb->last_error );
 				}
 			}
 		}
@@ -378,8 +383,8 @@ class Ieltssci_ApiFeeds_DB {
 			if ( ! in_array( $record['essay_type'], $new_essay_types, true ) ) {
 				$this->wpdb->delete(
 					$table,
-					[ 'id' => $record['id'] ],
-					[ '%d' ]
+					array( 'id' => $record['id'] ),
+					array( '%d' )
 				);
 			}
 		}
@@ -390,17 +395,17 @@ class Ieltssci_ApiFeeds_DB {
 
 		$result = $this->wpdb->update(
 			$table,
-			[ 'process_order' => $process_order ],
-			[ 
+			array( 'process_order' => $process_order ),
+			array(
 				'api_feed_id' => $api_feed_id,
-				'essay_type' => $essay_type
-			],
-			[ '%d' ],
-			[ '%d', '%s' ]
+				'essay_type'  => $essay_type,
+			),
+			array( '%d' ),
+			array( '%d', '%s' )
 		);
 
 		if ( $result === false ) {
-			throw new \Exception( "Failed to update process order: " . $this->wpdb->last_error );
+			throw new \Exception( 'Failed to update process order: ' . $this->wpdb->last_error );
 		}
 
 		return true;

@@ -16,10 +16,10 @@ class Ieltssci_Core_Module {
 		new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_Settings();
 		new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_REST();
 		$this->db_schema = new Ieltssci_Database_Schema();
-		add_filter( 'theme_page_templates', [ $this, 'add_custom_page_template' ] );
-		add_filter( 'template_include', [ $this, 'load_custom_page_template' ] );
-		add_filter( 'display_post_states', [ $this, 'add_module_page_post_state' ], 10, 2 );
-		add_action( 'wp_enqueue_scripts', [ $this, 'dequeue_assets_for_react_template' ], 100 );
+		add_filter( 'theme_page_templates', array( $this, 'add_custom_page_template' ) );
+		add_filter( 'template_include', array( $this, 'load_custom_page_template' ) );
+		add_filter( 'display_post_states', array( $this, 'add_module_page_post_state' ), 10, 2 );
+		add_action( 'wp_enqueue_scripts', array( $this, 'dequeue_assets_for_react_template' ), 100 );
 	}
 
 	/**
@@ -122,12 +122,12 @@ class Ieltssci_Core_Module {
 
 	public function add_module_page_post_state( $post_states, $post ) {
 		// Get the saved page settings
-		$ielts_pages = get_option( 'ielts_science_lms_pages', [] );
+		$ielts_pages = get_option( 'ielts_science_lms_pages', array() );
 
 		// Check if this post's ID is one of the assigned pages
 		if ( ! empty( $ielts_pages ) && in_array( $post->ID, $ielts_pages ) ) {
 			// Get the module pages data
-			$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', [] );
+			$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', array() );
 
 			// Find the page key and label for this post's ID
 			foreach ( $module_pages_data as $module_data ) {
@@ -142,5 +142,4 @@ class Ieltssci_Core_Module {
 		}
 		return $post_states;
 	}
-
 }
