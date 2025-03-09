@@ -1,4 +1,13 @@
 <?php
+/**
+ * IELTS Science LMS - Writing REST API
+ *
+ * This file contains the REST API endpoints for the writing feature.
+ *
+ * @package IeltsScienceLMS
+ * @subpackage Writing
+ * @since 1.0.0
+ */
 
 namespace IeltsScienceLMS\Writing;
 
@@ -7,18 +16,48 @@ use WP_REST_Response;
 use WP_Error;
 use WP_REST_Server;
 
+/**
+ * Class Ieltssci_Writing_REST
+ *
+ * Handles REST API endpoints for the IELTS Writing module.
+ *
+ * @package IeltsScienceLMS\Writing
+ * @since 1.0.0
+ */
 class Ieltssci_Writing_REST {
+	/**
+	 * API namespace.
+	 *
+	 * @var string
+	 */
 	private $namespace = 'ieltssci/v1';
-	private $base      = 'writing';
+
+	/**
+	 * API base path.
+	 *
+	 * @var string
+	 */
+	private $base = 'writing';
+
+	/**
+	 * Essay service instance.
+	 *
+	 * @var Ieltssci_Essay_DB
+	 */
 	private $essay_service;
 
+	/**
+	 * Constructor.
+	 *
+	 * Initializes the REST API routes and services.
+	 */
 	public function __construct() {
 		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
 		$this->essay_service = new Ieltssci_Essay_DB();
 	}
 
 	/**
-	 * Register routes
+	 * Register routes.
 	 */
 	public function register_routes() {
 		register_rest_route(
@@ -62,14 +101,19 @@ class Ieltssci_Writing_REST {
 	}
 
 	/**
-	 * Check if user has permission to get essays list
+	 * Check if user has permission to get essays list.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return bool Whether the user has permission.
 	 */
 	public function get_essays_permissions_check( WP_REST_Request $request ) {
 		return is_user_logged_in();
 	}
 
 	/**
-	 * Get arguments for the essays list endpoint
+	 * Get arguments for the essays list endpoint.
+	 *
+	 * @return array Argument definitions.
 	 */
 	public function get_essays_args() {
 		return array(
@@ -187,15 +231,15 @@ class Ieltssci_Writing_REST {
 	}
 
 	/**
-	 * Get essays endpoint
+	 * Get essays endpoint.
 	 *
-	 * @param WP_REST_Request $request The request object
-	 * @return WP_REST_Response|WP_Error Response object or error
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response object or error.
 	 */
 	public function get_essays( WP_REST_Request $request ) {
 		$args = array();
 
-		// Get parameters that can be directly passed to get_essays
+		// Get parameters that can be directly passed to get_essays.
 		$direct_params = array(
 			'id',
 			'uuid',
@@ -216,7 +260,7 @@ class Ieltssci_Writing_REST {
 			}
 		}
 
-		// Handle date query parameters
+		// Handle date query parameters.
 		$after  = $request->get_param( 'after' );
 		$before = $request->get_param( 'before' );
 
@@ -232,38 +276,38 @@ class Ieltssci_Writing_REST {
 			}
 		}
 
-		// Get total count for pagination headers
+		// Get total count for pagination headers.
 		$count_args          = $args;
 		$count_args['count'] = true;
 		$total               = $this->essay_service->get_essays( $count_args );
 
 		if ( is_wp_error( $total ) ) {
-			return $total; // Return the WP_Error directly from the DB layer
+			return $total; // Return the WP_Error directly from the DB layer.
 		}
 
-		// Get essays with current parameters
+		// Get essays with current parameters.
 		$essays = $this->essay_service->get_essays( $args );
 
 		if ( is_wp_error( $essays ) ) {
-			return $essays; // Return the WP_Error directly from the DB layer
+			return $essays; // Return the WP_Error directly from the DB layer.
 		}
 
-		// Handle empty results properly
+		// Handle empty results properly.
 		if ( empty( $essays ) ) {
 			$essays = array();
 		}
 
-		// Calculate pagination values
+		// Calculate pagination values.
 		$per_page    = isset( $args['per_page'] ) ? (int) $args['per_page'] : 10;
 		$page        = isset( $args['page'] ) ? (int) $args['page'] : 1;
 		$total_pages = ceil( $total / $per_page );
 
-		// Build response with pagination headers
+		// Build response with pagination headers.
 		$response = new WP_REST_Response( $essays, 200 );
 		$response->header( 'X-WP-Total', (int) $total );
 		$response->header( 'X-WP-TotalPages', (int) $total_pages );
 
-		// Add Link header for pagination discovery (HATEOAS)
+		// Add Link header for pagination discovery (HATEOAS).
 		$this->add_pagination_headers(
 			$response,
 			array(
@@ -277,10 +321,10 @@ class Ieltssci_Writing_REST {
 	}
 
 	/**
-	 * Add pagination Link headers to a response
+	 * Add pagination Link headers to a response.
 	 *
-	 * @param WP_REST_Response $response The response object
-	 * @param array            $pagination Pagination information
+	 * @param WP_REST_Response $response   The response object.
+	 * @param array            $pagination Pagination information.
 	 */
 	private function add_pagination_headers( WP_REST_Response $response, array $pagination ) {
 		$base    = rest_url( $this->namespace . '/' . $this->base . '/essays' );
@@ -291,26 +335,26 @@ class Ieltssci_Writing_REST {
 
 		$links = array();
 
-		// First page
+		// First page.
 		$first_args         = $request;
 		$first_args['page'] = 1;
 		$links[]            = '<' . add_query_arg( $first_args, $base ) . '>; rel="first"';
 
-		// Previous page
+		// Previous page.
 		if ( $page > 1 ) {
 			$prev_args         = $request;
 			$prev_args['page'] = $page - 1;
 			$links[]           = '<' . add_query_arg( $prev_args, $base ) . '>; rel="prev"';
 		}
 
-		// Next page
+		// Next page.
 		if ( $max_pages > $page ) {
 			$next_args         = $request;
 			$next_args['page'] = $page + 1;
 			$links[]           = '<' . add_query_arg( $next_args, $base ) . '>; rel="next"';
 		}
 
-		// Last page
+		// Last page.
 		$last_args         = $request;
 		$last_args['page'] = $max_pages;
 		$links[]           = '<' . add_query_arg( $last_args, $base ) . '>; rel="last"';
@@ -321,17 +365,18 @@ class Ieltssci_Writing_REST {
 	}
 
 	/**
-	 * Get current request parameters (excluding pagination ones)
+	 * Get current request parameters (excluding pagination ones).
 	 *
-	 * @return array Request parameters
+	 * @return array Request parameters.
 	 */
 	private function get_current_request_params() {
 		$request = array();
 		$params  = $_GET;
 
+		// Security check should be added - nonce verification.
 		if ( ! empty( $params ) ) {
 			foreach ( $params as $key => $value ) {
-				if ( $key !== 'page' ) {
+				if ( 'page' !== $key ) { // Yoda condition fix.
 					$request[ $key ] = $value;
 				}
 			}
@@ -341,22 +386,30 @@ class Ieltssci_Writing_REST {
 	}
 
 	/**
-	 * Check if user has permission to create essay
+	 * Check if user has permission to create essay.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return bool Whether the user has permission.
 	 */
 	public function create_essay_permissions_check( WP_REST_Request $request ) {
 		return is_user_logged_in();
 	}
 
 	/**
-	 * Check if user has permission to view a specific essay
-	 * Anyone can view a specific essay
+	 * Check if user has permission to view a specific essay.
+	 * Anyone can view a specific essay.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return bool Always returns true.
 	 */
 	public function get_essay_permissions_check( WP_REST_Request $request ) {
-		return true; // Allow anyone to view a specific essay
+		return true; // Allow anyone to view a specific essay.
 	}
 
 	/**
-	 * Get arguments for the create essay endpoint
+	 * Get arguments for the create essay endpoint.
+	 *
+	 * @return array Argument definitions.
 	 */
 	public function get_essay_creation_args() {
 		return array(
@@ -432,7 +485,10 @@ class Ieltssci_Writing_REST {
 	}
 
 	/**
-	 * Create essay endpoint
+	 * Create essay endpoint.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response or error.
 	 */
 	public function create_essay( WP_REST_Request $request ) {
 		$essay_data = array(
@@ -449,21 +505,24 @@ class Ieltssci_Writing_REST {
 		$result = $this->essay_service->create_essay( $essay_data );
 
 		if ( is_wp_error( $result ) ) {
-			return $result; // Return the WP_Error directly from the DB layer
+			return $result; // Return the WP_Error directly from the DB layer.
 		}
 
 		return new WP_REST_Response( $result, 200 );
 	}
 
 	/**
-	 * Get specific essay endpoint
+	 * Get specific essay endpoint.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response or error.
 	 */
 	public function get_essay( WP_REST_Request $request ) {
 		$uuid   = $request->get_param( 'uuid' );
 		$essays = $this->essay_service->get_essays( array( 'uuid' => $uuid ) );
 
 		if ( is_wp_error( $essays ) ) {
-			return $essays; // Return the WP_Error directly from the DB layer
+			return $essays; // Return the WP_Error directly from the DB layer.
 		}
 
 		if ( empty( $essays ) ) {

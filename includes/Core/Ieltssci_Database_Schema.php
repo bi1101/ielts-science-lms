@@ -1,17 +1,58 @@
 <?php
+/**
+ * Database Schema Manager
+ *
+ * This file handles the database schema creation and updates.
+ *
+ * @package IELTS_Science_LMS
+ * @subpackage Core
+ */
 
 namespace IeltsScienceLMS\Core;
 
-class Ieltssci_Database_Schema {
-	private const TABLE_PREFIX = 'ieltssci_';
-	private $db_version        = '0.0.2'; // Updated version number
-	private \wpdb $wpdb;
+use wpdb;
+use WP_Error;
+use Exception;
 
+/**
+ * Database Schema Class
+ *
+ * Manages the creation and update of plugin database tables.
+ *
+ * @since 0.0.1
+ */
+class Ieltssci_Database_Schema {
+	const TABLE_PREFIX = 'ieltssci_';
+
+	/**
+	 * Database version number.
+	 *
+	 * @var string
+	 */
+	private $db_version = '0.0.2'; // Updated version number.
+
+	/**
+	 * WordPress database object.
+	 *
+	 * @var wpdb
+	 */
+	private $wpdb;
+
+	/**
+	 * Constructor
+	 *
+	 * Initializes the database schema manager.
+	 */
 	public function __construct() {
 		global $wpdb;
 		$this->wpdb = $wpdb;
 	}
 
+	/**
+	 * Creates all required database tables
+	 *
+	 * @return void|WP_Error Returns WP_Error on failure.
+	 */
 	public function create_tables() {
 		$this->wpdb->query( 'START TRANSACTION' );
 
@@ -23,7 +64,7 @@ class Ieltssci_Database_Schema {
 			$this->create_role_rate_limit_rule_table();
 			$this->create_api_key_table();
 
-			// Add new tables
+			// Add new tables.
 			$this->create_essays_table();
 			$this->create_segment_table();
 			$this->create_segment_feedback_table();
@@ -32,13 +73,18 @@ class Ieltssci_Database_Schema {
 			update_option( 'ieltssci_db_version', $this->db_version );
 			$this->wpdb->query( 'COMMIT' );
 			return;
-		} catch ( \Exception $e ) {
+		} catch ( Exception $e ) {
 			$this->wpdb->query( 'ROLLBACK' );
-			error_log( 'Database creation failed: ' . $e->getMessage() );
-			return new \WP_Error( 500, 'Database creation failed' );
+			return new WP_Error( 'db_error', $e->getMessage() );
 		}
 	}
 
+	/**
+	 * Creates the API feeds table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
 	private function create_api_feeds_table() {
 		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_feed';
 		$charset_collate = $this->wpdb->get_charset_collate();
@@ -59,6 +105,12 @@ class Ieltssci_Database_Schema {
 		return $this->execute_sql( $sql );
 	}
 
+	/**
+	 * Creates the API feed essay type table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
 	private function create_api_feed_essay_type_table() {
 		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_feed_essay_type';
 		$charset_collate = $this->wpdb->get_charset_collate();
@@ -82,6 +134,12 @@ class Ieltssci_Database_Schema {
 		return $this->execute_sql( $sql );
 	}
 
+	/**
+	 * Creates the rate limit rule table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
 	private function create_rate_limit_rule_table() {
 		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'rate_limit_rule';
 		$charset_collate = $this->wpdb->get_charset_collate();
@@ -101,6 +159,12 @@ class Ieltssci_Database_Schema {
 		return $this->execute_sql( $sql );
 	}
 
+	/**
+	 * Creates the API feed rate limit rule table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
 	private function create_api_feed_rate_limit_rule_table() {
 		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_feed_rate_limit_rule';
 		$charset_collate = $this->wpdb->get_charset_collate();
@@ -127,6 +191,12 @@ class Ieltssci_Database_Schema {
 		return $this->execute_sql( $sql );
 	}
 
+	/**
+	 * Creates the role rate limit rule table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
 	private function create_role_rate_limit_rule_table() {
 		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'role_rate_limit_rule';
 		$charset_collate = $this->wpdb->get_charset_collate();
@@ -149,6 +219,12 @@ class Ieltssci_Database_Schema {
 		return $this->execute_sql( $sql );
 	}
 
+	/**
+	 * Creates the API key table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
 	private function create_api_key_table() {
 		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_key';
 		$charset_collate = $this->wpdb->get_charset_collate();
@@ -167,6 +243,12 @@ class Ieltssci_Database_Schema {
 		return $this->execute_sql( $sql );
 	}
 
+	/**
+	 * Creates the essays table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
 	private function create_essays_table() {
 		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'essays';
 		$charset_collate = $this->wpdb->get_charset_collate();
@@ -189,6 +271,12 @@ class Ieltssci_Database_Schema {
 		return $this->execute_sql( $sql );
 	}
 
+	/**
+	 * Creates the segment table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
 	private function create_segment_table() {
 		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'segment';
 		$charset_collate = $this->wpdb->get_charset_collate();
@@ -211,6 +299,12 @@ class Ieltssci_Database_Schema {
 		return $this->execute_sql( $sql );
 	}
 
+	/**
+	 * Creates the segment feedback table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
 	private function create_segment_feedback_table() {
 		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'segment_feedback';
 		$charset_collate = $this->wpdb->get_charset_collate();
@@ -240,6 +334,12 @@ class Ieltssci_Database_Schema {
 		return $this->execute_sql( $sql );
 	}
 
+	/**
+	 * Creates the essay feedback table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
 	private function create_essay_feedback_table() {
 		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'essay_feedback';
 		$charset_collate = $this->wpdb->get_charset_collate();
@@ -269,16 +369,28 @@ class Ieltssci_Database_Schema {
 		return $this->execute_sql( $sql );
 	}
 
+	/**
+	 * Executes an SQL query using dbDelta
+	 *
+	 * @param string $sql The SQL query to execute.
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
 	private function execute_sql( $sql ) {
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
 		dbDelta( $sql );
 		if ( ! empty( $this->wpdb->last_error ) ) {
-			throw new \Exception( $this->wpdb->last_error );
+			throw new Exception( esc_html( $this->wpdb->last_error ) );
 		}
 		return true;
 	}
 
+	/**
+	 * Checks if database needs to be upgraded
+	 *
+	 * @return bool True if needs upgrade, false otherwise.
+	 */
 	public function needs_upgrade() {
 		$current_version = get_option( 'ieltssci_db_version', '0' );
 		return version_compare( $current_version, $this->db_version, '<' );

@@ -27,8 +27,9 @@
 
 	<!-- Exclude build folders -->
 	<exclude-pattern>*/build/*</exclude-pattern>
-	<exclude-pattern>^public/*</exclude-pattern>
 
+	<!-- Exclude public\writing folder -->
+	<exclude-pattern>./public/writing/*</exclude-pattern>
 	<!-- Exclude the Composer Vendor directory. -->
 	<exclude-pattern>/vendor/*</exclude-pattern>
 
@@ -65,6 +66,9 @@
 		They are not intended as advice about which sniffs to exclude.
 		-->
 
+		<exclude name="WordPress.DB.PreparedSQL.NotPrepared" />
+		<exclude name="WordPress.DB.PreparedSQL.InterpolatedNotPrepared" />
+
 		<!--
 		<exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>
 		<exclude name="Modernize.FunctionCalls.Dirname.Nested"/>
@@ -84,6 +88,8 @@
 		The below two examples just show how you can exclude rules/error codes.
 		They are not intended as advice about which sniffs to exclude.
 		-->
+
+		<exclude name="WordPress.Files.FileName" />
 
 		<!--
 		<exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>

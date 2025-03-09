@@ -1,16 +1,57 @@
 <?php
+/**
+ * Rate Limit Database Handler
+ *
+ * Handles database operations for rate limiting functionality.
+ *
+ * @package IELTS_Science_LMS\RateLimits
+ */
 
 namespace IeltsScienceLMS\RateLimits;
 
 use wpdb;
 use Exception;
 
+/**
+ * Rate Limit Database Class
+ *
+ * Manages database operations for rate limiting rules, including CRUD operations
+ * and relationship management between rules, roles, and API feeds.
+ */
 class Ieltssci_RateLimit_DB {
-	private wpdb $wpdb;
-	private string $rate_limit_table;
-	private string $role_rule_table;
-	private string $api_feed_rule_table;
+	/**
+	 * WordPress database object.
+	 *
+	 * @var wpdb
+	 */
+	private $wpdb;
 
+	/**
+	 * Rate limit rules table name.
+	 *
+	 * @var string
+	 */
+	private $rate_limit_table;
+
+	/**
+	 * Role-rule relationship table name.
+	 *
+	 * @var string
+	 */
+	private $role_rule_table;
+
+	/**
+	 * API feed-rule relationship table name.
+	 *
+	 * @var string
+	 */
+	private $api_feed_rule_table;
+
+	/**
+	 * Constructor.
+	 *
+	 * Initializes the database tables used by the rate limiting system.
+	 */
 	public function __construct() {
 		global $wpdb;
 		$this->wpdb                = $wpdb ?? $GLOBALS['wpdb'];
@@ -44,18 +85,18 @@ class Ieltssci_RateLimit_DB {
 
 		$args = wp_parse_args( $args, $defaults );
 
-		// Ensure include is an array
+		// Ensure include is an array.
 		if ( ! is_array( $args['include'] ) ) {
 			$args['include'] = empty( $args['include'] ) ? array() : array( $args['include'] );
 		}
 
-		// Start building the query
+		// Start building the query.
 		$query         = "SELECT DISTINCT r.* FROM {$this->rate_limit_table} r";
 		$where_clauses = array();
 		$where_values  = array();
 		$joins         = array();
 
-		// Add conditions based on args
+		// Add conditions based on args.
 		if ( ! empty( $args['rule_id'] ) ) {
 			$where_clauses[] = 'r.id = %d';
 			$where_values[]  = (int) $args['rule_id'];
@@ -78,82 +119,89 @@ class Ieltssci_RateLimit_DB {
 			$where_values[]  = $args['time_period_type'];
 		}
 
-		// Add joins to the query if needed
+		// Add joins to the query if needed.
 		if ( ! empty( $joins ) ) {
 			$query .= ' ' . implode( ' ', array_unique( $joins ) );
 		}
 
-		// Add WHERE clause if needed
+		// Add WHERE clause if needed.
 		if ( ! empty( $where_clauses ) ) {
 			$query .= ' WHERE ' . implode( ' AND ', $where_clauses );
 		}
 
-		// Prepare the query if there are where values
+		// Prepare the query if there are where values.
 		if ( ! empty( $where_values ) ) {
 			$query = $this->wpdb->prepare( $query, $where_values );
 		}
 
-		// Execute the query
+		// Execute the query.
 		$rules = $this->wpdb->get_results( $query, ARRAY_A );
 
 		if ( ! $rules ) {
 			return array();
 		}
 
-		// Process the results
-		$finalRules = array();
+		// Process the results.
+		$final_rules = array();
 
 		foreach ( $rules as $rule ) {
-			$ruleId = $rule['id'];
+			$rule_id = $rule['id'];
 
-			$roleRows = array();
+			$role_rows = array();
 			if ( in_array( 'roles', $args['include'], true ) ) {
-				$roleRows = $this->wpdb->get_col(
+				$role_rows = $this->wpdb->get_col(
 					$this->wpdb->prepare(
 						"SELECT role FROM {$this->role_rule_table} WHERE rate_limit_rule_id = %d",
-						$ruleId
+						$rule_id
 					)
 				);
 			}
 
-			$apiFeedRows = array();
+			$api_feed_rows = array();
 			if ( in_array( 'feeds', $args['include'], true ) ) {
-				$apiFeedRows = $this->wpdb->get_col(
+				$api_feed_rows = $this->wpdb->get_col(
 					$this->wpdb->prepare(
 						"SELECT api_feed_id FROM {$this->api_feed_rule_table} WHERE rate_limit_rule_id = %d",
-						$ruleId
+						$rule_id
 					)
 				);
 			}
 
-			$rule['roles']      = $roleRows;
-			$rule['feed_ids']   = $apiFeedRows;
+			$rule['roles']      = $role_rows;
+			$rule['feed_ids']   = $api_feed_rows;
 			$rule['limit_rule'] = json_decode( $rule['limit_rule'], true );
 			$rule['message']    = json_decode( $rule['message'], true );
-			$finalRules[]       = $rule;
+			$final_rules[]      = $rule;
 		}
 
-		return $finalRules;
+		return $final_rules;
 	}
 
+	/**
+	 * Update rate limits by inserting, updating, and deleting rules as needed.
+	 *
+	 * @param array $rules Array of rate limit rules to update.
+	 * @return array Updated rate limit rules.
+	 * @throws Exception If there is a database error.
+	 */
 	public function update_rate_limits( array $rules ) {
 		$this->wpdb->query( 'START TRANSACTION' );
 		try {
-			$existingIDs = $this->wpdb->get_col( "SELECT id FROM {$this->rate_limit_table}" );
-			$newIDs      = array();
+			$existing_ids = $this->wpdb->get_col( "SELECT id FROM {$this->rate_limit_table}" );
+			$new_ids      = array();
 
 			foreach ( $rules as $rule ) {
 				$rule_id = $this->save_rule( $rule );
 				if ( ! $rule_id ) {
 					throw new Exception( 'Failed to save rule' );
 				}
-				$newIDs[] = $rule_id;
+				$new_ids[] = $rule_id;
 			}
 
-			$this->delete_removed_rules( $existingIDs, $newIDs );
+			$this->delete_removed_rules( $existing_ids, $new_ids );
 			$this->wpdb->query( 'COMMIT' );
 
-			// Return the updated rules
+			// Return the updated rules.
 			return $this->get_rate_limits();
 
 		} catch ( Exception $e ) {
@@ -162,6 +210,13 @@ class Ieltssci_RateLimit_DB {
 		}
 	}
 
+	/**
+	 * Save a single rate limit rule.
+	 *
+	 * @param array $rule Rate limit rule data.
+	 * @return int|bool Rule ID if successful, false otherwise.
+	 * @throws Exception If there is a database error.
+	 */
 	private function save_rule( array $rule ) {
 		$rule_data = $this->prepare_rule_data( $rule );
 
@@ -191,12 +246,19 @@ class Ieltssci_RateLimit_DB {
 		return $rule_id;
 	}
 
+	/**
+	 * Save rule associations for roles and API feeds.
+	 *
+	 * @param int   $rule_id Rule ID to associate with.
+	 * @param array $subject Subject data containing role and API feed information.
+	 * @throws Exception If there is a database error.
+	 */
 	private function save_rule_associations( int $rule_id, array $subject ) {
-		// Clear existing associations
+		// Clear existing associations.
 		$this->wpdb->delete( $this->role_rule_table, array( 'rate_limit_rule_id' => $rule_id ), array( '%d' ) );
 		$this->wpdb->delete( $this->api_feed_rule_table, array( 'rate_limit_rule_id' => $rule_id ), array( '%d' ) );
 
-		// Save roles
+		// Save roles.
 		$roles = array_filter( array_map( 'trim', explode( ',', $subject['role'] ) ) );
 		foreach ( $roles as $role ) {
 			$success = $this->wpdb->insert(
@@ -212,7 +274,7 @@ class Ieltssci_RateLimit_DB {
 			}
 		}
 
-		// Save API feeds
+		// Save API feeds.
 		$feeds = array_filter( array_map( 'trim', explode( ',', $subject['apiFeed'] ) ) );
 		foreach ( $feeds as $feed ) {
 			$success = $this->wpdb->insert(
@@ -229,31 +291,41 @@ class Ieltssci_RateLimit_DB {
 		}
 	}
 
-	private function delete_removed_rules( array $existingIDs, array $newIDs ) {
-		$idsToDelete = array_diff( $existingIDs, $newIDs );
-		if ( ! empty( $idsToDelete ) ) {
-			$idsPlaceholder = implode( ',', array_fill( 0, count( $idsToDelete ), '%d' ) );
+	/**
+	 * Delete rules that are no longer needed.
+	 *
+	 * @param array $existing_ids IDs of existing rules.
+	 * @param array $new_ids IDs of new or updated rules.
+	 */
+	private function delete_removed_rules( array $existing_ids, array $new_ids ) {
+		$ids_to_delete = array_diff( $existing_ids, $new_ids );
+		if ( ! empty( $ids_to_delete ) ) {
+			$ids_placeholder = implode( ',', array_fill( 0, count( $ids_to_delete ), '%d' ) );
+
+			// Fix placeholder warnings by properly formatting the query and parameters.
+			$query_role = "DELETE FROM {$this->role_rule_table} WHERE rate_limit_rule_id IN ($ids_placeholder)";
 			$this->wpdb->query(
-				$this->wpdb->prepare(
-					"DELETE FROM {$this->role_rule_table} WHERE rate_limit_rule_id IN ($idsPlaceholder)",
-					...$idsToDelete
-				)
+				$this->wpdb->prepare( $query_role, $ids_to_delete )
 			);
+
+			$query_feed = "DELETE FROM {$this->api_feed_rule_table} WHERE rate_limit_rule_id IN ($ids_placeholder)";
 			$this->wpdb->query(
-				$this->wpdb->prepare(
-					"DELETE FROM {$this->api_feed_rule_table} WHERE rate_limit_rule_id IN ($idsPlaceholder)",
-					...$idsToDelete
-				)
+				$this->wpdb->prepare( $query_feed, $ids_to_delete )
 			);
+
+			$query_rule = "DELETE FROM {$this->rate_limit_table} WHERE id IN ($ids_placeholder)";
 			$this->wpdb->query(
-				$this->wpdb->prepare(
-					"DELETE FROM {$this->rate_limit_table} WHERE id IN ($idsPlaceholder)",
-					...$idsToDelete
-				)
+				$this->wpdb->prepare( $query_rule, $ids_to_delete )
 			);
 		}
 	}
 
+	/**
+	 * Prepare rule data for insertion/update.
+	 *
+	 * @param array $rule Rule data.
+	 * @return array Prepared data and format arrays.
+	 */
 	private function prepare_rule_data( array $rule ) {
 		$time_period_type = $rule['timePeriod']['type'];
 		$limit_rule_data  = $rule['timePeriod'];

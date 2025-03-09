@@ -1,8 +1,22 @@
 {
-    "php.format.codeStyle": "WordPress",
-    "eslint.format.enable": true,
-    "[php]": {
-        "editor.defaultFormatter": "DEVSENSE.phptools-vscode"
-    },
-    "editor.formatOnSave": true,
+	"php.format.codeStyle": "WordPress",
+	"eslint.format.enable": true,
+	"[php]": {
+		"editor.defaultFormatter": "valeryanm.vscode-phpsab"
+	},
+	"editor.formatOnSave": true,
+	"phpsab.standard": "./phpcs.xml",
+	"intelephense.format.enable": false,
+	"phpsab.snifferShowSources": true,
+	"phpsab.debug": true,
+	"phpsab.allowedAutoRulesets": [
+		".phpcs.xml",
+		".phpcs.xml.dist",
+		"phpcs.xml",
+		"phpcs.xml.dist",
+		"phpcs.ruleset.xml",
+		"ruleset.xml"
+	],
+	"phpsab.fixerEnable": true,
+	"phpsab.snifferEnable": true
 }

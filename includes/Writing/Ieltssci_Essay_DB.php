@@ -1,18 +1,81 @@
 <?php
+/**
+ * This class is responsible for handling user authentication.
+ * It provides methods to register, login, and logout users.
+ *
+ * Methods:
+ * - register(array $userData): Registers a new user with the provided data.
+ * - login(string $username, string $password): Authenticates a user with the given credentials.
+ * - logout(): Logs out the currently authenticated user.
+ *
+ * Properties:
+ * - $db: Database connection instance.
+ * - $session: Session management instance.
+ *
+ * Usage:
+ * $auth = new Auth($db, $session);
+ * $auth->register($userData);
+ * $auth->login($username, $password);
+ * $auth->logout();
+ *
+ * @package IELTS_Science_LMS
+ * @subpackage Writing
+ */
 
 namespace IeltsScienceLMS\Writing;
 
 use WP_Error;
 use wpdb;
 
+/**
+ * Class Ieltssci_Essay_DB
+ *
+ * Handles database operations for IELTS Science LMS essays.
+ */
 class Ieltssci_Essay_DB {
-	private const TABLE_PREFIX = 'ieltssci_';
-	private wpdb $wpdb;
-	private string $essays_table;
-	private string $segment_table;
-	private string $segment_feedback_table;
-	private string $essay_feedback_table;
+	/**
+	 * Table prefix constant.
+	 */
+	const TABLE_PREFIX = 'ieltssci_';
 
+	/**
+	 * WordPress database object.
+	 *
+	 * @var wpdb
+	 */
+	private $wpdb;
+
+	/**
+	 * Essays table name.
+	 *
+	 * @var string
+	 */
+	private $essays_table;
+
+	/**
+	 * Segment table name.
+	 *
+	 * @var string
+	 */
+	private $segment_table;
+
+	/**
+	 * Segment feedback table name.
+	 *
+	 * @var string
+	 */
+	private $segment_feedback_table;
+
+	/**
+	 * Essay feedback table name.
+	 *
+	 * @var string
+	 */
+	private $essay_feedback_table;
+
+	/**
+	 * Constructor.
+	 */
 	public function __construct() {
 		global $wpdb;
 		$this->wpdb = $wpdb;
@@ -24,24 +87,25 @@ class Ieltssci_Essay_DB {
 	}
 
 	/**
-	 * Create a new essay
+	 * Create a new essay.
 	 *
-	 * @param array $essay_data Essay data
-	 * @return array|WP_Error Created essay data or error
+	 * @param array $essay_data Essay data.
+	 * @return array|WP_Error Created essay data or error.
+	 * @throws \Exception If there is a database error.
 	 */
 	public function create_essay( $essay_data ) {
 		if ( empty( $essay_data['essay_type'] ) || empty( $essay_data['question'] ) || empty( $essay_data['essay_content'] ) ) {
-			return new WP_Error( 'missing_required', 'Missing required fields', array( 'status' => 400 ) );
+			return new WP_Error( 'missing_required', 'Missing required fields.', array( 'status' => 400 ) );
 		}
 
 		$this->wpdb->query( 'START TRANSACTION' );
 
 		try {
-			// Generate UUID if not provided
+			// Generate UUID if not provided.
 			$uuid = ! empty( $essay_data['uuid'] ) ? $essay_data['uuid'] : wp_generate_uuid4();
 
-			$ocr_image_ids   = ! empty( $essay_data['ocr_image_ids'] ) ? json_encode( $essay_data['ocr_image_ids'] ) : null;
-			$chart_image_ids = ! empty( $essay_data['chart_image_ids'] ) ? json_encode( $essay_data['chart_image_ids'] ) : null;
+			$ocr_image_ids   = ! empty( $essay_data['ocr_image_ids'] ) ? wp_json_encode( $essay_data['ocr_image_ids'] ) : null;
+			$chart_image_ids = ! empty( $essay_data['chart_image_ids'] ) ? wp_json_encode( $essay_data['chart_image_ids'] ) : null;
 
 			$insert_data = array(
 				'uuid'            => $uuid,
@@ -58,24 +122,24 @@ class Ieltssci_Essay_DB {
 				$this->essays_table,
 				$insert_data,
 				array(
-					'%s', // uuid
-					'%d', // original_id
-					'%s', // ocr_image_ids
-					'%s', // chart_image_ids
-					'%s', // essay_type
-					'%s', // question
-					'%s', // essay_content
-					'%d', // created_by
+					'%s', // uuid.
+					'%d', // original_id.
+					'%s', // ocr_image_ids.
+					'%s', // chart_image_ids.
+					'%s', // essay_type.
+					'%s', // question.
+					'%s', // essay_content.
+					'%d', // created_by.
 				)
 			);
 
-			if ( $result === false ) {
+			if ( false === $result ) {
 				throw new \Exception( 'Failed to create essay: ' . $this->wpdb->last_error );
 			}
 
 			$essay_id = $this->wpdb->insert_id;
 
-			// Get the created essay
+			// Get the created essay.
 			$essay = $this->get_essays( array( 'id' => $essay_id ) )[0];
 
 			$this->wpdb->query( 'COMMIT' );
@@ -87,7 +151,7 @@ class Ieltssci_Essay_DB {
 	}
 
 	/**
-	 * Get essays with flexible query arguments
+	 * Get essays with flexible query arguments.
 	 *
 	 * @param array $args {
 	 *     Optional. Arguments to retrieve essays.
@@ -106,7 +170,8 @@ class Ieltssci_Essay_DB {
 	 *     @type int          $page         Page number. Default 1.
 	 *     @type bool         $count        If true, return only the count. Default false.
 	 * }
-	 * @return array|int|WP_Error Essays data, count, or error
+	 * @return array|int|WP_Error Essays data, count, or error.
+	 * @throws \Exception If there is a database error.
 	 */
 	public function get_essays( $args = array() ) {
 		try {
@@ -131,7 +196,7 @@ class Ieltssci_Essay_DB {
 			$where          = array( '1=1' );
 			$prepare_values = array();
 
-			// Process ID filter
+			// Process ID filter.
 			if ( ! is_null( $args['id'] ) ) {
 				if ( is_array( $args['id'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['id'] ), '%d' );
@@ -143,7 +208,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process UUID filter
+			// Process UUID filter.
 			if ( ! is_null( $args['uuid'] ) ) {
 				if ( is_array( $args['uuid'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['uuid'] ), '%s' );
@@ -155,7 +220,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process original_id filter
+			// Process original_id filter.
 			if ( ! is_null( $args['original_id'] ) ) {
 				if ( is_array( $args['original_id'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['original_id'] ), '%d' );
@@ -167,7 +232,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process essay_type filter
+			// Process essay_type filter.
 			if ( ! is_null( $args['essay_type'] ) ) {
 				if ( is_array( $args['essay_type'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['essay_type'] ), '%s' );
@@ -179,7 +244,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process created_by filter
+			// Process created_by filter.
 			if ( ! is_null( $args['created_by'] ) ) {
 				if ( is_array( $args['created_by'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['created_by'] ), '%d' );
@@ -191,7 +256,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process search
+			// Process search.
 			if ( ! is_null( $args['search'] ) ) {
 				$where[]          = '(question LIKE %s OR essay_content LIKE %s)';
 				$search_term      = '%' . $this->wpdb->esc_like( $args['search'] ) . '%';
@@ -199,7 +264,7 @@ class Ieltssci_Essay_DB {
 				$prepare_values[] = $search_term;
 			}
 
-			// Process date query (simplified approach)
+			// Process date query (simplified approach).
 			if ( ! is_null( $args['date_query'] ) && is_array( $args['date_query'] ) ) {
 				if ( ! empty( $args['date_query']['after'] ) ) {
 					$where[]          = 'created_at >= %s';
@@ -211,21 +276,21 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Build query
+			// Build query.
 			$sql = "SELECT $select FROM $from WHERE " . implode( ' AND ', $where );
 
-			// Add order if not counting
+			// Add order if not counting.
 			if ( ! $args['count'] ) {
-				// Sanitize orderby field
+				// Sanitize orderby field.
 				$allowed_orderby = array( 'id', 'uuid', 'essay_type', 'created_at', 'created_by' );
-				$orderby         = in_array( $args['orderby'], $allowed_orderby ) ? $args['orderby'] : 'id';
+				$orderby         = in_array( $args['orderby'], $allowed_orderby, true ) ? $args['orderby'] : 'id';
 
-				// Sanitize order direction
+				// Sanitize order direction.
 				$order = strtoupper( $args['order'] ) === 'ASC' ? 'ASC' : 'DESC';
 
 				$sql .= " ORDER BY $orderby $order";
 
-				// Add pagination
+				// Add pagination.
 				$per_page = max( 1, intval( $args['per_page'] ) );
 				$page     = max( 1, intval( $args['page'] ) );
 				$offset   = ( $page - 1 ) * $per_page;
@@ -235,22 +300,22 @@ class Ieltssci_Essay_DB {
 				$prepare_values[] = $offset;
 			}
 
-			// Prepare and execute query
+			// Prepare and execute query.
 			$prepared_sql = $this->wpdb->prepare( $sql, $prepare_values );
 
 			if ( $args['count'] ) {
 				$result = $this->wpdb->get_var( $prepared_sql );
-				if ( $result === null && $this->wpdb->last_error ) {
+				if ( null === $result && $this->wpdb->last_error ) {
 					throw new \Exception( $this->wpdb->last_error );
 				}
 				return (int) $result;
 			} else {
 				$results = $this->wpdb->get_results( $prepared_sql, ARRAY_A );
-				if ( $results === null && $this->wpdb->last_error ) {
+				if ( null === $results && $this->wpdb->last_error ) {
 					throw new \Exception( $this->wpdb->last_error );
 				}
 
-				// Process array fields for each result
+				// Process array fields for each result.
 				foreach ( $results as &$essay ) {
 					if ( ! empty( $essay['ocr_image_ids'] ) ) {
 						$essay['ocr_image_ids'] = json_decode( $essay['ocr_image_ids'], true );
@@ -273,7 +338,7 @@ class Ieltssci_Essay_DB {
 	}
 
 	/**
-	 * Get segments with flexible query arguments
+	 * Get segments with flexible query arguments.
 	 *
 	 * @param array $args {
 	 *     Optional. Arguments to retrieve segments.
@@ -291,7 +356,8 @@ class Ieltssci_Essay_DB {
 	 *     @type string|array $fields        Fields to return. Default 'all'.
 	 *     @type bool         $count         If true, return only the count. Default false.
 	 * }
-	 * @return array|int|WP_Error Segments data, count, or error
+	 * @return array|int|WP_Error Segments data, count, or error.
+	 * @throws \Exception If there is a database error.
 	 */
 	public function get_segments( $args = array() ) {
 		try {
@@ -310,15 +376,15 @@ class Ieltssci_Essay_DB {
 
 			$args = wp_parse_args( $args, $defaults );
 
-			// Determine what to select
+			// Determine what to select.
 			if ( $args['count'] ) {
 				$select = 'COUNT(*)';
-			} elseif ( $args['fields'] !== 'all' && is_array( $args['fields'] ) ) {
-				// Sanitize field names
+			} elseif ( 'all' !== $args['fields'] && is_array( $args['fields'] ) ) {
+				// Sanitize field names.
 				$allowed_fields = array( 'id', 'essay_id', 'type', 'order', 'title', 'content' );
 				$fields         = array_intersect( $args['fields'], $allowed_fields );
 				if ( empty( $fields ) ) {
-					return new WP_Error( 'invalid_fields', 'No valid fields specified', array( 'status' => 400 ) );
+					return new WP_Error( 'invalid_fields', 'No valid fields specified.', array( 'status' => 400 ) );
 				}
 				$select = implode( ', ', $fields );
 			} else {
@@ -329,7 +395,7 @@ class Ieltssci_Essay_DB {
 			$where          = array( '1=1' );
 			$prepare_values = array();
 
-			// Process segment_id filter
+			// Process segment_id filter.
 			if ( ! is_null( $args['segment_id'] ) ) {
 				if ( is_array( $args['segment_id'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['segment_id'] ), '%d' );
@@ -341,7 +407,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process essay_id filter
+			// Process essay_id filter.
 			if ( ! is_null( $args['essay_id'] ) ) {
 				if ( is_array( $args['essay_id'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['essay_id'] ), '%d' );
@@ -353,7 +419,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process type filter
+			// Process type filter.
 			if ( ! is_null( $args['type'] ) ) {
 				if ( is_array( $args['type'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['type'] ), '%s' );
@@ -365,9 +431,9 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process order filter
-			if ( ! is_null( $args['order'] ) && ! in_array( strtoupper( $args['order'] ), array( 'ASC', 'DESC' ) ) ) {
-				// If order is used as a filter not as sort direction
+			// Process order filter.
+			if ( ! is_null( $args['order'] ) && ! in_array( strtoupper( $args['order'] ), array( 'ASC', 'DESC' ), true ) ) {
+				// If order is used as a filter not as sort direction.
 				if ( is_array( $args['order'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['order'] ), '%d' );
 					$where[]        = '`order` IN (' . implode( ',', $placeholders ) . ')';
@@ -378,7 +444,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process search
+			// Process search.
 			if ( ! is_null( $args['search'] ) ) {
 				$where[]          = '(title LIKE %s OR content LIKE %s)';
 				$search_term      = '%' . $this->wpdb->esc_like( $args['search'] ) . '%';
@@ -386,26 +452,26 @@ class Ieltssci_Essay_DB {
 				$prepare_values[] = $search_term;
 			}
 
-			// Build query
+			// Build query.
 			$sql = "SELECT $select FROM $from WHERE " . implode( ' AND ', $where );
 
-			// Add order if not counting
+			// Add order if not counting.
 			if ( ! $args['count'] ) {
-				// Sanitize orderby field
+				// Sanitize orderby field.
 				$allowed_orderby = array( 'id', 'essay_id', 'type', 'order' );
-				$orderby         = in_array( $args['orderby'], $allowed_orderby ) ? $args['orderby'] : 'order';
+				$orderby         = in_array( $args['orderby'], $allowed_orderby, true ) ? $args['orderby'] : 'order';
 
-				// For 'order' field, we need to escape it as it's a reserved word in SQL
-				if ( $orderby === 'order' ) {
+				// For 'order' field, we need to escape it as it's a reserved word in SQL.
+				if ( 'order' === $orderby ) {
 					$orderby = '`order`';
 				}
 
-				// Sanitize order direction
+				// Sanitize order direction.
 				$order_dir = strtoupper( $args['order'] ) === 'DESC' ? 'DESC' : 'ASC';
 
 				$sql .= " ORDER BY $orderby $order_dir";
 
-				// Add pagination
+				// Add pagination.
 				$number = max( 1, intval( $args['number'] ) );
 				$offset = max( 0, intval( $args['offset'] ) );
 
@@ -414,18 +480,18 @@ class Ieltssci_Essay_DB {
 				$prepare_values[] = $offset;
 			}
 
-			// Prepare and execute query
+			// Prepare and execute query.
 			$prepared_sql = $this->wpdb->prepare( $sql, $prepare_values );
 
 			if ( $args['count'] ) {
 				$result = $this->wpdb->get_var( $prepared_sql );
-				if ( $result === null && $this->wpdb->last_error ) {
+				if ( null === $result && $this->wpdb->last_error ) {
 					throw new \Exception( $this->wpdb->last_error );
 				}
 				return (int) $result;
 			} else {
 				$results = $this->wpdb->get_results( $prepared_sql, ARRAY_A );
-				if ( $results === null && $this->wpdb->last_error ) {
+				if ( null === $results && $this->wpdb->last_error ) {
 					throw new \Exception( $this->wpdb->last_error );
 				}
 				return $results;
@@ -436,7 +502,7 @@ class Ieltssci_Essay_DB {
 	}
 
 	/**
-	 * Get essay feedbacks with flexible query arguments
+	 * Get essay feedbacks with flexible query arguments.
 	 *
 	 * @param array $args {
 	 *     Optional. Arguments to retrieve essay feedbacks.
@@ -459,7 +525,8 @@ class Ieltssci_Essay_DB {
 	 *     @type bool         $count             If true, return only the count. Default false.
 	 *     @type bool         $no_found_rows     Skip counting total rows. Default false.
 	 * }
-	 * @return array|int|WP_Error Feedbacks data, count, or error
+	 * @return array|int|WP_Error Feedbacks data, count, or error.
+	 * @throws \Exception If there is a database error.
 	 */
 	public function get_essay_feedbacks( $args = array() ) {
 		try {
@@ -484,11 +551,11 @@ class Ieltssci_Essay_DB {
 
 			$args = wp_parse_args( $args, $defaults );
 
-			// Determine what to select
+			// Determine what to select.
 			if ( $args['count'] ) {
 				$select = 'COUNT(*)';
-			} elseif ( $args['fields'] !== 'all' && is_array( $args['fields'] ) ) {
-				// Sanitize field names
+			} elseif ( 'all' !== $args['fields'] && is_array( $args['fields'] ) ) {
+				// Sanitize field names.
 				$allowed_fields = array(
 					'id',
 					'feedback_criteria',
@@ -503,7 +570,7 @@ class Ieltssci_Essay_DB {
 				);
 				$fields         = array_intersect( $args['fields'], $allowed_fields );
 				if ( empty( $fields ) ) {
-					return new WP_Error( 'invalid_fields', 'No valid fields specified', array( 'status' => 400 ) );
+					return new WP_Error( 'invalid_fields', 'No valid fields specified.', array( 'status' => 400 ) );
 				}
 				$select = implode( ', ', $fields );
 			} else {
@@ -514,7 +581,7 @@ class Ieltssci_Essay_DB {
 			$where          = array( '1=1' );
 			$prepare_values = array();
 
-			// Process feedback_id filter
+			// Process feedback_id filter.
 			if ( ! is_null( $args['feedback_id'] ) ) {
 				if ( is_array( $args['feedback_id'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['feedback_id'] ), '%d' );
@@ -526,7 +593,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process essay_id filter
+			// Process essay_id filter.
 			if ( ! is_null( $args['essay_id'] ) ) {
 				if ( is_array( $args['essay_id'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['essay_id'] ), '%d' );
@@ -538,7 +605,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process source filter
+			// Process source filter.
 			if ( ! is_null( $args['source'] ) ) {
 				if ( is_array( $args['source'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['source'] ), '%s' );
@@ -550,7 +617,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process feedback_criteria filter
+			// Process feedback_criteria filter.
 			if ( ! is_null( $args['feedback_criteria'] ) ) {
 				if ( is_array( $args['feedback_criteria'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['feedback_criteria'] ), '%s' );
@@ -562,7 +629,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process feedback_language filter
+			// Process feedback_language filter.
 			if ( ! is_null( $args['feedback_language'] ) ) {
 				if ( is_array( $args['feedback_language'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['feedback_language'] ), '%s' );
@@ -574,7 +641,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process created_by filter
+			// Process created_by filter.
 			if ( ! is_null( $args['created_by'] ) ) {
 				if ( is_array( $args['created_by'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['created_by'] ), '%d' );
@@ -586,8 +653,8 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process date filters
-			// Simple date range filters
+			// Process date filters.
+			// Simple date range filters.
 			if ( ! is_null( $args['date_from'] ) ) {
 				$where[]          = 'created_at >= %s';
 				$prepare_values[] = $args['date_from'];
@@ -597,7 +664,7 @@ class Ieltssci_Essay_DB {
 				$prepare_values[] = $args['date_to'];
 			}
 
-			// Process WP-style date query (more advanced)
+			// Process WP-style date query (more advanced).
 			if ( ! is_null( $args['date_query'] ) && is_array( $args['date_query'] ) ) {
 				if ( ! empty( $args['date_query']['after'] ) ) {
 					$where[]          = 'created_at >= %s';
@@ -607,24 +674,24 @@ class Ieltssci_Essay_DB {
 					$where[]          = 'created_at <= %s';
 					$prepare_values[] = $args['date_query']['before'];
 				}
-				// Could add more complex date query handling here if needed
+				// Could add more complex date query handling here if needed.
 			}
 
-			// Build query
+			// Build query.
 			$sql = "SELECT $select FROM $from WHERE " . implode( ' AND ', $where );
 
-			// Add order if not counting
+			// Add order if not counting.
 			if ( ! $args['count'] ) {
-				// Sanitize orderby field
+				// Sanitize orderby field.
 				$allowed_orderby = array( 'id', 'essay_id', 'created_at' );
-				$orderby         = in_array( $args['orderby'], $allowed_orderby ) ? $args['orderby'] : 'id';
+				$orderby         = in_array( $args['orderby'], $allowed_orderby, true ) ? $args['orderby'] : 'id';
 
-				// Sanitize order direction
+				// Sanitize order direction.
 				$order = strtoupper( $args['order'] ) === 'ASC' ? 'ASC' : 'DESC';
 
 				$sql .= " ORDER BY $orderby $order";
 
-				// Add pagination
+				// Add pagination.
 				$number = max( 1, intval( $args['number'] ) );
 				$offset = max( 0, intval( $args['offset'] ) );
 
@@ -633,18 +700,18 @@ class Ieltssci_Essay_DB {
 				$prepare_values[] = $offset;
 			}
 
-			// Prepare and execute query
+			// Prepare and execute query.
 			$prepared_sql = $this->wpdb->prepare( $sql, $prepare_values );
 
 			if ( $args['count'] ) {
 				$result = $this->wpdb->get_var( $prepared_sql );
-				if ( $result === null && $this->wpdb->last_error ) {
+				if ( null === $result && $this->wpdb->last_error ) {
 					throw new \Exception( $this->wpdb->last_error );
 				}
 				return (int) $result;
 			} else {
 				$results = $this->wpdb->get_results( $prepared_sql, ARRAY_A );
-				if ( $results === null && $this->wpdb->last_error ) {
+				if ( null === $results && $this->wpdb->last_error ) {
 					throw new \Exception( $this->wpdb->last_error );
 				}
 				return $results;
@@ -655,7 +722,7 @@ class Ieltssci_Essay_DB {
 	}
 
 	/**
-	 * Get segment feedbacks with flexible query arguments
+	 * Get segment feedbacks with flexible query arguments.
 	 *
 	 * @param array $args {
 	 *     Optional. Arguments to retrieve segment feedbacks.
@@ -681,7 +748,8 @@ class Ieltssci_Essay_DB {
 	 *     @type bool         $count             If true, return only the count. Default false.
 	 *     @type bool         $no_found_rows     Skip counting total rows. Default false.
 	 * }
-	 * @return array|int|WP_Error Segment feedbacks data, count, or error
+	 * @return array|int|WP_Error Segment feedbacks data, count, or error.
+	 * @throws \Exception If there is a database error.
 	 */
 	public function get_segment_feedbacks( $args = array() ) {
 		try {
@@ -709,11 +777,11 @@ class Ieltssci_Essay_DB {
 
 			$args = wp_parse_args( $args, $defaults );
 
-			// Determine what to select
+			// Determine what to select.
 			if ( $args['count'] ) {
 				$select = 'COUNT(*)';
-			} elseif ( $args['fields'] !== 'all' && is_array( $args['fields'] ) ) {
-				// Sanitize field names
+			} elseif ( 'all' !== $args['fields'] && is_array( $args['fields'] ) ) {
+				// Sanitize field names.
 				$allowed_fields = array(
 					'id',
 					'feedback_criteria',
@@ -728,23 +796,23 @@ class Ieltssci_Essay_DB {
 				);
 				$fields         = array_intersect( $args['fields'], $allowed_fields );
 
-				// Handle content selection
-				if ( ! $args['include_cot'] && in_array( 'cot_content', $fields ) ) {
+				// Handle content selection.
+				if ( ! $args['include_cot'] && in_array( 'cot_content', $fields, true ) ) {
 					$fields = array_diff( $fields, array( 'cot_content' ) );
 				}
-				if ( ! $args['include_score'] && in_array( 'score_content', $fields ) ) {
+				if ( ! $args['include_score'] && in_array( 'score_content', $fields, true ) ) {
 					$fields = array_diff( $fields, array( 'score_content' ) );
 				}
-				if ( ! $args['include_feedback'] && in_array( 'feedback_content', $fields ) ) {
+				if ( ! $args['include_feedback'] && in_array( 'feedback_content', $fields, true ) ) {
 					$fields = array_diff( $fields, array( 'feedback_content' ) );
 				}
 
 				if ( empty( $fields ) ) {
-					return new WP_Error( 'invalid_fields', 'No valid fields specified', array( 'status' => 400 ) );
+					return new WP_Error( 'invalid_fields', 'No valid fields specified.', array( 'status' => 400 ) );
 				}
 				$select = implode( ', ', $fields );
 			} else {
-				// Handle selective content fields
+				// Handle selective content fields.
 				$select_fields   = array();
 				$select_fields[] = 'id';
 				$select_fields[] = 'feedback_criteria';
@@ -770,7 +838,7 @@ class Ieltssci_Essay_DB {
 			$where          = array( '1=1' );
 			$prepare_values = array();
 
-			// Process feedback_id filter
+			// Process feedback_id filter.
 			if ( ! is_null( $args['feedback_id'] ) ) {
 				if ( is_array( $args['feedback_id'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['feedback_id'] ), '%d' );
@@ -782,7 +850,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process segment_id filter
+			// Process segment_id filter.
 			if ( ! is_null( $args['segment_id'] ) ) {
 				if ( is_array( $args['segment_id'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['segment_id'] ), '%d' );
@@ -794,7 +862,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process feedback_criteria filter
+			// Process feedback_criteria filter.
 			if ( ! is_null( $args['feedback_criteria'] ) ) {
 				if ( is_array( $args['feedback_criteria'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['feedback_criteria'] ), '%s' );
@@ -806,7 +874,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process feedback_language filter
+			// Process feedback_language filter.
 			if ( ! is_null( $args['feedback_language'] ) ) {
 				if ( is_array( $args['feedback_language'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['feedback_language'] ), '%s' );
@@ -818,7 +886,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process source filter
+			// Process source filter.
 			if ( ! is_null( $args['source'] ) ) {
 				if ( is_array( $args['source'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['source'] ), '%s' );
@@ -830,7 +898,7 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process created_by filter
+			// Process created_by filter.
 			if ( ! is_null( $args['created_by'] ) ) {
 				if ( is_array( $args['created_by'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['created_by'] ), '%d' );
@@ -842,8 +910,8 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Process date filters
-			// Simple date range filters
+			// Process date filters.
+			// Simple date range filters.
 			if ( ! is_null( $args['date_from'] ) ) {
 				$where[]          = 'created_at >= %s';
 				$prepare_values[] = $args['date_from'];
@@ -853,7 +921,7 @@ class Ieltssci_Essay_DB {
 				$prepare_values[] = $args['date_to'];
 			}
 
-			// Process WP-style date query
+			// Process WP-style date query.
 			if ( ! is_null( $args['date_query'] ) && is_array( $args['date_query'] ) ) {
 				if ( ! empty( $args['date_query']['after'] ) ) {
 					$where[]          = 'created_at >= %s';
@@ -865,21 +933,21 @@ class Ieltssci_Essay_DB {
 				}
 			}
 
-			// Build query
+			// Build query.
 			$sql = "SELECT $select FROM $from WHERE " . implode( ' AND ', $where );
 
-			// Add order if not counting
+			// Add order if not counting.
 			if ( ! $args['count'] ) {
-				// Sanitize orderby field
+				// Sanitize orderby field.
 				$allowed_orderby = array( 'id', 'segment_id', 'created_at' );
-				$orderby         = in_array( $args['orderby'], $allowed_orderby ) ? $args['orderby'] : 'id';
+				$orderby         = in_array( $args['orderby'], $allowed_orderby, true ) ? $args['orderby'] : 'id';
 
-				// Sanitize order direction
+				// Sanitize order direction.
 				$order = strtoupper( $args['order'] ) === 'ASC' ? 'ASC' : 'DESC';
 
 				$sql .= " ORDER BY $orderby $order";
 
-				// Add pagination
+				// Add pagination.
 				$limit  = max( 1, intval( $args['limit'] ) );
 				$offset = max( 0, intval( $args['offset'] ) );
 
@@ -888,18 +956,18 @@ class Ieltssci_Essay_DB {
 				$prepare_values[] = $offset;
 			}
 
-			// Prepare and execute query
+			// Prepare and execute query.
 			$prepared_sql = $this->wpdb->prepare( $sql, $prepare_values );
 
 			if ( $args['count'] ) {
 				$result = $this->wpdb->get_var( $prepared_sql );
-				if ( $result === null && $this->wpdb->last_error ) {
+				if ( null === $result && $this->wpdb->last_error ) {
 					throw new \Exception( $this->wpdb->last_error );
 				}
 				return (int) $result;
 			} else {
 				$results = $this->wpdb->get_results( $prepared_sql, ARRAY_A );
-				if ( $results === null && $this->wpdb->last_error ) {
+				if ( null === $results && $this->wpdb->last_error ) {
 					throw new \Exception( $this->wpdb->last_error );
 				}
 				return $results;

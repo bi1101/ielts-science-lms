@@ -1,4 +1,13 @@
 <?php
+/**
+ * IELTS Science Writing SSE REST API Handler
+ *
+ * This file contains the class that handles Server-Sent Events (SSE) REST endpoints
+ * for the IELTS Science Writing module.
+ *
+ * @package IeltsScienceLMS
+ * @subpackage Writing
+ */
 
 namespace IeltsScienceLMS\Writing;
 
@@ -20,17 +29,22 @@ class Ieltssci_Writing_SSE_REST {
 	 */
 	private $namespace = 'ieltssci/v1';
 
+	/**
+	 * The base endpoint for writing-related API routes.
+	 *
+	 * @var string
+	 */
 	private $base = 'writing';
 
 	/**
-	 * Constructor
+	 * Constructor.
 	 */
 	public function __construct() {
 		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
 	}
 
 	/**
-	 * Register REST API routes
+	 * Register REST API routes.
 	 */
 	public function register_routes() {
 		register_rest_route(
@@ -39,7 +53,7 @@ class Ieltssci_Writing_SSE_REST {
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_essay_feedback' ),
-				'permission_callback' => '__return_true', // Accessible to anyone
+				'permission_callback' => '__return_true', // Accessible to anyone.
 				'args'                => array(
 					'UUID'    => array(
 						'required'          => true,
@@ -61,23 +75,23 @@ class Ieltssci_Writing_SSE_REST {
 	}
 
 	/**
-	 * Callback for the feedback endpoint
+	 * Callback for the feedback endpoint.
 	 *
-	 * Streams AI-generated feedback for an essay
+	 * Streams AI-generated feedback for an essay.
 	 *
 	 * @param WP_REST_Request $request The request object.
 	 */
 	public function get_essay_feedback( $request ) {
-		// Get parameters
+		// Get parameters.
 		$uuid    = $request->get_param( 'UUID' );
 		$feed_id = $request->get_param( 'feed_id' );
 
-		// Set up SSE headers
+		// Set up SSE headers.
 		$this->set_sse_headers();
 
-		// Create feedback processor with message callback
+		// Create feedback processor with message callback.
 		$processor = new Ieltssci_Writing_Feedback_Processor(
-			// Pass the message sending function as a callback
+			// Pass the message sending function as a callback.
 			function ( $event_type, $data, $is_error = false ) {
 				if ( $is_error ) {
 					$this->send_error( $event_type, $data );
@@ -87,61 +101,60 @@ class Ieltssci_Writing_SSE_REST {
 			}
 		);
 
-		// Process the specific feed
+		// Process the specific feed.
 		$result = $processor->process_feed_by_id( $feed_id, $uuid );
 
-		// Handle errors
+		// Handle errors.
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
 
-		// Signal completion
+		// Signal completion.
 		$this->send_done( 'END' );
 
 		exit;
 	}
 
 	/**
-	 * Set headers for SSE
+	 * Set headers for SSE.
 	 */
 	private function set_sse_headers() {
-		// Disable output buffering at all levels
+		// Disable output buffering at all levels.
 		while ( ob_get_level() ) {
 			ob_end_clean();
 		}
 
-		// Prevent PHP from buffering and sending content in chunks
+		// Prevent PHP from buffering and sending content in chunks.
 		if ( function_exists( 'apache_setenv' ) ) {
 			apache_setenv( 'no-gzip', '1' );
 		}
 
-		// Disable compression
+		// Disable compression.
 		ini_set( 'zlib.output_compression', '0' );
 
-		// Set headers for SSE
+		// Set headers for SSE.
 		header( 'Content-Type: text/event-stream' );
 		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
 		header( 'Pragma: no-cache' );
 		header( 'Connection: keep-alive' );
-		header( 'X-Accel-Buffering: no' ); // Disable buffering for Nginx
+		header( 'X-Accel-Buffering: no' ); // Disable buffering for Nginx.
 
-		// Ensure output is not buffered
+		// Ensure output is not buffered.
 		set_time_limit( 0 );
-		// ignore_user_abort( true );
+		// ignore_user_abort( true );.
 	}
 
 	/**
-	 * Send an SSE message
+	 * Send an SSE message.
 	 *
 	 * @param string $event_type The event type.
 	 * @param mixed  $data The data to send.
 	 */
 	private function send_message( $event_type, $data ) {
-		$json_data = json_encode( array( 'data' => $data ) );
-		echo "event: {$event_type}\n";
-		echo "data: {$json_data}\n\n";
+		echo 'event: ' . esc_html( $event_type ) . "\n";
+		echo 'data: ' . wp_json_encode( array( 'data' => $data ) ) . "\n\n";
 
-		// Force flush the output buffer
+		// Force flush the output buffer.
 		if ( ob_get_level() > 0 ) {
 			ob_flush();
 		}
@@ -149,16 +162,15 @@ class Ieltssci_Writing_SSE_REST {
 	}
 
 	/**
-	 * Send an error message
+	 * Send an error message.
 	 *
 	 * @param string $event_type The event type.
 	 * @param array  $error Error details with title, message, ctaTitle, and ctaLink.
 	 */
 	private function send_error( $event_type, $error ) {
-		$error_data = json_encode( array( 'error' => $error ) );
 
-		echo "event: {$event_type}\n";
-		echo "data: {$error_data}\n\n";
+		echo 'event: ' . esc_html( $event_type ) . "\n";
+		echo 'data: ' . wp_json_encode( array( 'error' => $error ) ) . "\n\n";
 
 		if ( ob_get_level() > 0 ) {
 			ob_flush();
@@ -167,12 +179,12 @@ class Ieltssci_Writing_SSE_REST {
 	}
 
 	/**
-	 * Send a done signal for an event type
+	 * Send a done signal for an event type.
 	 *
 	 * @param string $event_type The event type.
 	 */
 	private function send_done( $event_type ) {
-		echo "event: {$event_type}\n";
+		echo 'event: ' . esc_html( $event_type ) . "\n";
 		echo "data: [DONE]\n\n";
 
 		if ( ob_get_level() > 0 ) {

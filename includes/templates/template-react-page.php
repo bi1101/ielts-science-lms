@@ -1,7 +1,10 @@
 <?php
 /**
  * Template Name: React Page Template
+ *
+ * @package IELTS_Science_LMS
  */
+
 ?><!doctype html>
 <html <?php language_attributes(); ?>>
 

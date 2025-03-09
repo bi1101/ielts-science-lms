@@ -1,20 +1,38 @@
 <?php
+/**
+ * Core module for IELTS Science LMS plugin.
+ *
+ * @package IELTS_Science_LMS
+ * @subpackage Core
+ */
 
 namespace IeltsScienceLMS\Core;
 
+use WP_Post;
+
+/**
+ * Core module class handling basic plugin functionality.
+ *
+ * This class initializes core plugin components and handles basic plugin operations
+ * such as activation, deactivation, and template management.
+ */
 class Ieltssci_Core_Module {
+	/**
+	 * Database schema instance.
+	 *
+	 * @var Ieltssci_Database_Schema
+	 */
 	private $db_schema;
+
+	/**
+	 * Initialize the core module.
+	 */
 	public function __construct() {
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
-		new \IeltsScienceLMS\Writing\Ieltssci_Writing_REST();
-		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Settings();
 		new \IeltsScienceLMS\Settings\Ieltssci_Settings();
-		new \IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_REST();
+		new \IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeed_Module();
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit_Module();
-		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit_Settings();
-		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit_REST();
-		new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_Settings();
-		new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_REST();
+		new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys();
 		$this->db_schema = new Ieltssci_Database_Schema();
 		add_filter( 'theme_page_templates', array( $this, 'add_custom_page_template' ) );
 		add_filter( 'template_include', array( $this, 'load_custom_page_template' ) );
@@ -35,7 +53,7 @@ class Ieltssci_Core_Module {
 		if ( $this->db_schema->needs_upgrade() ) {
 			$this->db_schema->create_tables();
 		}
-		// Trigger settings table creation
+		// Trigger settings table creation.
 		do_action( 'ieltssci_activate' );
 	}
 
@@ -47,7 +65,7 @@ class Ieltssci_Core_Module {
 	 * @return void
 	 */
 	public function deactivate() {
-		// Actions to perform on plugin deactivation
+		// Actions to perform on plugin deactivation.
 	}
 
 	/**
@@ -79,11 +97,24 @@ class Ieltssci_Core_Module {
 	public function wp_version_notice() {
 		echo '<div class="error"><p><strong>' . esc_html__( 'IELTS Science LMS', 'ielts-science-lms' ) . '</strong> ' . esc_html__( 'requires WordPress version 6.0 or higher. The plugin has been deactivated.', 'ielts-science-lms' ) . '</p></div>';
 	}
+
+	/**
+	 * Add custom page template to the template list.
+	 *
+	 * @param array $templates List of page templates.
+	 * @return array Modified list of page templates.
+	 */
 	public function add_custom_page_template( $templates ) {
 		$templates['template-react-page.php'] = 'React Page Template';
 		return $templates;
 	}
 
+	/**
+	 * Load custom page template when needed.
+	 *
+	 * @param string $template Current template path.
+	 * @return string Modified template path.
+	 */
 	public function load_custom_page_template( $template ) {
 		if ( is_page_template( 'template-react-page.php' ) ) {
 			$template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
@@ -91,10 +122,13 @@ class Ieltssci_Core_Module {
 		return $template;
 	}
 
+	/**
+	 * Dequeue unnecessary assets for React template.
+	 */
 	public function dequeue_assets_for_react_template() {
 		if ( is_page_template( 'template-react-page.php' ) ) {
 
-			// Dequeue Stylesheets
+			// Dequeue Stylesheets.
 			wp_dequeue_style( 'bb_theme_block-buddypanel-style-css' );
 			wp_dequeue_style( 'buddyboss-theme-buddypress' );
 			wp_dequeue_style( 'buddyboss-theme-css' );
@@ -105,7 +139,7 @@ class Ieltssci_Core_Module {
 			wp_dequeue_style( 'buddyboss_legacy' );
 			wp_dequeue_style( 'redux-extendify-styles' );
 
-			// Dequeue JavaScripts
+			// Dequeue JavaScripts.
 			wp_dequeue_script( 'boss-fitvids-js' );
 			wp_dequeue_script( 'boss-jssocials-js' );
 			wp_dequeue_script( 'boss-menu-js' );
@@ -120,22 +154,29 @@ class Ieltssci_Core_Module {
 		}
 	}
 
+	/**
+	 * Add custom post state for module pages.
+	 *
+	 * @param array   $post_states Array of post states.
+	 * @param WP_Post $post        Current post object.
+	 * @return array Modified post states array.
+	 */
 	public function add_module_page_post_state( $post_states, $post ) {
-		// Get the saved page settings
+		// Get the saved page settings.
 		$ielts_pages = get_option( 'ielts_science_lms_pages', array() );
 
-		// Check if this post's ID is one of the assigned pages
-		if ( ! empty( $ielts_pages ) && in_array( $post->ID, $ielts_pages ) ) {
-			// Get the module pages data
-			$module_pages_data = apply_filters( 'ielts_science_lms_module_pages_data', array() );
+		// Check if this post's ID is one of the assigned pages.
+		if ( ! empty( $ielts_pages ) && in_array( $post->ID, $ielts_pages, true ) ) {
+			// Get the module pages data.
+			$module_pages_data = apply_filters( 'ieltssci_lms_module_pages_data', array() );
 
-			// Find the page key and label for this post's ID
+			// Find the page key and label for this post's ID.
 			foreach ( $module_pages_data as $module_data ) {
 				foreach ( $module_data['pages'] as $page_key => $page_label ) {
-					if ( isset( $ielts_pages[ $page_key ] ) && $ielts_pages[ $page_key ] == $post->ID ) {
-						// Add the page label as a custom post state
+					if ( isset( $ielts_pages[ $page_key ] ) && $ielts_pages[ $page_key ] === $post->ID ) {
+						// Add the page label as a custom post state.
 						$post_states[] = esc_html( $page_label );
-						break 2; // Exit both loops once the page is found
+						break 2; // Exit both loops once the page is found.
 					}
 				}
 			}
