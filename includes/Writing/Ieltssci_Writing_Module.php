@@ -23,6 +23,8 @@ class Ieltssci_Writing_Module {
 	 */
 	public function __construct() {
 		new Ieltssci_Writing_SSE_REST();
+		new Ieltssci_Writing_REST();
+		new Ieltssci_Writing_Settings();
 		// Initialize the writing module.
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_writing_assets' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_writing_assets' ) );
