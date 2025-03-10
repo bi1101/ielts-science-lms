@@ -53,12 +53,13 @@ class Ieltssci_Writing_Feedback_Processor {
 	/**
 	 * Process a specific feed by ID
 	 *
-	 * @param int    $feed_id ID of the feed to process.
-	 * @param string $uuid The UUID of the essay.
+	 * @param int    $feed_id       ID of the feed to process.
+	 * @param string $uuid          The UUID of the essay.
+	 * @param int    $segment_order Optional. The order of the segment to process.
 	 * @return WP_Error|null Error or null on success.
 	 * @throws Exception When feed processing fails.
 	 */
-	public function process_feed_by_id( $feed_id, $uuid ) {
+	public function process_feed_by_id( $feed_id, $uuid, $segment_order = null ) {
 		// Get the specific feed that needs processing.
 		$feeds = $this->api_feeds_db->get_api_feeds(
 			array(
@@ -80,7 +81,7 @@ class Ieltssci_Writing_Feedback_Processor {
 
 		try {
 			// Process the feed.
-			$this->process_feed( $feed, $uuid );
+			$this->process_feed( $feed, $uuid, $segment_order );
 			return null;
 		} catch ( Exception $e ) {
 			return new WP_Error( 500, $e->getMessage() );
@@ -88,54 +89,145 @@ class Ieltssci_Writing_Feedback_Processor {
 	}
 
 	/**
+	 * Process a specific feed by ID for a specific segment
+	 *
+	 * @param int    $feed_id       ID of the feed to process.
+	 * @param string $uuid          The UUID of the essay.
+	 * @param int    $segment_order The order of the segment to process.
+	 * @return WP_Error|null Error or null on success.
+	 * @throws Exception When feed processing fails.
+	 */
+	public function process_segment_feedback_by_id( $feed_id, $uuid, $segment_order ) {
+		return $this->process_feed_by_id( $feed_id, $uuid, $segment_order );
+	}
+
+	/**
 	 * Process a feed
 	 *
-	 * @param array  $feed The feed data.
-	 * @param string $uuid The UUID of the essay.
+	 * @param array  $feed          The feed data.
+	 * @param string $uuid          The UUID of the essay.
+	 * @param int    $segment_order Optional. The order of the segment to process.
 	 *
 	 * @throws Exception When feed processing fails.
 	 */
-	public function process_feed( $feed, $uuid ) {
-		// Announce starting this feed.
-		$this->send_message(
-			'feed_start',
-			array(
-				'feed_id'           => $feed['id'],
-				'feed_title'        => isset( $feed['feed_title'] ) ? $feed['feed_title'] : 'Feedback',
-				'feedback_criteria' => $feed['feedback_criteria'],
-			)
-		);
+	public function process_feed( $feed, $uuid, $segment_order = null ) {
+		// Get segment information if segment_order is provided.
+		$segment = null;
+		if ( null !== $segment_order ) {
+			$essay_db = new Ieltssci_Essay_DB();
+
+			// Get the essay ID from UUID.
+			$essays = $essay_db->get_essays(
+				array(
+					'uuid'     => $uuid,
+					'per_page' => 1,
+					'fields'   => array( 'id' ),
+				)
+			);
+
+			if ( is_wp_error( $essays ) || empty( $essays ) ) {
+				throw new Exception( 'Essay not found.' );
+			}
+
+			$essay_id = $essays[0]['id'];
+
+			// Get the segment with the specified order.
+			$segments = $essay_db->get_segments(
+				array(
+					'essay_id' => $essay_id,
+					'order'    => $segment_order,
+					'number'   => 1,
+				)
+			);
+
+			if ( is_wp_error( $segments ) || empty( $segments ) ) {
+				throw new Exception( 'Segment not found with order: ' . esc_html( $segment_order ) );
+			}
+
+			$segment = $segments[0];
+
+			// Announce starting this feed for the segment.
+			$this->send_message(
+				'segment_feed_start',
+				array(
+					'feed_id'           => $feed['id'],
+					'feed_title'        => isset( $feed['feed_title'] ) ? $feed['feed_title'] : 'Segment Feedback',
+					'segment_order'     => $segment_order,
+					'segment_id'        => $segment['id'],
+					'segment_type'      => $segment['type'],
+					'segment_title'     => $segment['title'],
+					'feedback_criteria' => $feed['feedback_criteria'],
+				)
+			);
+		} else {
+			// Announce starting this feed.
+			$this->send_message(
+				'feed_start',
+				array(
+					'feed_id'           => $feed['id'],
+					'feed_title'        => isset( $feed['feed_title'] ) ? $feed['feed_title'] : 'Feedback',
+					'feedback_criteria' => $feed['feedback_criteria'],
+				)
+			);
+		}
 
 		try {
 			$steps   = isset( $feed['meta'] ) ? json_decode( $feed['meta'], true )['steps'] : array();
 			$results = array();
 
 			foreach ( $steps as $step ) {
-				$result    = $this->process_step( $step, $uuid, $feed );
+				$result    = $this->process_step( $step, $uuid, $feed, $segment );
 				$results[] = $result;
 			}
 
 			// Signal completion of this feed.
-			$this->send_message(
-				'feed_complete',
-				array(
-					'feed_id'  => $feed['id'],
-					'status'   => 'success',
-					'feedback' => $results,
-				)
-			);
+			if ( null !== $segment_order ) {
+				$this->send_message(
+					'segment_feed_complete',
+					array(
+						'feed_id'       => $feed['id'],
+						'segment_id'    => $segment['id'],
+						'segment_order' => $segment_order,
+						'status'        => 'success',
+						'feedback'      => $results,
+					)
+				);
+			} else {
+				$this->send_message(
+					'feed_complete',
+					array(
+						'feed_id'  => $feed['id'],
+						'status'   => 'success',
+						'feedback' => $results,
+					)
+				);
+			}
 		} catch ( Exception $e ) {
 			// Handle error.
-			$this->send_error(
-				'feed_error',
-				array(
-					'feed_id'  => isset( $feed['id'] ) ? $feed['id'] : 0,
-					'title'    => 'Error Processing Feedback',
-					'message'  => $e->getMessage(),
-					'ctaTitle' => 'Try Again',
-					'ctaLink'  => '#',
-				)
-			);
+			if ( null !== $segment_order ) {
+				$this->send_error(
+					'segment_feed_error',
+					array(
+						'feed_id'       => isset( $feed['id'] ) ? $feed['id'] : 0,
+						'segment_order' => $segment_order,
+						'title'         => 'Error Processing Segment Feedback',
+						'message'       => $e->getMessage(),
+						'ctaTitle'      => 'Try Again',
+						'ctaLink'       => '#',
+					)
+				);
+			} else {
+				$this->send_error(
+					'feed_error',
+					array(
+						'feed_id'  => isset( $feed['id'] ) ? $feed['id'] : 0,
+						'title'    => 'Error Processing Feedback',
+						'message'  => $e->getMessage(),
+						'ctaTitle' => 'Try Again',
+						'ctaLink'  => '#',
+					)
+				);
+			}
 			throw $e;
 		}
 	}
@@ -143,12 +235,13 @@ class Ieltssci_Writing_Feedback_Processor {
 	/**
 	 * Process a single step from a feed
 	 *
-	 * @param array  $step The step configuration.
-	 * @param string $uuid The UUID of the essay.
-	 * @param array  $feed The feed data.
+	 * @param array  $step    The step configuration.
+	 * @param string $uuid    The UUID of the essay.
+	 * @param array  $feed    The feed data.
+	 * @param array  $segment Optional. The segment data if processing a specific segment.
 	 * @return string The processed content.
 	 */
-	public function process_step( $step, $uuid, $feed ) {
+	public function process_step( $step, $uuid, $feed, $segment = null ) {
 		// Get settings from the step.
 		$step_type = isset( $step['step'] ) ? $step['step'] : 'feedback';
 		$sections  = isset( $step['sections'] ) ? $step['sections'] : array();
@@ -180,19 +273,34 @@ class Ieltssci_Writing_Feedback_Processor {
 		$temperature    = $config['advanced-setting']['temperature'];
 		$max_tokens     = $config['advanced-setting']['maxToken'];
 
+		// Pre-process segment-specific variables if segment is provided.
+		if ( null !== $segment ) {
+			// Replace segment-specific variables directly.
+			$english_prompt = str_replace( '{|segment_content|}', $segment['content'], $english_prompt );
+			$english_prompt = str_replace( '{|segment_title|}', $segment['title'], $english_prompt );
+			$english_prompt = str_replace( '{|segment_type|}', $segment['type'], $english_prompt );
+			$english_prompt = str_replace( '{|segment_order|}', $segment['order'], $english_prompt );
+			$english_prompt = str_replace( '{|segment_id|}', $segment['id'], $english_prompt );
+		}
+
 		// Process merge tags in the prompt.
-		$processed_prompt = $this->process_merge_tags( $english_prompt, $uuid );
+		$segment_order    = null !== $segment ? $segment['order'] : null;
+		$processed_prompt = $this->process_merge_tags( $english_prompt, $uuid, $segment_order );
 
 		// Check if the processed prompt is a string or an array.
 		if ( is_array( $processed_prompt ) ) {
 			// If it's an array, we'll use parallel API calls.
-			$this->send_message(
-				'batch_processing',
-				array(
-					'total_prompts' => count( $processed_prompt ),
-					'message'       => 'Starting parallel processing of multiple prompts',
-				)
+			$event_type   = null !== $segment ? 'segment_batch_processing' : 'batch_processing';
+			$message_data = array(
+				'total_prompts' => count( $processed_prompt ),
+				'message'       => 'Starting parallel processing of multiple prompts',
 			);
+
+			if ( null !== $segment ) {
+				$message_data['segment_order'] = $segment['order'];
+			}
+
+			$this->send_message( $event_type, $message_data );
 
 			// Use parallel API calls for array prompts.
 			$result = $this->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type );
@@ -203,7 +311,7 @@ class Ieltssci_Writing_Feedback_Processor {
 		}
 
 		// Save the results to the database.
-		$this->save_feedback_to_database( $result, $feed, $uuid, $step_type );
+		$this->save_feedback_to_database( $result, $feed, $uuid, $step_type, $segment );
 
 		return $result;
 	}
@@ -215,21 +323,19 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @param array  $feed The feed configuration data.
 	 * @param string $uuid The UUID of the essay.
 	 * @param string $step_type The type of step being processed.
+	 * @param array  $segment Optional. The segment data if processing a specific segment.
 	 * @return bool True on success, false on failure.
 	 */
-	private function save_feedback_to_database( $feedback, $feed, $uuid, $step_type ) {
-		// Placeholder function that will be filled in later.
-
-		// Check if we have a valid apply_to setting.
+	private function save_feedback_to_database( $feedback, $feed, $uuid, $step_type, $segment = null ) {
+			// Check if we have a valid apply_to setting.
 		if ( empty( $feed['apply_to'] ) ) {
 			return false;
 		}
 
-		// Get the apply_to value which determines where to save.
-		$apply_to = $feed['apply_to'];
+			// Get the apply_to value which determines where to save.
+			$apply_to = $feed['apply_to'];
 
-		// TODO: Implement the actual database saving logic based on the apply_to value.
-		// Possible values might be 'essay', 'paragraph', 'introduction', 'topic-sentence', 'main-point, 'conclusion'.
+			// Implement the database saving logic based on the apply_to value.
 		switch ( $apply_to ) {
 
 			case 'essay':
@@ -242,9 +348,96 @@ class Ieltssci_Writing_Feedback_Processor {
 				$this->save_paragraph_feedback( $uuid, $feedback, $feed, $step_type );
 				break;
 
+			case 'introduction':
+			case 'topic-sentence':
+			case 'main-point':
+			case 'conclusion':
+				// Save feedback for the specific segment.
+				$this->save_segment_feedback( $uuid, $feedback, $feed, $step_type, $segment );
+				break;
+
 			// Add other cases as needed.
 		}
-		return true;
+			return true;
+	}
+
+		/**
+		 * Save segment feedback to the database
+		 *
+		 * @param string $uuid       The UUID of the essay.
+		 * @param string $feedback   The feedback content to save.
+		 * @param array  $feed       The feed data (containing criteria, etc.).
+		 * @param string $step_type  The type of step (chain-of-thought, scoring, feedback).
+		 * @param array  $segment    The segment data object.
+		 * @return int|WP_Error|bool ID of created/updated feedback, error, or false if skipped.
+		 */
+	private function save_segment_feedback( $uuid, $feedback, $feed, $step_type, $segment ) {
+		// Check if segment is null - if so, return false (nothing to save).
+		if ( empty( $segment ) || empty( $segment['id'] ) ) {
+			return false;
+		}
+
+		// Get segment ID from segment object.
+		$segment_id = $segment['id'];
+
+		// Extract needed feed attributes.
+		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
+		$feedback_language = isset( $feed['feedback_language'] ) ? $feed['feedback_language'] : 'en';
+		$source            = isset( $feed['source'] ) ? $feed['source'] : 'ai';
+
+		// Map step_type to the appropriate database column.
+		$content_field = '';
+		switch ( $step_type ) {
+			case 'chain-of-thought':
+				$content_field = 'cot_content';
+				break;
+			case 'scoring':
+				$content_field = 'score_content';
+				break;
+			case 'feedback':
+			default:
+				$content_field = 'feedback_content';
+				break;
+		}
+
+		// Initialize Essay DB.
+		$essay_db = new Ieltssci_Essay_DB();
+
+		// Check if existing feedback already exists for this segment and criteria.
+		$existing_feedback = $essay_db->get_segment_feedbacks(
+			array(
+				'segment_id'        => $segment_id,
+				'feedback_criteria' => $feedback_criteria,
+				'per_page'          => 1,
+			)
+		);
+
+		// Prepare feedback data.
+		$feedback_data = array(
+			'segment_id'        => $segment_id,
+			'feedback_criteria' => $feedback_criteria,
+			'feedback_language' => $feedback_language,
+			'source'            => $source,
+			$content_field      => $feedback,
+		);
+
+		// If existing record found.
+		if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) ) {
+			$existing = $existing_feedback[0];
+
+			// Check if the content field for this step_type is empty.
+			if ( empty( $existing[ $content_field ] ) ) {
+				// Update the existing record with new content.
+				$feedback_data['id'] = $existing['id'];
+				return $essay_db->create_update_segment_feedback( $feedback_data );
+			} else {
+				// Skip saving if content already exists.
+				return false;
+			}
+		} else {
+			// No existing record, create new feedback entry.
+			return $essay_db->create_update_segment_feedback( $feedback_data );
+		}
 	}
 
 	/**
@@ -511,13 +704,13 @@ class Ieltssci_Writing_Feedback_Processor {
 	private function determine_segment_type( $segment_title ) {
 		$title_lower = strtolower( $segment_title );
 
-		if ( strpos( $title_lower, 'introduction' ) !== false ) {
+		if ( false !== strpos( $title_lower, 'introduction' ) ) {
 			return 'introduction';
-		} elseif ( strpos( $title_lower, 'conclusion' ) !== false ) {
+		} elseif ( false !== strpos( $title_lower, 'conclusion' ) ) {
 			return 'conclusion';
-		} elseif ( strpos( $title_lower, 'topic sentence' ) !== false ) {
+		} elseif ( false !== strpos( $title_lower, 'topic sentence' ) ) {
 			return 'topic-sentence';
-		} elseif ( strpos( $title_lower, 'main point' ) !== false ) {
+		} elseif ( false !== strpos( $title_lower, 'main point' ) ) {
 			return 'main-point';
 		} else {
 			return 'unknown';
@@ -808,11 +1001,12 @@ class Ieltssci_Writing_Feedback_Processor {
 	/**
 	 * Process merge tags in a prompt string
 	 *
-	 * @param string $prompt The prompt string containing merge tags.
-	 * @param string $uuid The UUID of the essay to use for fetching content.
+	 * @param string $prompt       The prompt string containing merge tags.
+	 * @param string $uuid         The UUID of the essay to use for fetching content.
+	 * @param int    $segment_order Optional. The order of the segment to filter by.
 	 * @return string|array The processed prompt with merge tags replaced, or an array if a modifier results in an array.
 	 */
-	private function process_merge_tags( $prompt, $uuid ) {
+	private function process_merge_tags( $prompt, $uuid, $segment_order = null ) {
 		// Regex to find merge tags in format {prefix|parameters|suffix}.
 		$regex = '/\{(?\'prefix\'.*?)\|(?\'parameters\'.*?)\|(?\'suffix\'.*?)\}/ms';
 
@@ -827,8 +1021,8 @@ class Ieltssci_Writing_Feedback_Processor {
 			$full_tag   = $match[0];
 			$parameters = $match['parameters'];
 
-			// Fetch the content based on parameters and UUID.
-			$content = $this->fetch_content_for_merge_tag( $parameters, $uuid );
+			// Fetch the content based on parameters, UUID, and segment_order if provided.
+			$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order );
 
 			if ( is_array( $content ) ) {
 				$array_tags[ $full_tag ] = array(
@@ -851,7 +1045,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				$parameters = $match['parameters'];
 				$suffix     = $match['suffix'];
 
-				$content = $this->fetch_content_for_merge_tag( $parameters, $uuid );
+				$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order );
 
 				// For non-array content, standard replacement.
 				$replacement = empty( $content ) ? '' : "{$prefix}{$content}{$suffix}";
@@ -893,7 +1087,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				$parameters = $match['parameters'];
 				$suffix     = $match['suffix'];
 
-				$content     = $this->fetch_content_for_merge_tag( $parameters, $uuid );
+				$content     = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order );
 				$replacement = empty( $content ) ? '' : "{$prefix}{$content}{$suffix}";
 
 				$variant = str_replace( $full_tag, $replacement, $variant );
@@ -908,11 +1102,12 @@ class Ieltssci_Writing_Feedback_Processor {
 	/**
 	 * Fetch content for a merge tag based on parameters
 	 *
-	 * @param string $parameters The parameters specifying what content to fetch.
-	 * @param string $uuid The UUID of the essay.
+	 * @param string $parameters    The parameters specifying what content to fetch.
+	 * @param string $uuid          The UUID of the essay.
+	 * @param int    $segment_order Optional. The order of the segment to filter by.
 	 * @return array|string|null The content to replace the merge tag with, or null if not found.
 	 */
-	private function fetch_content_for_merge_tag( $parameters, $uuid ) {
+	private function fetch_content_for_merge_tag( $parameters, $uuid, $segment_order = null ) {
 		// Regex to extract parameter components:
 		// table:field[filter_field:filter_value]:modifier.
 		$regex = '/(?\'table\'.*?):(?\'field\'[^:\[]+)(?:\[(?\'filter_field\'.*?):(?\'filter_value\'.*?)\])?(?::(?\'modifier\'.*))?/m';
@@ -934,7 +1129,7 @@ class Ieltssci_Writing_Feedback_Processor {
 			}
 
 			// Get content based on extracted parameters.
-			$content = $this->get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid );
+			$content = $this->get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid, $segment_order );
 
 			// Apply modifier if present and content is not empty.
 			if ( ! empty( $content ) && ! empty( $modifier ) ) {
@@ -948,14 +1143,15 @@ class Ieltssci_Writing_Feedback_Processor {
 	/**
 	 * Get content from database based on parameters
 	 *
-	 * @param string $table The table/source to fetch from.
-	 * @param string $field The field to retrieve.
-	 * @param string $filter_field The field to filter by.
-	 * @param string $filter_value The value to filter with.
-	 * @param string $uuid The UUID of the essay (always required).
+	 * @param string $table         The table/source to fetch from.
+	 * @param string $field         The field to retrieve.
+	 * @param string $filter_field  The field to filter by.
+	 * @param string $filter_value  The value to filter with.
+	 * @param string $uuid          The UUID of the essay (always required).
+	 * @param int    $segment_order Optional. The order of the segment to filter by.
 	 * @return string|array|null The retrieved content, array of values, or null if not found.
 	 */
-	private function get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid ) {
+	private function get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid, $segment_order = null ) {
 		// Skip if any required parameter is missing.
 		if ( empty( $table ) || empty( $field ) || empty( $uuid ) ) {
 			return null;
@@ -992,7 +1188,7 @@ class Ieltssci_Writing_Feedback_Processor {
 
 				$essays = $essay_db->get_essays( $query_args );
 				if ( ! is_wp_error( $essays ) && ! empty( $essays ) ) {
-					if ( count( $essays ) === 1 ) {
+					if ( 1 === count( $essays ) ) {
 						// Return just the specific field for single result.
 						return isset( $essays[0][ $field ] ) ? $essays[0][ $field ] : null;
 					} else {
@@ -1022,6 +1218,11 @@ class Ieltssci_Writing_Feedback_Processor {
 					'essay_id' => $essay_id,
 				);
 
+				// Add segment_order filter if provided.
+				if ( null !== $segment_order ) {
+					$query_args['order'] = $segment_order;
+				}
+
 				// Add additional filter if provided.
 				if ( ! empty( $filter_field ) && ! empty( $filter_value ) ) {
 					$query_args[ $filter_field ] = $filter_value;
@@ -1034,7 +1235,7 @@ class Ieltssci_Writing_Feedback_Processor {
 
 				$segments = $essay_db->get_segments( $query_args );
 				if ( ! is_wp_error( $segments ) && ! empty( $segments ) ) {
-					if ( count( $segments ) === 1 ) {
+					if ( 1 === count( $segments ) ) {
 						// Return just the specific field for single result.
 						return isset( $segments[0][ $field ] ) ? $segments[0][ $field ] : null;
 					} else {
@@ -1076,7 +1277,7 @@ class Ieltssci_Writing_Feedback_Processor {
 
 				$feedbacks = $essay_db->get_essay_feedbacks( $query_args );
 				if ( ! is_wp_error( $feedbacks ) && ! empty( $feedbacks ) ) {
-					if ( count( $feedbacks ) === 1 ) {
+					if ( 1 === count( $feedbacks ) ) {
 						// Return just the specific field for single result.
 						return isset( $feedbacks[0][ $field ] ) ? $feedbacks[0][ $field ] : null;
 					} else {
@@ -1101,13 +1302,18 @@ class Ieltssci_Writing_Feedback_Processor {
 				}
 				$essay_id = $essays[0]['id'];
 
-				// Get segments for this essay.
-				$segments = $essay_db->get_segments(
-					array(
-						'essay_id' => $essay_id,
-						'fields'   => array( 'id' ),
-					)
+				// Get segments for this essay with optional segment_order filter.
+				$segment_query = array(
+					'essay_id' => $essay_id,
+					'fields'   => array( 'id' ),
 				);
+
+				if ( null !== $segment_order ) {
+					$segment_query['order'] = $segment_order;
+				}
+
+				$segments = $essay_db->get_segments( $segment_query );
+
 				if ( is_wp_error( $segments ) || empty( $segments ) ) {
 					return null;
 				}
@@ -1132,7 +1338,7 @@ class Ieltssci_Writing_Feedback_Processor {
 
 				$feedbacks = $essay_db->get_segment_feedbacks( $query_args );
 				if ( ! is_wp_error( $feedbacks ) && ! empty( $feedbacks ) ) {
-					if ( count( $feedbacks ) === 1 ) {
+					if ( 1 === count( $feedbacks ) ) {
 						// Return just the specific field for single result.
 						return isset( $feedbacks[0][ $field ] ) ? $feedbacks[0][ $field ] : null;
 					} else {
@@ -1281,7 +1487,7 @@ class Ieltssci_Writing_Feedback_Processor {
 		$paragraphs = preg_split( '/(\n\s*\n|\n\s+)/', $text );
 
 		// For single-line paragraphs (when text uses just one \n between paragraphs).
-		if ( count( $paragraphs ) <= 1 && strpos( $text, "\n" ) !== false ) {
+		if ( count( $paragraphs ) <= 1 && false !== strpos( $text, "\n" ) ) {
 			$paragraphs = explode( "\n", $text );
 		}
 
@@ -1514,7 +1720,7 @@ class Ieltssci_Writing_Feedback_Processor {
 		switch ( $provider ) {
 			case 'google':
 				$chunk = json_decode( $data, true );
-				if ( json_last_error() === JSON_ERROR_NONE &&
+				if ( JSON_ERROR_NONE === json_last_error() &&
 					isset( $chunk['choices'][0]['delta']['content'] ) ) {
 					return $chunk['choices'][0]['delta']['content'];
 				}
@@ -1523,7 +1729,7 @@ class Ieltssci_Writing_Feedback_Processor {
 			case 'openai':
 			case 'open-key-ai':
 				$chunk = json_decode( $data, true );
-				if ( json_last_error() === JSON_ERROR_NONE &&
+				if ( JSON_ERROR_NONE === json_last_error() &&
 					isset( $chunk['choices'][0]['delta']['content'] ) ) {
 					return $chunk['choices'][0]['delta']['content'];
 				}
@@ -1531,7 +1737,7 @@ class Ieltssci_Writing_Feedback_Processor {
 
 			default:
 				$chunk = json_decode( $data, true );
-				if ( json_last_error() === JSON_ERROR_NONE &&
+				if ( JSON_ERROR_NONE === json_last_error() &&
 					isset( $chunk['choices'][0]['delta']['content'] ) ) {
 					return $chunk['choices'][0]['delta']['content'];
 				}
@@ -1552,7 +1758,7 @@ class Ieltssci_Writing_Feedback_Processor {
 		}
 
 		$response_data = json_decode( $response_body, true );
-		if ( json_last_error() !== JSON_ERROR_NONE ) {
+		if ( JSON_ERROR_NONE !== json_last_error() ) {
 			return 'Error parsing response: ' . json_last_error_msg();
 		}
 
@@ -1587,6 +1793,80 @@ class Ieltssci_Writing_Feedback_Processor {
 	private function send_error( $event_type, $error ) {
 		if ( is_callable( $this->message_callback ) ) {
 			call_user_func( $this->message_callback, $event_type, $error, true );
+		}
+	}
+
+	/**
+	 * Save segment-specific feedback to the database
+	 *
+	 * @param string $feedback   The feedback content to save.
+	 * @param int    $segment_id The ID of the segment.
+	 * @param array  $feed       The feed configuration data.
+	 * @param string $step_type  The type of step being processed.
+	 * @return int|WP_Error|bool ID of created feedback, error, or false if skipped.
+	 */
+	private function save_segment_feedback_to_database( $feedback, $segment_id, $feed, $step_type ) {
+		if ( empty( $feedback ) || empty( $segment_id ) ) {
+			return false;
+		}
+
+		// Initialize Essay DB.
+		$essay_db = new Ieltssci_Essay_DB();
+
+		// Extract needed feed attributes.
+		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
+		$feedback_language = isset( $feed['feedback_language'] ) ? $feed['feedback_language'] : 'en';
+		$source            = isset( $feed['source'] ) ? $feed['source'] : 'ai';
+
+		// Map step_type to the appropriate database column.
+		$content_field = '';
+		switch ( $step_type ) {
+			case 'chain-of-thought':
+				$content_field = 'cot_content';
+				break;
+			case 'scoring':
+				$content_field = 'score_content';
+				break;
+			case 'feedback':
+			default:
+				$content_field = 'feedback_content';
+				break;
+		}
+
+		// Check if existing feedback already exists for this segment and criteria.
+		$existing_feedback = $essay_db->get_segment_feedbacks(
+			array(
+				'segment_id'        => $segment_id,
+				'feedback_criteria' => $feedback_criteria,
+				'limit'             => 1,
+			)
+		);
+
+		// Prepare feedback data.
+		$feedback_data = array(
+			'segment_id'        => $segment_id,
+			'feedback_criteria' => $feedback_criteria,
+			'feedback_language' => $feedback_language,
+			'source'            => $source,
+			$content_field      => $feedback,
+		);
+
+		// If existing record found.
+		if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) ) {
+			$existing = $existing_feedback[0];
+
+			// Check if the content field for this step_type is empty.
+			if ( empty( $existing[ $content_field ] ) ) {
+				// Update the existing record with new content.
+				$feedback_data['id'] = $existing['id'];
+				return $essay_db->create_update_segment_feedback( $feedback_data );
+			} else {
+				// Skip saving if content already exists.
+				return false;
+			}
+		} else {
+			// No existing record, create new feedback entry.
+			return $essay_db->create_update_segment_feedback( $feedback_data );
 		}
 	}
 }

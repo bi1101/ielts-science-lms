@@ -72,6 +72,40 @@ class Ieltssci_Writing_SSE_REST {
 				),
 			)
 		);
+
+		// Register route for segment feedback.
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->base . '/segment-feedback',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_segment_feedback' ),
+				'permission_callback' => '__return_true', // Accessible to anyone.
+				'args'                => array(
+					'UUID'          => array(
+						'required'          => true,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param ) && ! empty( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'feed_id'       => array(
+						'required'          => true,
+						'validate_callback' => function ( $param ) {
+							return is_numeric( $param ) && intval( $param ) > 0;
+						},
+						'sanitize_callback' => 'absint',
+					),
+					'segment_order' => array(
+						'required'          => true,
+						'validate_callback' => function ( $param ) {
+							return is_numeric( $param ) && intval( $param ) >= 0;
+						},
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -103,6 +137,48 @@ class Ieltssci_Writing_SSE_REST {
 
 		// Process the specific feed.
 		$result = $processor->process_feed_by_id( $feed_id, $uuid );
+
+		// Handle errors.
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		// Signal completion.
+		$this->send_done( 'END' );
+
+		exit;
+	}
+
+	/**
+	 * Callback for the segment feedback endpoint.
+	 *
+	 * Streams AI-generated feedback for a specific segment of an essay.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 */
+	public function get_segment_feedback( $request ) {
+		// Get parameters.
+		$uuid          = $request->get_param( 'UUID' );
+		$feed_id       = $request->get_param( 'feed_id' );
+		$segment_order = $request->get_param( 'segment_order' );
+
+		// Set up SSE headers.
+		$this->set_sse_headers();
+
+		// Create feedback processor with message callback.
+		$processor = new Ieltssci_Writing_Feedback_Processor(
+			// Pass the message sending function as a callback.
+			function ( $event_type, $data, $is_error = false ) {
+				if ( $is_error ) {
+					$this->send_error( $event_type, $data );
+				} else {
+					$this->send_message( $event_type, $data );
+				}
+			}
+		);
+
+		// Process the specific feed for the segment.
+		$result = $processor->process_segment_feedback_by_id( $feed_id, $uuid, $segment_order );
 
 		// Handle errors.
 		if ( is_wp_error( $result ) ) {
