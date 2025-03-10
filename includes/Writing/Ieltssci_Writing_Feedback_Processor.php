@@ -232,6 +232,11 @@ class Ieltssci_Writing_Feedback_Processor {
 		// Possible values might be 'essay', 'paragraph', 'introduction', 'topic-sentence', 'main-point, 'conclusion'.
 		switch ( $apply_to ) {
 
+			case 'essay':
+				// Save the essay-level feedback.
+				$this->save_essay_feedback( $uuid, $feedback, $feed, $step_type );
+				break;
+
 			case 'paragraph':
 				// Save the segments.
 				$this->save_paragraph_feedback( $uuid, $feedback, $feed, $step_type );
@@ -240,6 +245,91 @@ class Ieltssci_Writing_Feedback_Processor {
 			// Add other cases as needed.
 		}
 		return true;
+	}
+
+	/**
+	 * Save essay feedback to the database
+	 *
+	 * @param string $uuid The UUID of the essay.
+	 * @param string $feedback The feedback content to save.
+	 * @param array  $feed The feed data (containing feedback criteria, etc.).
+	 * @param string $step_type The type of step (chain-of-thought, scoring, feedback).
+	 * @return int|WP_Error|bool ID of created feedback, error, or false if skipped.
+	 */
+	private function save_essay_feedback( $uuid, $feedback, $feed, $step_type ) {
+		// Initialize Essay DB.
+		$essay_db = new Ieltssci_Essay_DB();
+
+		// Get the essay_id from UUID.
+		$essays = $essay_db->get_essays(
+			array(
+				'uuid'     => $uuid,
+				'per_page' => 1,
+				'fields'   => array( 'id' ),
+			)
+		);
+
+		if ( is_wp_error( $essays ) || empty( $essays ) ) {
+			return false;
+		}
+
+		$essay_id = $essays[0]['id'];
+
+		// Extract needed feed attributes.
+		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
+		$feedback_language = isset( $feed['feedback_language'] ) ? $feed['feedback_language'] : 'en';
+		$source            = isset( $feed['source'] ) ? $feed['source'] : 'ai';
+
+		// Map step_type to the appropriate database column.
+		$content_field = '';
+		switch ( $step_type ) {
+			case 'chain-of-thought':
+				$content_field = 'cot_content';
+				break;
+			case 'scoring':
+				$content_field = 'score_content';
+				break;
+			case 'feedback':
+			default:
+				$content_field = 'feedback_content';
+				break;
+		}
+
+		// Check if existing feedback already exists for this essay and criteria.
+		$existing_feedback = $essay_db->get_essay_feedbacks(
+			array(
+				'essay_id'          => $essay_id,
+				'feedback_criteria' => $feedback_criteria,
+				'per_page'          => 1,
+			)
+		);
+
+		// Prepare feedback data.
+		$feedback_data = array(
+			'essay_id'          => $essay_id,
+			'feedback_criteria' => $feedback_criteria,
+			'feedback_language' => $feedback_language,
+			'source'            => $source,
+			$content_field      => $feedback,
+		);
+
+		// If existing record found.
+		if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) ) {
+			$existing = $existing_feedback[0];
+
+			// Check if the content field for this step_type is empty.
+			if ( empty( $existing[ $content_field ] ) ) {
+				// Update the existing record with new content.
+				$feedback_data['id'] = $existing['id'];
+				return $essay_db->create_update_essay_feedback( $feedback_data );
+			} else {
+				// Skip saving if content already exists.
+				return false;
+			}
+		} else {
+			// No existing record, create new feedback entry.
+			return $essay_db->create_update_essay_feedback( $feedback_data );
+		}
 	}
 
 	/**
