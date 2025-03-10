@@ -1454,4 +1454,185 @@ class Ieltssci_Essay_DB {
 			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
 		}
 	}
+
+	/**
+	 * Fork (duplicate) an essay along with all its related data.
+	 *
+	 * This function creates a copy of an existing essay including its segments,
+	 * segment feedback, and essay feedback. The new essay will reference the original
+	 * essay via the original_id field.
+	 *
+	 * @param int   $essay_id    ID of the essay to fork.
+	 * @param int   $user_id     ID of the user creating the fork. If null, uses current user.
+	 * @param array $options     Optional. Additional options for forking.
+	 *     @var bool $copy_segments        Whether to copy segments. Default true.
+	 *     @var bool $copy_segment_feedback Whether to copy segment feedback. Default true.
+	 *     @var bool $copy_essay_feedback  Whether to copy essay feedback. Default true.
+	 *     @var bool $generate_new_uuid    Whether to generate a new UUID. Default true.
+	 *
+	 * @return array|WP_Error Array containing the new essay ID and related data, or WP_Error on failure.
+	 * @throws \Exception If there is a database error.
+	 */
+	public function fork_essay( $essay_id, $user_id = null, $options = array() ) {
+		// 1. Validate inputs.
+		if ( empty( $essay_id ) ) {
+			return new WP_Error( 'invalid_essay_id', 'Invalid essay ID provided.', array( 'status' => 400 ) );
+		}
+
+		// Set user_id to current user if not provided.
+		if ( null === $user_id ) {
+			$user_id = get_current_user_id();
+			if ( ! $user_id ) {
+				return new WP_Error( 'no_user', 'No user ID provided and no current user.', array( 'status' => 400 ) );
+			}
+		}
+
+		// 2. Set default options.
+		$defaults = array(
+			'copy_segments'         => true,
+			'copy_segment_feedback' => true,
+			'copy_essay_feedback'   => true,
+			'generate_new_uuid'     => true,
+		);
+		$options  = wp_parse_args( $options, $defaults );
+
+		// 3. Start database transaction.
+		$this->wpdb->query( 'START TRANSACTION' );
+
+		try {
+			// 4. Get the original essay data.
+			$original_essay = $this->get_essays( array( 'id' => $essay_id ) );
+			if ( empty( $original_essay ) ) {
+				throw new \Exception( 'Original essay not found.' );
+			}
+			$original_essay = $original_essay[0];
+
+			// 5. Create a copy of the essay.
+			$new_essay_data = array(
+				'uuid'            => $options['generate_new_uuid'] ? wp_generate_uuid4() : $original_essay['uuid'],
+				'original_id'     => $original_essay['id'],
+				'ocr_image_ids'   => $original_essay['ocr_image_ids'],
+				'chart_image_ids' => $original_essay['chart_image_ids'],
+				'essay_type'      => $original_essay['essay_type'],
+				'question'        => $original_essay['question'],
+				'essay_content'   => $original_essay['essay_content'],
+				'created_by'      => $user_id,
+			);
+
+			$new_essay = $this->create_essay( $new_essay_data );
+			if ( is_wp_error( $new_essay ) ) {
+				throw new \Exception( 'Failed to create forked essay: ' . $new_essay->get_error_message() );
+			}
+
+			$result = array(
+				'essay'            => $new_essay,
+				'copied_segments'  => array(),
+				'segment_feedback' => array(),
+				'essay_feedback'   => array(),
+			);
+
+			// 6. Copy segments if specified.
+			if ( $options['copy_segments'] ) {
+				$original_segments = $this->get_segments(
+					array(
+						'essay_id' => $essay_id,
+						'orderby'  => 'order',
+						'order'    => 'ASC',
+						'number'   => 100, // Get all segments.
+					)
+				);
+
+				if ( ! empty( $original_segments ) && ! is_wp_error( $original_segments ) ) {
+					foreach ( $original_segments as $segment ) {
+						$new_segment_data = array(
+							'essay_id' => $new_essay['id'],
+							'type'     => $segment['type'],
+							'order'    => $segment['order'],
+							'title'    => $segment['title'],
+							'content'  => $segment['content'],
+						);
+
+						$new_segment = $this->create_update_segment( $new_segment_data );
+						if ( is_wp_error( $new_segment ) ) {
+							throw new \Exception( 'Failed to create segment copy: ' . $new_segment->get_error_message() );
+						}
+
+						// Add to mapping of original to new segment IDs.
+						$result['copied_segments'][ $segment['id'] ] = $new_segment;
+
+						// 7. Copy segment feedback if specified.
+						if ( $options['copy_segment_feedback'] ) {
+							$segment_feedbacks = $this->get_segment_feedbacks(
+								array(
+									'segment_id' => $segment['id'],
+									'limit'      => 100, // Get all feedback.
+								)
+							);
+
+							if ( ! empty( $segment_feedbacks ) && ! is_wp_error( $segment_feedbacks ) ) {
+								foreach ( $segment_feedbacks as $feedback ) {
+									$new_feedback_data = array(
+										'segment_id'       => $new_segment['id'],
+										'feedback_criteria' => $feedback['feedback_criteria'],
+										'feedback_language' => $feedback['feedback_language'],
+										'source'           => $feedback['source'],
+										'cot_content'      => $feedback['cot_content'],
+										'score_content'    => $feedback['score_content'],
+										'feedback_content' => $feedback['feedback_content'],
+										'is_preferred'     => $feedback['is_preferred'],
+										'created_by'       => $user_id,
+									);
+
+									$new_feedback = $this->create_update_segment_feedback( $new_feedback_data );
+									if ( is_wp_error( $new_feedback ) ) {
+										throw new \Exception( 'Failed to create segment feedback copy: ' . $new_feedback->get_error_message() );
+									}
+									$result['segment_feedback'][] = $new_feedback;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// 8. Copy essay feedback if specified.
+			if ( $options['copy_essay_feedback'] ) {
+				$essay_feedbacks = $this->get_essay_feedbacks(
+					array(
+						'essay_id' => $essay_id,
+						'number'   => 100, // Get all feedback.
+					)
+				);
+
+				if ( ! empty( $essay_feedbacks ) && ! is_wp_error( $essay_feedbacks ) ) {
+					foreach ( $essay_feedbacks as $feedback ) {
+						$new_feedback_data = array(
+							'essay_id'          => $new_essay['id'],
+							'feedback_criteria' => $feedback['feedback_criteria'],
+							'feedback_language' => $feedback['feedback_language'],
+							'source'            => $feedback['source'],
+							'cot_content'       => $feedback['cot_content'],
+							'score_content'     => $feedback['score_content'],
+							'feedback_content'  => $feedback['feedback_content'],
+							'is_preferred'      => $feedback['is_preferred'],
+							'created_by'        => $user_id,
+						);
+
+						$new_feedback = $this->create_update_essay_feedback( $new_feedback_data );
+						if ( is_wp_error( $new_feedback ) ) {
+							throw new \Exception( 'Failed to create essay feedback copy: ' . $new_feedback->get_error_message() );
+						}
+						$result['essay_feedback'][] = $new_feedback;
+					}
+				}
+			}
+
+			// 9. Commit transaction.
+			$this->wpdb->query( 'COMMIT' );
+			return $result;
+		} catch ( \Exception $e ) {
+			$this->wpdb->query( 'ROLLBACK' );
+			return new WP_Error( 'fork_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
 }
