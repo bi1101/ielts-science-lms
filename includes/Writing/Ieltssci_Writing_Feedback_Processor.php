@@ -1058,6 +1058,9 @@ class Ieltssci_Writing_Feedback_Processor {
 				$settings['base_uri'] = 'https://api.hakai.shop/v1/';
 				break;
 
+			case 'home-server':
+				$settings['base_uri'] = 'https://lorax.ieltsscience.fun/v1/';
+				break;
 			default:
 				// Default to OpenAI.
 				$settings['base_uri'] = 'https://api.openai.com/v1/';
@@ -1100,8 +1103,24 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @param int    $max_tokens Maximum tokens.
 	 * @param bool   $stream Whether to stream the response or not.
 	 * @return array Request payload.
+	 * @throws Exception When API key is not found for the provider.
 	 */
 	private function get_request_payload( $provider, $model, $prompt, $temperature, $max_tokens, $stream = true ) {
+		if ( 'home-server' === $provider ) {
+			// Get API key for huggingface when using home-server.
+			$api_keys_db = new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_DB();
+			$api_key     = $api_keys_db->get_api_key(
+				0,
+				array(
+					'provider'        => 'huggingface',
+					'increment_usage' => true,
+				)
+			);
+
+			if ( ! $api_key ) {
+				throw new Exception( esc_html( 'HF API key not found for provider: home-server' ) );
+			}
+		}
 
 		return match ( $provider ) {
 			'openai' => array(
@@ -1127,6 +1146,19 @@ class Ieltssci_Writing_Feedback_Processor {
 				'temperature' => $temperature,
 				'max_tokens'  => $max_tokens,
 				'stream'      => $stream,
+			),
+			'home-server' => array(
+				'model'       => $model,
+				'messages'    => array(
+					array(
+						'role'    => 'user',
+						'content' => $prompt,
+					),
+				),
+				'temperature' => $temperature,
+				'max_tokens'  => $max_tokens,
+				'stream'      => $stream,
+				'api_token'   => $api_key['meta']['api-key'],
 			),
 			default => array(
 				'model'       => $model,
