@@ -29,7 +29,7 @@ class Ieltssci_Database_Schema {
 	 *
 	 * @var string
 	 */
-	private $db_version = '0.0.2'; // Updated version number.
+	private $db_version = '0.0.3'; // Updated version number for adding is_preferred column.
 
 	/**
 	 * WordPress database object.
@@ -318,6 +318,7 @@ class Ieltssci_Database_Schema {
 			cot_content longtext DEFAULT NULL,
 			score_content longtext DEFAULT NULL,
 			feedback_content longtext DEFAULT NULL,
+			is_preferred boolean DEFAULT 0 COMMENT 'Feedback được chọn làm feedback mặc định',
 			created_at datetime DEFAULT CURRENT_TIMESTAMP,
 			created_by bigint(20) UNSIGNED NOT NULL,
 			PRIMARY KEY (id),
@@ -353,6 +354,7 @@ class Ieltssci_Database_Schema {
 			cot_content longtext DEFAULT NULL,
 			score_content longtext DEFAULT NULL,
 			feedback_content longtext DEFAULT NULL,
+			is_preferred boolean DEFAULT 0 COMMENT 'Feedback được chọn làm feedback mặc định',
 			created_at datetime DEFAULT CURRENT_TIMESTAMP,
 			created_by bigint(20) UNSIGNED NOT NULL,
 			PRIMARY KEY (id),

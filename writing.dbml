@@ -43,6 +43,7 @@ Table ieltssci_segment_feedback {
   feedback_content text [note: 'Nội dung phần feedback']
   created_at timestamp [default: `now()`]
   created_by integer [not null, note: 'ID của người call API hoặc update MANUAL feedback']
+  is_preferred boolean [note: 'Feedback được chọn làm feedback mặc định cho đoạn này']
 }
 
 Table ieltssci_essay_feedback {
@@ -56,6 +57,7 @@ Table ieltssci_essay_feedback {
   feedback_content text [note: 'Nội dung phần feedback']
   created_at timestamp [default: `now()`]
   created_by integer [not null, note: 'ID của người call API hoặc update MANUAL feedback']
+  is_preferred boolean [note: 'Feedback được chọn làm feedback mặc định cho bài này']
 }
 
 Table ieltssci_api_feed_essay_type {
