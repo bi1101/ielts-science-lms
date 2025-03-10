@@ -121,7 +121,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				array(
 					'feed_id'  => $feed['id'],
 					'status'   => 'success',
-					'feedback' => end( $results ),
+					'feedback' => $results,
 				)
 			);
 		} catch ( Exception $e ) {
