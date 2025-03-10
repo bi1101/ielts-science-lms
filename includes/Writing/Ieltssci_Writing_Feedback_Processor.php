@@ -195,11 +195,242 @@ class Ieltssci_Writing_Feedback_Processor {
 			);
 
 			// Use parallel API calls for array prompts.
-			return $this->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type );
+			$result = $this->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type );
 		} else {
 			// For a single string prompt, proceed with streaming call.
 			$prompt = $processed_prompt;
-			return $this->make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type );
+			$result = $this->make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type );
+		}
+
+		// Save the results to the database.
+		$this->save_feedback_to_database( $result, $feed, $uuid, $step_type );
+
+		return $result;
+	}
+
+	/**
+	 * Save feedback results to the database
+	 *
+	 * @param string $feedback The feedback content to save.
+	 * @param array  $feed The feed configuration data.
+	 * @param string $uuid The UUID of the essay.
+	 * @param string $step_type The type of step being processed.
+	 * @return bool True on success, false on failure.
+	 */
+	private function save_feedback_to_database( $feedback, $feed, $uuid, $step_type ) {
+		// Placeholder function that will be filled in later.
+
+		// Check if we have a valid apply_to setting.
+		if ( empty( $feed['apply_to'] ) ) {
+			return false;
+		}
+
+		// Get the apply_to value which determines where to save.
+		$apply_to = $feed['apply_to'];
+
+		// TODO: Implement the actual database saving logic based on the apply_to value.
+		// Possible values might be 'essay', 'paragraph', 'introduction', 'topic-sentence', 'main-point, 'conclusion'.
+		switch ( $apply_to ) {
+
+			case 'paragraph':
+				// Save the segments.
+				$this->save_paragraph_feedback( $uuid, $feedback, $feed, $step_type );
+				break;
+
+			// Add other cases as needed.
+		}
+		return true;
+	}
+
+	/**
+	 * Save segmenting results to the database
+	 *
+	 * @param string $uuid The UUID of the essay.
+	 * @param string $feedback The feedback content.
+	 * @param array  $feed The feed data.
+	 * @param string $step_type The type of step being processed.
+	 */
+	private function save_paragraph_feedback( $uuid, $feedback, $feed, $step_type ) {
+		// Initialize Essay DB.
+		$essay_db = new Ieltssci_Essay_DB();
+
+		// Get the essay_id from UUID.
+		$essays = $essay_db->get_essays(
+			array(
+				'uuid'     => $uuid,
+				'per_page' => 1,
+				'fields'   => array( 'id' ),
+			)
+		);
+
+		if ( is_wp_error( $essays ) || empty( $essays ) ) {
+			return;
+		}
+
+		$essay_id = $essays[0]['id'];
+
+		// First, check if segments already exist for this essay.
+		$existing_segments = $essay_db->get_segments(
+			array(
+				'essay_id' => $essay_id,
+				'per_page' => 1,
+			)
+		);
+
+		// If segments already exist, don't process.
+		if ( ! is_wp_error( $existing_segments ) && ! empty( $existing_segments ) ) {
+			// Segments already exist, don't duplicate them.
+			return;
+		}
+
+		// Split the feedback using the separator that was added during concatenation.
+		$separator      = "\n\n---\n\n";
+		$feedback_items = array_map( 'trim', explode( $separator, $feedback ) );
+
+		// Regex to extract paragraph content from each feedback item.
+		$paragraph_regex = '/#*\s*Paragraph\s*-\s*(?\'paragraph_title\'.+)\s*(?\'paragraph_content\'[\S\s]+)/m';
+
+		// Arrays to store different segment types and track ordering.
+		$all_segments  = array();
+		$segment_order = 0;
+
+		// Process each feedback item.
+		foreach ( $feedback_items as $item ) {
+			if ( empty( $item ) ) {
+				continue;
+			}
+
+			// Extract paragraph information.
+			if ( preg_match( $paragraph_regex, $item, $matches ) ) {
+				$paragraph_content = trim( $matches['paragraph_content'] );
+
+				// Extract the segments from this paragraph content.
+				$segments = $this->extract_segment_content( $paragraph_content );
+
+				foreach ( $segments as $segment ) {
+					if ( empty( $segment['title'] ) || empty( $segment['content'] ) ) {
+						continue;
+					}
+
+					++$segment_order;
+
+					$segment_type = $this->determine_segment_type( $segment['title'] );
+
+					// Add to the collection with appropriate metadata.
+					$all_segments[] = array(
+						'title'   => $segment['title'],
+						'content' => $segment['content'],
+						'type'    => $segment_type,
+						'order'   => $segment_order,
+					);
+				}
+			}
+		}
+
+		// Save the segments to the database.
+		foreach ( $all_segments as $segment_data ) {
+			$this->save_segment( $essay_id, $segment_data, $segment_data['order'] );
+		}
+	}
+
+	/**
+	 * Save a segment to the database
+	 *
+	 * @param int   $essay_id The essay ID.
+	 * @param array $segment_data The segment data.
+	 * @param int   $order The segment order.
+	 * @return int|WP_Error Segment ID or error.
+	 */
+	private function save_segment( $essay_id, $segment_data, $order ) {
+		$essay_db = new Ieltssci_Essay_DB();
+
+		$segment = array(
+			'essay_id' => $essay_id,
+			'type'     => $segment_data['type'],
+			'title'    => $segment_data['title'],
+			'content'  => $segment_data['content'],
+			'order'    => $order,
+		);
+
+		return $essay_db->create_update_segment( $segment );
+	}
+
+	/**
+	 * Extract segments title and content from the paragraph content
+	 *
+	 * @param string $paragraph_content The full paragraph feedback content.
+	 * @return array The extracted segments title & content.
+	 */
+	private function extract_segment_content( $paragraph_content ) {
+		$segments = array();
+
+		// Regex to extract segments like Introduction, Topic Sentence, Main Point, Conclusion, etc.
+		$segment_regex = '/#*\s*(?\'segment_title\'Introduction|Topic Sentence|Main Point \d+|Conclusion|Body Paragraph \d+)\s*(?\'segment_content\'[\s\S]*?)(?=\s*#|\s*$)/i';
+
+		if ( preg_match_all( $segment_regex, $paragraph_content, $matches, PREG_SET_ORDER ) ) {
+			foreach ( $matches as $match ) {
+				$title   = trim( $match['segment_title'] );
+				$content = trim( $match['segment_content'] );
+
+				// Skip if either title or content is empty.
+				if ( empty( $title ) || empty( $content ) ) {
+					continue;
+				}
+
+				// Clean up content - remove any markdown formatting.
+				$content = preg_replace( '/^[\s\*\-]+/m', '', $content ); // Remove list markers.
+				$content = preg_replace( '/#{1,6}\s+/m', '', $content ); // Remove headers.
+				$content = trim( $content );
+
+				$segments[] = array(
+					'title'   => $title,
+					'content' => $content,
+				);
+			}
+		} else {
+			// Fallback: if no segments were found, treat the entire content as a single segment.
+			// Try to extract a title from the first line.
+			$lines      = explode( "\n", $paragraph_content );
+			$first_line = trim( $lines[0] );
+
+			// If the first line looks like a title (short, doesn't end with period).
+			if ( strlen( $first_line ) < 100 && ! preg_match( '/\.$/', $first_line ) ) {
+				$title   = $first_line;
+				$content = trim( substr( $paragraph_content, strlen( $first_line ) ) );
+			} else {
+				// Default title based on paragraph content.
+				$title   = 'Paragraph';
+				$content = trim( $paragraph_content );
+			}
+
+			$segments[] = array(
+				'title'   => $title,
+				'content' => $content,
+			);
+		}
+
+		return $segments;
+	}
+
+	/**
+	 * Determine segment type based on segment title
+	 *
+	 * @param string $segment_title The title of the segment.
+	 * @return string The segment type.
+	 */
+	private function determine_segment_type( $segment_title ) {
+		$title_lower = strtolower( $segment_title );
+
+		if ( strpos( $title_lower, 'introduction' ) !== false ) {
+			return 'introduction';
+		} elseif ( strpos( $title_lower, 'conclusion' ) !== false ) {
+			return 'conclusion';
+		} elseif ( strpos( $title_lower, 'topic sentence' ) !== false ) {
+			return 'topic-sentence';
+		} elseif ( strpos( $title_lower, 'main point' ) !== false ) {
+			return 'main-point';
+		} else {
+			return 'unknown';
 		}
 	}
 
