@@ -277,6 +277,36 @@ class Ieltssci_Writing_Feedback_Processor {
 		// Select prompt based on language parameter.
 		$selected_prompt = 'vi' === strtolower( $language ) ? $vietnamese_prompt : $english_prompt;
 
+		// Map step_type to the appropriate database column.
+		switch ( $step_type ) {
+			case 'chain-of-thought':
+				$content_field = 'cot_content';
+				break;
+			case 'scoring':
+				$content_field = 'score_content';
+				break;
+			case 'feedback':
+			default:
+				$content_field = 'feedback_content';
+				break;
+		}
+
+		// Check if this step has already been processed.
+		$existing_content = $this->get_existing_step_content( $step_type, $feed, $uuid, $segment, $content_field );
+
+		// If existing content is found, send it back without making a new API call.
+		if ( ! empty( $existing_content ) ) {
+			$this->send_message(
+				$this->transform_case( $step_type, 'snake_upper' ),
+				array(
+					'timestamp' => gmdate( 'Y-m-d H:i:s.u' ),
+					'content'   => $existing_content,
+					'reused'    => true,
+				)
+			);
+			return $existing_content;
+		}
+
 		// Pre-process segment-specific variables if segment is provided.
 		if ( null !== $segment ) {
 			// Replace segment-specific variables directly.
@@ -326,6 +356,134 @@ class Ieltssci_Writing_Feedback_Processor {
 		$this->save_feedback_to_database( $result, $feed, $uuid, $step_type, $segment );
 
 		return $result;
+	}
+
+
+	/**
+	 * Check if a step has already been processed and retrieve existing content
+	 *
+	 * @param string $step_type     The type of step (chain-of-thought, scoring, feedback).
+	 * @param array  $feed          The feed data containing configuration.
+	 * @param string $uuid          The UUID of the essay.
+	 * @param array  $segment       Optional. The segment data if processing a specific segment.
+	 * @param string $content_field The database field to retrieve.
+	 *
+	 * @return string|null The existing content if found, null otherwise.
+	 */
+	private function get_existing_step_content( $step_type, $feed, $uuid, $segment = null, $content_field = '' ) {
+		// Get the apply_to value from feed to determine which table to check.
+		$apply_to = isset( $feed['apply_to'] ) ? $feed['apply_to'] : '';
+
+		// If content_field is not provided, determine it from the step_type.
+		if ( empty( $content_field ) ) {
+			// Map step_type to the appropriate database column.
+			switch ( $step_type ) {
+				case 'chain-of-thought':
+					$content_field = 'cot_content';
+					break;
+				case 'scoring':
+					$content_field = 'score_content';
+					break;
+				case 'feedback':
+				default:
+					$content_field = 'feedback_content';
+					break;
+			}
+		}
+
+		// Initialize variables for existing content.
+		$existing_content  = null;
+		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
+
+		// Initialize Essay DB.
+		$essay_db = new Ieltssci_Essay_DB();
+
+		// Get essay ID from UUID.
+		$essays = $essay_db->get_essays(
+			array(
+				'uuid'     => $uuid,
+				'per_page' => 1,
+				'fields'   => array( 'id' ),
+			)
+		);
+
+		if ( is_wp_error( $essays ) || empty( $essays ) ) {
+			return null;
+		}
+
+		$essay_id = $essays[0]['id'];
+
+		// Check the appropriate table based on apply_to.
+		switch ( $apply_to ) {
+			case 'essay':
+				// Check if essay feedback already exists for this step.
+				$existing_feedback = $essay_db->get_essay_feedbacks(
+					array(
+						'essay_id'          => $essay_id,
+						'feedback_criteria' => $feedback_criteria,
+						'fields'            => array( $content_field ),
+						'per_page'          => 1,
+					)
+				);
+
+				if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) && ! empty( $existing_feedback[0][ $content_field ] ) ) {
+					$existing_content = $existing_feedback[0][ $content_field ];
+				}
+				break;
+
+			case 'paragraph':
+				// Check if segments already exist for this essay.
+				$existing_segments = $essay_db->get_segments(
+					array(
+						'essay_id' => $essay_id,
+					)
+				);
+
+				// If segments already exist, format them for return.
+				if ( ! is_wp_error( $existing_segments ) && ! empty( $existing_segments ) ) {
+					// Send all segments to the client.
+					$this->send_message(
+						'SEGMENTS_DATA',
+						array(
+							'timestamp' => gmdate( 'Y-m-d H:i:s.u' ),
+							'segments'  => $existing_segments,
+							'count'     => count( $existing_segments ),
+							'reused'    => true,
+						)
+					);
+					// Format segments into a readable string to return.
+					$segments_text = '';
+					foreach ( $existing_segments as $seg ) {
+						$segments_text .= "# {$seg['title']}\n\n{$seg['content']}\n\n---\n\n";
+					}
+
+					$existing_content = trim( $segments_text );
+				}
+				break;
+
+			case 'introduction':
+			case 'topic-sentence':
+			case 'main-point':
+			case 'conclusion':
+				// Check if segment feedback already exists for this step.
+				if ( null !== $segment && ! empty( $segment['id'] ) ) {
+					$existing_feedback = $essay_db->get_segment_feedbacks(
+						array(
+							'segment_id'        => $segment['id'],
+							'feedback_criteria' => $feedback_criteria,
+							'fields'            => array( $content_field ),
+							'per_page'          => 1,
+						)
+					);
+
+					if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) && ! empty( $existing_feedback[0][ $content_field ] ) ) {
+						$existing_content = $existing_feedback[0][ $content_field ];
+					}
+				}
+				break;
+		}
+
+		return $existing_content;
 	}
 
 	/**
