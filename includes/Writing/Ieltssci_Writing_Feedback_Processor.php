@@ -355,9 +355,38 @@ class Ieltssci_Writing_Feedback_Processor {
 		// Save the results to the database.
 		$this->save_feedback_to_database( $result, $feed, $uuid, $step_type, $segment );
 
+		// if $feed['apply_to'] is paragraph, query all segments and send them back to the client.
+		if ( 'paragraph' === $feed['apply_to'] ) {
+			$essay_db = new Ieltssci_Essay_DB();
+			$essays   = $essay_db->get_essays(
+				array(
+					'uuid'     => $uuid,
+					'per_page' => 1,
+					'fields'   => array( 'id' ),
+				)
+			);
+			if ( ! is_wp_error( $essays ) && ! empty( $essays ) ) {
+				$essay_id = $essays[0]['id'];
+				$segments = $essay_db->get_segments(
+					array(
+						'essay_id' => $essay_id,
+					)
+				);
+				if ( ! is_wp_error( $segments ) ) {
+					$this->send_message(
+						'SEGMENTS_DATA',
+						array(
+							'timestamp' => gmdate( 'Y-m-d H:i:s.u' ),
+							'segments'  => $segments,
+							'count'     => count( $segments ),
+						)
+					);
+				}
+			}
+		}
+
 		return $result;
 	}
-
 
 	/**
 	 * Check if a step has already been processed and retrieve existing content
