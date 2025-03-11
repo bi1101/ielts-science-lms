@@ -66,7 +66,7 @@ class Ieltssci_Writing_Settings {
 	 *
 	 * @return array Essay types configuration.
 	 */
-	protected function essay_types() {
+	public function essay_types() {
 		// Get all feeds with their essay types and process orders using get_api_feeds.
 		$feeds = $this->db->get_api_feeds(
 			array(

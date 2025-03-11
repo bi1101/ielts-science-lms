@@ -195,6 +195,9 @@ class Ieltssci_Writing_Module {
 				$user_avatar = get_avatar_url( $current_user->ID, array( 'size' => 100 ) );
 			}
 
+			$setting_instance = new Ieltssci_Writing_Settings();
+			$feed_data        = $setting_instance->essay_types();
+
 			// Combine all data to be localized.
 			$localized_data = array(
 				'pages'             => $page_data_for_js,
@@ -207,6 +210,7 @@ class Ieltssci_Writing_Module {
 				'user_display_name' => $display_name,
 				'user_mention'      => $user_mention,
 				'user_avatar'       => $user_avatar,
+				'feed_data'         => $feed_data,
 			);
 
 			// Localize script (pass data to the React app).
