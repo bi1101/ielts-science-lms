@@ -28,7 +28,7 @@ class Ieltssci_Writing_Module {
 		// Initialize the writing module.
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_writing_assets' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_writing_assets' ) );
-		add_filter( 'ielts_science_lms_module_pages_data', array( $this, 'provide_module_pages_data' ) );
+		add_filter( 'ieltssci_lms_module_pages_data', array( $this, 'provide_module_pages_data' ) );
 
 		// Add custom rewrite rules for UUID child slugs.
 		add_action( 'init', array( $this, 'register_custom_rewrite_rules' ) );
