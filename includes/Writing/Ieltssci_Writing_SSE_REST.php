@@ -178,7 +178,7 @@ class Ieltssci_Writing_SSE_REST {
 		);
 
 		// Process the specific feed for the segment.
-		$result = $processor->process_segment_feedback_by_id( $feed_id, $uuid, $segment_order );
+		$result = $processor->process_feed_by_id( $feed_id, $uuid, $segment_order );
 
 		// Handle errors.
 		if ( is_wp_error( $result ) ) {

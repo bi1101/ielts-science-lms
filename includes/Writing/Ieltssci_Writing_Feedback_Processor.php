@@ -89,19 +89,6 @@ class Ieltssci_Writing_Feedback_Processor {
 	}
 
 	/**
-	 * Process a specific feed by ID for a specific segment
-	 *
-	 * @param int    $feed_id       ID of the feed to process.
-	 * @param string $uuid          The UUID of the essay.
-	 * @param int    $segment_order The order of the segment to process.
-	 * @return WP_Error|null Error or null on success.
-	 * @throws Exception When feed processing fails.
-	 */
-	public function process_segment_feedback_by_id( $feed_id, $uuid, $segment_order ) {
-		return $this->process_feed_by_id( $feed_id, $uuid, $segment_order );
-	}
-
-	/**
 	 * Process a feed
 	 *
 	 * @param array  $feed          The feed data.
