@@ -151,7 +151,57 @@ class Ieltssci_Writing_Settings {
 				),
 			),
 			array(
-				'groupLabel' => 'Segment level',
+				'groupLabel' => 'Custom Instructions',
+				'items'      => array(
+					array(
+						'label' => 'Feedback Style',
+						'info'  => '{|feedback_style|}',
+						'value' => '{|feedback_style|}',
+					),
+					array(
+						'label' => 'Guide Score',
+						'info'  => '{|guide_score|}',
+						'value' => '{|guide_score|}',
+					),
+					array(
+						'label' => 'Guide Feedback',
+						'info'  => '{|guide_feedback|}',
+						'value' => '{|guide_feedback|}',
+					),
+				),
+			),
+			array(
+				'groupLabel' => 'Segment level (Hard_coded)',
+				'items'      => array(
+					array(
+						'label' => 'Segment Title',
+						'info'  => '{|segment_title|}',
+						'value' => '{|segment_title|}',
+					),
+					array(
+						'label' => 'Segment Content',
+						'info'  => '{|segment_content|}',
+						'value' => '{|segment_content|}',
+					),
+					array(
+						'label' => 'Segment Type',
+						'info'  => '{|segment_type|}',
+						'value' => '{|segment_type|}',
+					),
+					array(
+						'label' => 'Segment Order',
+						'info'  => '{|segment_order|}',
+						'value' => '{|segment_order|}',
+					),
+					array(
+						'label' => 'Segment ID',
+						'info'  => '{|segment_id|}',
+						'value' => '{|segment_id|}',
+					),
+				),
+			),
+			array(
+				'groupLabel' => 'Segment level (Dynamic)',
 				'items'      => array(
 					array(
 						'label' => 'Introduction Content',

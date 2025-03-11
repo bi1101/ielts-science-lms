@@ -163,8 +163,8 @@ class Ieltssci_Settings_Config {
 				'items'      => array(
 					array(
 						'label' => 'Site URL',
-						'info'  => '{site_url}',
-						'value' => '{site_url}',
+						'info'  => '{|site_url|}',
+						'value' => '{|site_url|}',
 					),
 				),
 			),
