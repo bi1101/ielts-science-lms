@@ -55,19 +55,47 @@ class Ieltssci_Writing_SSE_REST {
 				'callback'            => array( $this, 'get_essay_feedback' ),
 				'permission_callback' => '__return_true', // Accessible to anyone.
 				'args'                => array(
-					'UUID'    => array(
+					'UUID'           => array(
 						'required'          => true,
 						'validate_callback' => function ( $param ) {
 							return is_string( $param ) && ! empty( $param );
 						},
 						'sanitize_callback' => 'sanitize_text_field',
 					),
-					'feed_id' => array(
+					'feed_id'        => array(
 						'required'          => true,
 						'validate_callback' => function ( $param ) {
 							return is_numeric( $param ) && intval( $param ) > 0;
 						},
 						'sanitize_callback' => 'absint',
+					),
+					'language'       => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'feedback_style' => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'guide_score'    => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'guide_feedback' => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
 					),
 				),
 			)
@@ -82,26 +110,54 @@ class Ieltssci_Writing_SSE_REST {
 				'callback'            => array( $this, 'get_segment_feedback' ),
 				'permission_callback' => '__return_true', // Accessible to anyone.
 				'args'                => array(
-					'UUID'          => array(
+					'UUID'           => array(
 						'required'          => true,
 						'validate_callback' => function ( $param ) {
 							return is_string( $param ) && ! empty( $param );
 						},
 						'sanitize_callback' => 'sanitize_text_field',
 					),
-					'feed_id'       => array(
+					'feed_id'        => array(
 						'required'          => true,
 						'validate_callback' => function ( $param ) {
 							return is_numeric( $param ) && intval( $param ) > 0;
 						},
 						'sanitize_callback' => 'absint',
 					),
-					'segment_order' => array(
+					'segment_order'  => array(
 						'required'          => true,
 						'validate_callback' => function ( $param ) {
 							return is_numeric( $param ) && intval( $param ) >= 0;
 						},
 						'sanitize_callback' => 'absint',
+					),
+					'language'       => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'feedback_style' => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'guide_score'    => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'guide_feedback' => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
 					),
 				),
 			)
@@ -117,8 +173,12 @@ class Ieltssci_Writing_SSE_REST {
 	 */
 	public function get_essay_feedback( $request ) {
 		// Get parameters.
-		$uuid    = $request->get_param( 'UUID' );
-		$feed_id = $request->get_param( 'feed_id' );
+		$uuid           = $request->get_param( 'UUID' );
+		$feed_id        = $request->get_param( 'feed_id' );
+		$language       = $request->get_param( 'language' );
+		$feedback_style = $request->get_param( 'feedback_style' );
+		$guide_score    = $request->get_param( 'guide_score' );
+		$guide_feedback = $request->get_param( 'guide_feedback' );
 
 		// Set up SSE headers.
 		$this->set_sse_headers();
@@ -136,7 +196,7 @@ class Ieltssci_Writing_SSE_REST {
 		);
 
 		// Process the specific feed.
-		$result = $processor->process_feed_by_id( $feed_id, $uuid );
+		$result = $processor->process_feed_by_id( $feed_id, $uuid, null, $language, $feedback_style, $guide_score, $guide_feedback );
 
 		// Handle errors.
 		if ( is_wp_error( $result ) ) {
@@ -158,9 +218,13 @@ class Ieltssci_Writing_SSE_REST {
 	 */
 	public function get_segment_feedback( $request ) {
 		// Get parameters.
-		$uuid          = $request->get_param( 'UUID' );
-		$feed_id       = $request->get_param( 'feed_id' );
-		$segment_order = $request->get_param( 'segment_order' );
+		$uuid           = $request->get_param( 'UUID' );
+		$feed_id        = $request->get_param( 'feed_id' );
+		$segment_order  = $request->get_param( 'segment_order' );
+		$language       = $request->get_param( 'language' );
+		$feedback_style = $request->get_param( 'feedback_style' );
+		$guide_score    = $request->get_param( 'guide_score' );
+		$guide_feedback = $request->get_param( 'guide_feedback' );
 
 		// Set up SSE headers.
 		$this->set_sse_headers();
@@ -178,7 +242,7 @@ class Ieltssci_Writing_SSE_REST {
 		);
 
 		// Process the specific feed for the segment.
-		$result = $processor->process_feed_by_id( $feed_id, $uuid, $segment_order );
+		$result = $processor->process_feed_by_id( $feed_id, $uuid, $segment_order, $language, $feedback_style, $guide_score, $guide_feedback );
 
 		// Handle errors.
 		if ( is_wp_error( $result ) ) {
