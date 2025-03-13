@@ -299,7 +299,6 @@ class Ieltssci_Writing_Feedback_Processor {
 			$this->send_message(
 				$this->transform_case( $step_type, 'snake_upper' ),
 				array(
-					'timestamp' => gmdate( 'Y-m-d H:i:s.u' ),
 					'content'   => $existing_content,
 					'reused'    => true,
 				)
@@ -376,7 +375,6 @@ class Ieltssci_Writing_Feedback_Processor {
 					$this->send_message(
 						'SEGMENTS_DATA',
 						array(
-							'timestamp' => gmdate( 'Y-m-d H:i:s.u' ),
 							'segments'  => $segments,
 							'count'     => count( $segments ),
 						)
@@ -474,7 +472,6 @@ class Ieltssci_Writing_Feedback_Processor {
 					$this->send_message(
 						'SEGMENTS_DATA',
 						array(
-							'timestamp' => gmdate( 'Y-m-d H:i:s.u' ),
 							'segments'  => $existing_segments,
 							'count'     => count( $existing_segments ),
 							'reused'    => true,
@@ -1009,7 +1006,6 @@ class Ieltssci_Writing_Feedback_Processor {
 							$this->transform_case( $step_type, 'snake_upper' ),
 							array(
 								'index'     => $index,
-								'timestamp' => gmdate( 'Y-m-d H:i:s.u' ),
 								'content'   => $content,
 							)
 						);
@@ -1182,7 +1178,6 @@ class Ieltssci_Writing_Feedback_Processor {
 					$this->send_message(
 						$this->transform_case( $step_type, 'snake_upper' ),
 						array(
-							'timestamp' => gmdate( 'Y-m-d H:i:s.u' ),
 							'content'   => $content_chunk,
 							'step_type' => $step_type,
 						)

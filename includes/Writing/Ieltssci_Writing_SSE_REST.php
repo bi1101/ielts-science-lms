@@ -204,7 +204,7 @@ class Ieltssci_Writing_SSE_REST {
 		}
 
 		// Signal completion.
-		$this->send_done( 'END' );
+		$this->send_done();
 
 		exit;
 	}
@@ -250,7 +250,7 @@ class Ieltssci_Writing_SSE_REST {
 		}
 
 		// Signal completion.
-		$this->send_done( 'END' );
+		$this->send_done();
 
 		exit;
 	}
@@ -321,10 +321,12 @@ class Ieltssci_Writing_SSE_REST {
 	/**
 	 * Send a done signal for an event type.
 	 *
-	 * @param string $event_type The event type.
+	 * @param string $event_type The event type (optional).
 	 */
-	private function send_done( $event_type ) {
-		echo 'event: ' . esc_html( $event_type ) . "\n";
+	private function send_done( $event_type = null ) {
+		if ( $event_type ) {
+			echo 'event: ' . esc_html( $event_type ) . "\n";
+		}
 		echo "data: [DONE]\n\n";
 
 		if ( ob_get_level() > 0 ) {

@@ -94,6 +94,7 @@ class Ieltssci_Writing_Settings {
 					'feedName'     => $feed['feedback_criteria'],
 					'feedTitle'    => $feed['feed_title'],
 					'feedDesc'     => $feed['feed_desc'],
+					'applyTo'     => $feed['apply_to'],
 					'processOrder' => (int) $essay_type_data['process_order'],
 				);
 			}
