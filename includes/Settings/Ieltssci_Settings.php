@@ -11,6 +11,7 @@
 namespace IeltsScienceLMS\Settings;
 
 use IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_DB;
+use WP_Error;
 
 /**
  * Class Ieltssci_Settings
