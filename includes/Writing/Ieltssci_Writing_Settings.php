@@ -94,7 +94,7 @@ class Ieltssci_Writing_Settings {
 					'feedName'     => $feed['feedback_criteria'],
 					'feedTitle'    => $feed['feed_title'],
 					'feedDesc'     => $feed['feed_desc'],
-					'applyTo'     => $feed['apply_to'],
+					'applyTo'      => $feed['apply_to'],
 					'processOrder' => (int) $essay_type_data['process_order'],
 				);
 			}
@@ -283,6 +283,18 @@ class Ieltssci_Writing_Settings {
 			$settings_config_instance->create_section( 'advanced-setting', $common_advanced_fields ),
 		);
 
+		$scoring_sections = array(
+			$settings_config_instance->create_section( 'general-setting', $common_general_fields ),
+			$settings_config_instance->create_section(
+				'advanced-setting',
+				array(
+					$settings_config_instance->create_field( 'maxToken', 'number', 'Max Token', 'The maximum number of tokens to generate.', 2048 ),
+					$settings_config_instance->create_field( 'temperature', 'number', 'Temperature', 'The value used to module the next token probabilities.', 0.1 ),
+					$settings_config_instance->create_field( 'scoreRegex', 'text', 'Score Regex', 'Regular expression to extract score from the model output.', '/\d+/' ),
+				)
+			),
+		);
+
 		$writing_apis_settings = array(
 			array(
 				'groupName'  => 'ocr',
@@ -391,7 +403,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -402,7 +414,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -413,7 +425,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -433,7 +445,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -444,7 +456,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -464,7 +476,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -475,7 +487,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -486,7 +498,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -506,7 +518,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -517,7 +529,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -543,7 +555,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -554,7 +566,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -565,7 +577,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -576,7 +588,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -593,7 +605,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -604,7 +616,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -621,7 +633,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -632,7 +644,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -643,7 +655,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -654,7 +666,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -671,7 +683,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -682,7 +694,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -693,7 +705,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-2', 'task-2-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -710,7 +722,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -721,7 +733,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -732,7 +744,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -743,7 +755,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -754,7 +766,7 @@ class Ieltssci_Writing_Settings {
 						array( 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
