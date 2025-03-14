@@ -299,10 +299,12 @@ class Ieltssci_Writing_Feedback_Processor {
 			$this->send_message(
 				$this->transform_case( $step_type, 'snake_upper' ),
 				array(
-					'content'   => $existing_content,
-					'reused'    => true,
+					'content' => $existing_content,
+					'reused'  => true,
 				)
 			);
+			// Send DONE message to indicate completion.
+			$this->send_message( $step_type, '[DONE]' );
 			return $existing_content;
 		}
 
@@ -375,13 +377,15 @@ class Ieltssci_Writing_Feedback_Processor {
 					$this->send_message(
 						'SEGMENTS_DATA',
 						array(
-							'segments'  => $segments,
-							'count'     => count( $segments ),
+							'segments' => $segments,
+							'count'    => count( $segments ),
 						)
 					);
 				}
 			}
 		}
+
+		$this->send_message( $step_type, '[DONE]' );
 
 		return $result;
 	}
@@ -472,9 +476,9 @@ class Ieltssci_Writing_Feedback_Processor {
 					$this->send_message(
 						'SEGMENTS_DATA',
 						array(
-							'segments'  => $existing_segments,
-							'count'     => count( $existing_segments ),
-							'reused'    => true,
+							'segments' => $existing_segments,
+							'count'    => count( $existing_segments ),
+							'reused'   => true,
 						)
 					);
 					// Format segments into a readable string to return.
@@ -1005,8 +1009,8 @@ class Ieltssci_Writing_Feedback_Processor {
 						$this->send_message(
 							$this->transform_case( $step_type, 'snake_upper' ),
 							array(
-								'index'     => $index,
-								'content'   => $content,
+								'index'   => $index,
+								'content' => $content,
 							)
 						);
 					}
