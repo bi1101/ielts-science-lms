@@ -252,6 +252,7 @@ class Ieltssci_Writing_Feedback_Processor {
 		$temperature  = 0.7;
 		$max_tokens   = 2048;
 		$prompt       = 'Hello.';
+		$score_regex  = '/\d+/';
 
 		$config = array();
 		foreach ( $sections as $section ) {
@@ -273,6 +274,11 @@ class Ieltssci_Writing_Feedback_Processor {
 		$model             = $config['general-setting']['model'];
 		$temperature       = $config['advanced-setting']['temperature'];
 		$max_tokens        = $config['advanced-setting']['maxToken'];
+
+		// Get score regex if available in scoring step.
+		if ( 'scoring' === $step_type && isset( $config['advanced-setting']['scoreRegex'] ) ) {
+			$score_regex = $config['advanced-setting']['scoreRegex'];
+		}
 
 		// Select prompt based on language parameter.
 		$selected_prompt = 'vi' === strtolower( $language ) ? $vietnamese_prompt : $english_prompt;
@@ -304,7 +310,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				)
 			);
 			// Send DONE message to indicate completion.
-			$this->send_message( $step_type, '[DONE]' );
+			$this->send_message( $this->transform_case( $step_type, 'snake_upper' ), '[DONE]' );
 			return $existing_content;
 		}
 
@@ -341,14 +347,43 @@ class Ieltssci_Writing_Feedback_Processor {
 			} else {
 				// Use parallel API calls for array prompts.
 				$result = $this->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type );
+
+				// Process the result if it's a scoring step.
+				if ( 'scoring' === $step_type ) {
+					$extracted_score = $this->extract_score_from_result( $result, $score_regex );
+					// Send score to frontend.
+					$this->send_message(
+						$this->transform_case( $step_type, 'snake_upper' ),
+						array(
+							'content'     => $extracted_score,
+							'raw_content' => $result,
+							'regex_used'  => $score_regex,
+						)
+					);
+
+					// Use extracted score as the result.
+					$result = $extracted_score;
+				}
 			}
 		} else {
-			// For a single string prompt, proceed with streaming call.
+			// For a single string prompt, proceed with appropriate call.
 			$prompt = $processed_prompt;
+
 			// If this is a scoring step and we have guide_score provided, use it directly without API call.
 			if ( 'scoring' === $step_type && ! empty( $guide_score ) ) {
 				$result = $guide_score; // Skip API call and use the guide_score directly as the result.
+			} elseif ( 'scoring' === $step_type ) {
+				// For scoring, use non-streaming API call and process the result.
+				$result = $this->make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex );
+				$this->send_message(
+					$this->transform_case( $step_type, 'snake_upper' ),
+					array(
+						'content'    => $result,
+						'regex_used' => $score_regex,
+					)
+				);
 			} else {
+				// For non-scoring steps, use streaming API call.
 				$result = $this->make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type );
 			}
 		}
@@ -385,9 +420,126 @@ class Ieltssci_Writing_Feedback_Processor {
 			}
 		}
 
-		$this->send_message( $step_type, '[DONE]' );
+		$this->send_message( $this->transform_case( $step_type, 'snake_upper' ), '[DONE]' );
 
 		return $result;
+	}
+
+	/**
+	 * Make a non-streaming API call specifically for scoring
+	 *
+	 * @param string $api_provider The API provider to use.
+	 * @param string $model The model name.
+	 * @param string $prompt The prompt to send.
+	 * @param float  $temperature The temperature setting.
+	 * @param int    $max_tokens The maximum tokens to generate.
+	 * @param string $score_regex Regex pattern to extract score from the response.
+	 * @return string The extracted score or full response if score extraction fails.
+	 */
+	private function make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex ) {
+		// Get client settings.
+		$client_settings = $this->get_client_settings( $api_provider );
+
+		// Get headers including API key.
+		$headers = $this->get_request_headers( $api_provider, false );
+
+		// Combine settings and headers.
+		$client_settings['headers'] = $headers;
+
+		// Decider Function: Determines IF a request should be retried.
+		$decider = function ( $retries, $request, $response, $exception ) {
+			// 1. Limit the maximum number of retries.
+			if ( $retries >= 3 ) {  // Max retries.
+				return false;
+			}
+
+			return true;
+		};
+
+		// Add handler stack with retry middleware.
+		$stack = HandlerStack::create();
+		$stack->push( Middleware::retry( $decider ) );
+		$client_settings['handler'] = $stack;
+
+		$client = new \GuzzleHttp\Client( $client_settings );
+
+		// Prepare request payload based on the API provider - no streaming.
+		$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, false );
+
+		$endpoint = 'chat/completions';
+
+		try {
+			$response = $client->request(
+				'POST',
+				$endpoint,
+				array(
+					'json' => $payload,
+				)
+			);
+
+			$response_body = $response->getBody()->getContents();
+			$full_content  = $this->extract_content_from_full_response( $response_body );
+
+			// Extract score from the content using regex.
+			$extracted_score = $this->extract_score_from_result( $full_content, $score_regex );
+
+			// Send both raw content and extracted score to frontend.
+			$this->send_message(
+				'SCORE_RESULT',
+				array(
+					'raw_content' => $full_content,
+					'score'       => $extracted_score,
+					'regex_used'  => $score_regex,
+				)
+			);
+
+			// Send the content chunk with appropriate event.
+			$this->send_message(
+				'SCORING',
+				array(
+					'content'   => $extracted_score,
+					'step_type' => 'scoring',
+				)
+			);
+
+			// Return the extracted score.
+			return $extracted_score;
+
+		} catch ( Exception $e ) {
+			// Send error message in case of failure.
+			$this->send_error(
+				'score_error',
+				array(
+					'title'   => 'Scoring Error',
+					'message' => $e->getMessage(),
+				)
+			);
+			return 'Error: ' . $e->getMessage();
+		}
+	}
+
+	/**
+	 * Extract score from API result using regex pattern
+	 *
+	 * @param string $content The API response content.
+	 * @param string $regex_pattern The regex pattern to extract the score.
+	 * @return string The extracted score or original content if extraction fails.
+	 */
+	private function extract_score_from_result( $content, $regex_pattern ) {
+		// Default to original content if regex is invalid.
+		if ( empty( $regex_pattern ) ) {
+			$regex_pattern = '/\d+/';
+		}
+
+		// Try to extract score using the provided regex pattern.
+		$matches = array();
+		if ( preg_match( $regex_pattern, $content, $matches ) ) {
+			// Return the first match (should be the score).
+			return trim( $matches[0] );
+		}
+
+		// If no match found, return the original content.
+		return $content;
 	}
 
 	/**
@@ -753,12 +905,12 @@ class Ieltssci_Writing_Feedback_Processor {
 		$essay_id = $essays[0]['id'];
 
 		// First, check if segments already exist for this essay.
-		$existing_segments = $essay_db->get_segments(
-			array(
-				'essay_id' => $essay_id,
-				'per_page' => 1,
-			)
-		);
+			$existing_segments = $essay_db->get_segments(
+				array(
+					'essay_id' => $essay_id,
+					'per_page' => 1,
+				)
+			);
 
 		// If segments already exist, don't process.
 		if ( ! is_wp_error( $existing_segments ) && ! empty( $existing_segments ) ) {
@@ -1224,11 +1376,11 @@ class Ieltssci_Writing_Feedback_Processor {
 
 			// Special cases for parameter-based replacements.
 			if ( 'feedback_style' === trim( $parameters ) && ! empty( $feedback_style ) ) {
-				$content = $feedback_style;
+					$content = $feedback_style;
 			} elseif ( 'guide_score' === trim( $parameters ) && ! empty( $guide_score ) ) {
-				$content = $guide_score;
+					$content = $guide_score;
 			} elseif ( 'guide_feedback' === trim( $parameters ) && ! empty( $guide_feedback ) ) {
-				$content = $guide_feedback;
+					$content = $guide_feedback;
 			} else {
 				// Standard case: fetch content based on parameters.
 				$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order );
