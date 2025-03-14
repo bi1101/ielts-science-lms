@@ -185,9 +185,11 @@ class Ieltssci_Writing_SSE_REST {
 
 		// Create feedback processor with message callback.
 		$processor = new Ieltssci_Writing_Feedback_Processor(
-			// Pass the message sending function as a callback.
-			function ( $event_type, $data, $is_error = false ) {
-				if ( $is_error ) {
+		// Pass a callback that can handle all three message types.
+			function ( $event_type, $data, $is_error = false, $is_done = false ) {
+				if ( $is_done ) {
+					$this->send_done( $event_type );
+				} elseif ( $is_error ) {
 					$this->send_error( $event_type, $data );
 				} else {
 					$this->send_message( $event_type, $data );
@@ -231,9 +233,11 @@ class Ieltssci_Writing_SSE_REST {
 
 		// Create feedback processor with message callback.
 		$processor = new Ieltssci_Writing_Feedback_Processor(
-			// Pass the message sending function as a callback.
-			function ( $event_type, $data, $is_error = false ) {
-				if ( $is_error ) {
+		// Pass a callback that can handle all three message types.
+			function ( $event_type, $data, $is_error = false, $is_done = false ) {
+				if ( $is_done ) {
+					$this->send_done( $event_type );
+				} elseif ( $is_error ) {
 					$this->send_error( $event_type, $data );
 				} else {
 					$this->send_message( $event_type, $data );

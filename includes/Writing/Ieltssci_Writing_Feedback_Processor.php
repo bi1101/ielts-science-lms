@@ -310,7 +310,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				)
 			);
 			// Send DONE message to indicate completion.
-			$this->send_message( $this->transform_case( $step_type, 'snake_upper' ), '[DONE]' );
+			$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
 			return $existing_content;
 		}
 
@@ -420,7 +420,7 @@ class Ieltssci_Writing_Feedback_Processor {
 			}
 		}
 
-		$this->send_message( $this->transform_case( $step_type, 'snake_upper' ), '[DONE]' );
+		$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
 
 		return $result;
 	}
@@ -490,15 +490,6 @@ class Ieltssci_Writing_Feedback_Processor {
 					'raw_content' => $full_content,
 					'score'       => $extracted_score,
 					'regex_used'  => $score_regex,
-				)
-			);
-
-			// Send the content chunk with appropriate event.
-			$this->send_message(
-				'SCORING',
-				array(
-					'content'   => $extracted_score,
-					'step_type' => 'scoring',
 				)
 			);
 
@@ -2163,7 +2154,7 @@ class Ieltssci_Writing_Feedback_Processor {
 	 */
 	private function send_message( $event_type, $data ) {
 		if ( is_callable( $this->message_callback ) ) {
-			call_user_func( $this->message_callback, $event_type, $data );
+			call_user_func( $this->message_callback, $event_type, $data, false, false );
 		}
 	}
 
@@ -2175,7 +2166,18 @@ class Ieltssci_Writing_Feedback_Processor {
 	 */
 	private function send_error( $event_type, $error ) {
 		if ( is_callable( $this->message_callback ) ) {
-			call_user_func( $this->message_callback, $event_type, $error, true );
+			call_user_func( $this->message_callback, $event_type, $error, true, false );
+		}
+	}
+
+	/**
+	 * Send a done signal
+	 *
+	 * @param string $event_type The event type.
+	 */
+	private function send_done( $event_type = null ) {
+		if ( is_callable( $this->message_callback ) ) {
+			call_user_func( $this->message_callback, $event_type, null, false, true );
 		}
 	}
 }
