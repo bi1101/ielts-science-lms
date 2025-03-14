@@ -198,19 +198,28 @@ class Ieltssci_Writing_Module {
 			$setting_instance = new Ieltssci_Writing_Settings();
 			$feed_data        = $setting_instance->essay_types();
 
+			// Get API settings for max concurrent requests.
+			$api_settings = get_option(
+				'ielts_science_api_settings',
+				array(
+					'max_concurrent_requests' => 5, // Default value.
+				)
+			);
+
 			// Combine all data to be localized.
 			$localized_data = array(
-				'pages'             => $page_data_for_js,
-				'nonce'             => $nonce,
-				'root_url'          => $root_url,
-				'is_logged_in'      => is_user_logged_in(),
-				'header_menu'       => $formatted_header_menu_items,
-				'account_menu'      => $formatted_account_menu_items,
-				'user_link'         => $user_link,
-				'user_display_name' => $display_name,
-				'user_mention'      => $user_mention,
-				'user_avatar'       => $user_avatar,
-				'feed_data'         => $feed_data,
+				'pages'                   => $page_data_for_js,
+				'nonce'                   => $nonce,
+				'root_url'                => $root_url,
+				'is_logged_in'            => is_user_logged_in(),
+				'header_menu'             => $formatted_header_menu_items,
+				'account_menu'            => $formatted_account_menu_items,
+				'user_link'               => $user_link,
+				'user_display_name'       => $display_name,
+				'user_mention'            => $user_mention,
+				'user_avatar'             => $user_avatar,
+				'feed_data'               => $feed_data,
+				'max_concurrent_requests' => $api_settings['max_concurrent_requests'],
 			);
 
 			// Localize script (pass data to the React app).

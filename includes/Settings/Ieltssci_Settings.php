@@ -220,7 +220,58 @@ class Ieltssci_Settings {
 
 			<?php $this->render_tabs( $current_tab ); ?>
 
-			<div id="ieltssci_settings_page"></div>
+			<?php
+			// Check if current tab is 'api-settings' to render server-side content instead of React component.
+			if ( 'api-settings' === $current_tab ) {
+				$this->render_api_settings_page();
+			} else {
+				?>
+				<div id="ieltssci_settings_page"></div>
+				<?php
+			}
+			?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the API Settings page with server-side PHP
+	 */
+	public function render_api_settings_page() {
+		// Get the current API settings.
+		$api_settings = get_option(
+			'ielts_science_api_settings',
+			array(
+				'max_concurrent_requests' => 5, // Default value.
+			)
+		);
+		?>
+		<div class="card" style="max-width: none; margin-top: 20px;">
+			<h2><?php esc_html_e( 'API Settings', 'ielts-science-lms' ); ?></h2>
+			<p><?php esc_html_e( 'Configure the API settings for IELTS Science LMS.', 'ielts-science-lms' ); ?></p>
+			<form method="post" action="options.php">
+				<?php settings_fields( 'ielts_science_api_settings_group' ); ?>
+				<table class="form-table">
+					<tr>
+						<th scope="row">
+							<label for="ielts_science_api_max_concurrent"><?php esc_html_e( 'API Max Concurrent Requests', 'ielts-science-lms' ); ?></label>
+						</th>
+						<td>
+							<input type="number"
+								id="ielts_science_api_max_concurrent"
+								name="ielts_science_api_settings[max_concurrent_requests]"
+								value="<?php echo esc_attr( $api_settings['max_concurrent_requests'] ); ?>"
+								min="1"
+								max="20"
+								step="1"
+								class="regular-text"
+							/>
+							<p class="description"><?php esc_html_e( 'Maximum number of concurrent API requests allowed.', 'ielts-science-lms' ); ?></p>
+						</td>
+					</tr>
+				</table>
+				<?php submit_button(); ?>
+			</form>
 		</div>
 		<?php
 	}
@@ -551,6 +602,13 @@ class Ieltssci_Settings {
 			'ielts_science_lms_pages',        // Option name.
 			array( $this, 'sanitize_page_settings' )  // Sanitization callback.
 		);
+
+		// Register settings group for API settings.
+		register_setting(
+			'ielts_science_api_settings_group', // Settings group name.
+			'ielts_science_api_settings',      // Option name.
+			array( $this, 'sanitize_api_settings' ) // Sanitization callback.
+		);
 	}
 
 	/**
@@ -571,6 +629,27 @@ class Ieltssci_Settings {
 		// Flush rewrite rules after saving settings.
 		// This ensures our custom rewrite rules take effect.
 		flush_rewrite_rules();
+
+		return $sanitized_input;
+	}
+
+	/**
+	 * Sanitize the API settings before saving to database.
+	 *
+	 * @param array $input The raw input array from the settings form.
+	 * @return array       The sanitized settings array.
+	 */
+	public function sanitize_api_settings( $input ) {
+		$sanitized_input = array();
+
+		// Sanitize and validate max_concurrent_requests.
+		if ( isset( $input['max_concurrent_requests'] ) ) {
+			$max_requests = intval( $input['max_concurrent_requests'] );
+			// Ensure the value is between 1 and 20.
+			$sanitized_input['max_concurrent_requests'] = min( 20, max( 1, $max_requests ) );
+		} else {
+			$sanitized_input['max_concurrent_requests'] = 5; // Default value.
+		}
 
 		return $sanitized_input;
 	}
