@@ -592,6 +592,21 @@ class Ieltssci_Writing_Settings {
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
+					$settings_config_instance->create_feed(
+						'new-vocab',
+						'New Vocabulary',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settings_config_instance->create_step(
+								'feedback',
+								array(
+									$settings_config_instance->create_section( 'general-setting', $common_general_fields ),
+									$settings_config_instance->create_section( 'advanced-setting', $common_advanced_fields ),
+								)
+							),
+						)
+					),
 				),
 			),
 			array(
