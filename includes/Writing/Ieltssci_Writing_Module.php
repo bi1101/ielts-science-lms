@@ -334,30 +334,35 @@ class Ieltssci_Writing_Module {
 	public function register_custom_rewrite_rules() {
 		$ielts_pages = get_option( 'ielts_science_lms_pages', array() );
 
-		// Check if result_task_2 page is set.
-		if ( ! empty( $ielts_pages['result_task_2'] ) ) {
-			$result_task_2_page = get_post( $ielts_pages['result_task_2'] );
+		// List of result pages to add rewrite rules for.
+		$result_pages = array( 'result_task_2', 'result_task_1', 'result_general_essay' );
 
-			if ( $result_task_2_page ) {
-				$slug = $result_task_2_page->post_name;
+		foreach ( $result_pages as $page_key ) {
+			// Check if the result page is set.
+			if ( ! empty( $ielts_pages[ $page_key ] ) ) {
+				$result_page = get_post( $ielts_pages[ $page_key ] );
 
-				// Add rewrite rule for UUIDs (8-4-4-4-12 format).
-				add_rewrite_rule(
-					'^' . $slug . '/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/?$',
-					'index.php?pagename=' . $slug . '&entry_id=$matches[1]',
-					'top'
-				);
+				if ( $result_page ) {
+					$slug = $result_page->post_name;
 
-				// Register the query var.
-				add_filter(
-					'query_vars',
-					function ( $query_vars ) {
-						$query_vars[] = 'entry_id';
-						return $query_vars;
-					}
-				);
+					// Add rewrite rule for UUIDs (8-4-4-4-12 format).
+					add_rewrite_rule(
+						'^' . $slug . '/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/?$',
+						'index.php?pagename=' . $slug . '&entry_id=$matches[1]',
+						'top'
+					);
+				}
 			}
 		}
+
+		// Register the query var only once.
+		add_filter(
+			'query_vars',
+			function ( $query_vars ) {
+				$query_vars[] = 'entry_id';
+				return $query_vars;
+			}
+		);
 	}
 
 	/**
