@@ -284,7 +284,35 @@ class Ieltssci_Writing_Module {
 						'cart'     => class_exists( 'WooCommerce' ) ? wc_get_cart_url() : '#',
 						'checkout' => class_exists( 'WooCommerce' ) ? wc_get_checkout_url() : '#',
 					),
+					// Footer data.
+					'footer_copyright_text'   => do_shortcode( buddyboss_theme_get_option( 'copyright_text' ) ),
+					'footer_description'      => buddyboss_theme_get_option( 'footer_description' ),
+					'footer_tagline'          => buddyboss_theme_get_option( 'footer_tagline' ),
+					'footer_style'            => (int) buddyboss_theme_get_option( 'footer_style' ),
+					'footer_logo_url'         => wp_get_attachment_image_url( buddyboss_theme_get_option( 'footer_logo', 'id' ), 'full' ),
 				);
+
+				// Get footer menu items.
+				$footer_menu_name = 'footer-menu';
+				$footer_locations = get_nav_menu_locations();
+				if ( isset( $footer_locations[ $footer_menu_name ] ) ) {
+					$footer_menu                   = wp_get_nav_menu_object( $footer_locations[ $footer_menu_name ] );
+					$footer_menu_items             = wp_get_nav_menu_items( $footer_menu->term_id, array( 'order' => 'ASC' ) );
+					$localized_data['footer_menu'] = $this->build_hierarchical_menu( $footer_menu_items );
+				}
+
+				// Get footer secondary menu items.
+				$footer_secondary_menu_name = 'footer-secondary';
+				if ( isset( $footer_locations[ $footer_secondary_menu_name ] ) ) {
+					$footer_secondary_menu                   = wp_get_nav_menu_object( $footer_locations[ $footer_secondary_menu_name ] );
+					$footer_secondary_menu_items             = wp_get_nav_menu_items( $footer_secondary_menu->term_id, array( 'order' => 'ASC' ) );
+					$localized_data['footer_secondary_menu'] = $this->build_hierarchical_menu( $footer_secondary_menu_items );
+				}
+
+				// Get social links.
+				$footer_socials = buddyboss_theme_get_option( 'boss_footer_social_links' );
+				// Pass the social links object directly.
+				$localized_data['footer_socials'] = is_array( $footer_socials ) ? $footer_socials : array();
 
 				// Localize script (pass data to the React app).
 				wp_localize_script( $script_handle, 'ielts_writing_data', $localized_data );
