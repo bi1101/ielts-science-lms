@@ -268,12 +268,53 @@ class Ieltssci_Writing_Feedback_Processor {
 			}
 		}
 
-		$english_prompt    = $config['general-setting']['englishPrompt'];
-		$vietnamese_prompt = $config['general-setting']['vietnamesePrompt'];
-		$api_provider      = $config['general-setting']['apiProvider'];
-		$model             = $config['general-setting']['model'];
-		$temperature       = $config['advanced-setting']['temperature'];
-		$max_tokens        = $config['advanced-setting']['maxToken'];
+		$english_prompt     = $config['general-setting']['englishPrompt'];
+		$vietnamese_prompt  = $config['general-setting']['vietnamesePrompt'];
+		$api_provider       = $config['general-setting']['apiProvider'];
+		$model              = $config['general-setting']['model'];
+		$temperature        = $config['advanced-setting']['temperature'];
+		$max_tokens         = $config['advanced-setting']['maxToken'];
+		$enable_multi_modal = isset( $config['general-setting']['enableMultiModal'] ) ? $config['general-setting']['enableMultiModal'] : false;
+		$multi_modal_fields = isset( $config['general-setting']['multiModalField'] ) ? $config['general-setting']['multiModalField'] : array();
+
+		$images = array();
+		if ( $enable_multi_modal && ! empty( $multi_modal_fields ) ) {
+			// Convert to array if it's a string.
+			if ( is_string( $multi_modal_fields ) ) {
+				$multi_modal_fields = array( $multi_modal_fields );
+			}
+
+			// Get media IDs from essay table for each configured field.
+			foreach ( $multi_modal_fields as $field ) {
+				$media_ids = $this->get_content_from_database( 'essay', $field, null, null, $uuid );
+
+				if ( ! empty( $media_ids ) ) {
+					// If media_ids is a string, convert to array.
+					if ( is_string( $media_ids ) ) {
+						$media_ids = explode( ',', $media_ids );
+					}
+
+					// Process each media ID to get image as base64.
+					foreach ( $media_ids as $media_id ) {
+						$media_id = trim( $media_id );
+						if ( ! empty( $media_id ) && is_numeric( $media_id ) ) {
+							$image_path = get_attached_file( $media_id );
+							if ( $image_path && file_exists( $image_path ) ) {
+								$image_data = file_get_contents( $image_path );
+								if ( false !== $image_data ) {
+									$mime_type    = get_post_mime_type( $media_id );
+									$base64_image = 'data:' . $mime_type . ';base64,' . base64_encode( $image_data );
+									$images[]     = array(
+										'media_id' => $media_id,
+										'base64'   => $base64_image,
+									);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 
 		// Get score regex if available in scoring step.
 		if ( 'scoring' === $step_type && isset( $config['advanced-setting']['scoreRegex'] ) ) {
@@ -374,7 +415,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				$result = $guide_score; // Skip API call and use the guide_score directly as the result.
 			} elseif ( 'scoring' === $step_type ) {
 				// For scoring, use non-streaming API call and process the result.
-				$result = $this->make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex );
+				$result = $this->make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex, $images );
 				$this->send_message(
 					$this->transform_case( $step_type, 'snake_upper' ),
 					array(
@@ -384,7 +425,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				);
 			} else {
 				// For non-scoring steps, use streaming API call.
-				$result = $this->make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type );
+				$result = $this->make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images );
 			}
 		}
 
@@ -434,9 +475,10 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @param float  $temperature The temperature setting.
 	 * @param int    $max_tokens The maximum tokens to generate.
 	 * @param string $score_regex Regex pattern to extract score from the response.
+	 * @param array  $images Array of base64-encoded images.
 	 * @return string The extracted score or full response if score extraction fails.
 	 */
-	private function make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex ) {
+	private function make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex, $images = array() ) {
 		// Get client settings.
 		$client_settings = $this->get_client_settings( $api_provider );
 
@@ -464,7 +506,7 @@ class Ieltssci_Writing_Feedback_Processor {
 		$client = new \GuzzleHttp\Client( $client_settings );
 
 		// Prepare request payload based on the API provider - no streaming.
-		$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, false );
+		$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, false, $images );
 
 		$endpoint = 'chat/completions';
 
@@ -1242,9 +1284,10 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @param int    $max_tokens The maximum tokens to generate.
 	 * @param array  $feed The feed data.
 	 * @param string $step_type The type of step being processed.
+	 * @param array  $images Array of base64-encoded images.
 	 * @return string The response from the API.
 	 */
-	private function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type ) {
+	private function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array() ) {
 		// Get client settings.
 		$client_settings = $this->get_client_settings( $api_provider );
 
@@ -1272,7 +1315,7 @@ class Ieltssci_Writing_Feedback_Processor {
 		$client = new \GuzzleHttp\Client( $client_settings );
 
 		// Prepare request payload based on the API provider.
-		$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, true );
+		$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, true, $images );
 
 		$endpoint = 'chat/completions';
 
@@ -2003,10 +2046,11 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @param float  $temperature Temperature setting.
 	 * @param int    $max_tokens Maximum tokens.
 	 * @param bool   $stream Whether to stream the response or not.
+	 * @param array  $images Array of base64-encoded images.
 	 * @return array Request payload.
 	 * @throws Exception When API key is not found for the provider.
 	 */
-	private function get_request_payload( $provider, $model, $prompt, $temperature, $max_tokens, $stream = true ) {
+	private function get_request_payload( $provider, $model, $prompt, $temperature, $max_tokens, $stream = true, $images = array() ) {
 		if ( 'home-server' === $provider ) {
 			// Get API key for huggingface when using home-server.
 			$api_keys_db = new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_DB();
@@ -2023,57 +2067,54 @@ class Ieltssci_Writing_Feedback_Processor {
 			}
 		}
 
-		return match ( $provider ) {
-			'openai' => array(
-				'model'       => $model,
-				'messages'    => array(
+		// Base message content.
+		$message_content = array();
+
+		// Set up message content based on whether we have images.
+		if ( empty( $images ) ) {
+			$message_content = array(
+				'role'    => 'user',
+				'content' => $prompt,
+			);
+		} else {
+			// For multi-modal content, create content array.
+			$message_content = array(
+				'role'    => 'user',
+				'content' => array(
 					array(
-						'role'    => 'user',
-						'content' => $prompt,
+						'type' => 'text',
+						'text' => $prompt,
 					),
 				),
-				'temperature' => $temperature,
-				'max_tokens'  => $max_tokens,
-				'stream'      => $stream,
-			),
-			'open-key-ai' => array(
-				'model'       => $model,
-				'messages'    => array(
-					array(
-						'role'    => 'user',
-						'content' => $prompt,
-					),
-				),
-				'temperature' => $temperature,
-				'max_tokens'  => $max_tokens,
-				'stream'      => $stream,
-			),
-			'home-server' => array(
-				'model'       => $model,
-				'messages'    => array(
-					array(
-						'role'    => 'user',
-						'content' => $prompt,
-					),
-				),
-				'temperature' => $temperature,
-				'max_tokens'  => $max_tokens,
-				'stream'      => $stream,
-				'api_token'   => $api_key['meta']['api-key'],
-			),
-			default => array(
-				'model'       => $model,
-				'messages'    => array(
-					array(
-						'role'    => 'user',
-						'content' => $prompt,
-					),
-				),
-				'temperature' => $temperature,
-				'max_tokens'  => $max_tokens,
-				'stream'      => $stream,
-			),
-		};
+			);
+
+			// Add images to content.
+			foreach ( $images as $image ) {
+				if ( isset( $image['base64'] ) ) {
+					$message_content['content'][] = array(
+						'type'      => 'image_url',
+						'image_url' => array(
+							'url' => $image['base64'],
+						),
+					);
+				}
+			}
+		}
+
+		$base_payload = array(
+			'model'       => $model,
+			'messages'    => array( $message_content ),
+			'temperature' => $temperature,
+			'max_tokens'  => $max_tokens,
+			'stream'      => $stream,
+		);
+
+		// Add API token for home-server.
+		if ( 'home-server' === $provider ) {
+			$base_payload['api_token'] = $api_key['meta']['api-key'];
+		}
+
+		return $base_payload;
 	}
 
 	/**
