@@ -151,6 +151,7 @@ class Ieltssci_Core_Module {
 			wp_dequeue_script( 'mousewheel-js' );
 			wp_dequeue_script( 'progressbar-js' );
 			wp_dequeue_script( 'select2-js' );
+			wp_dequeue_script( 'buddyboss-theme-woocommerce-js' );
 		}
 	}
 

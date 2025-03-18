@@ -278,6 +278,12 @@ class Ieltssci_Writing_Module {
 					'site_title'              => $site_title,
 					'site_url'                => $site_url,
 					'front_page'              => $front_page_id,
+					// WooCommerce data.
+					'show_shopping_cart'      => buddyboss_theme_get_option( 'desktop_component_opt_multi_checkbox', 'desktop_shopping_cart' ) && class_exists( 'WooCommerce' ),
+					'woocommerce_urls'        => array(
+						'cart'     => class_exists( 'WooCommerce' ) ? wc_get_cart_url() : '#',
+						'checkout' => class_exists( 'WooCommerce' ) ? wc_get_checkout_url() : '#',
+					),
 				);
 
 				// Localize script (pass data to the React app).
