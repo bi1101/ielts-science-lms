@@ -195,6 +195,23 @@ class Ieltssci_Writing_Module {
 				$user_avatar = get_avatar_url( $current_user->ID, array( 'size' => 100 ) );
 			}
 
+			// Add WordPress login and register URLs.
+			$login_url    = wp_login_url();
+			$register_url = '';
+
+			// Only include registration URL if registration is enabled.
+			if ( get_option( 'users_can_register' ) ) {
+				$register_url = wp_registration_url();
+			}
+
+			// Get current page information.
+			$current_page = array(
+				'id'    => get_queried_object_id(),
+				'url'   => get_permalink( get_queried_object_id() ),
+				'title' => get_the_title(),
+				'slug'  => get_queried_object() ? get_queried_object()->post_name : '',
+			);
+
 			$setting_instance = new Ieltssci_Writing_Settings();
 			$feed_data        = $setting_instance->essay_types();
 
@@ -206,24 +223,65 @@ class Ieltssci_Writing_Module {
 				)
 			);
 
-			// Combine all data to be localized.
-			$localized_data = array(
-				'pages'                   => $page_data_for_js,
-				'nonce'                   => $nonce,
-				'root_url'                => $root_url,
-				'is_logged_in'            => is_user_logged_in(),
-				'header_menu'             => $formatted_header_menu_items,
-				'account_menu'            => $formatted_account_menu_items,
-				'user_link'               => $user_link,
-				'user_display_name'       => $display_name,
-				'user_mention'            => $user_mention,
-				'user_avatar'             => $user_avatar,
-				'feed_data'               => $feed_data,
-				'max_concurrent_requests' => $api_settings['max_concurrent_requests'],
-			);
+				// Get logo data.
+				$show         = buddyboss_theme_get_option( 'logo_switch' );
+				$show_dark    = buddyboss_theme_get_option( 'logo_dark_switch' );
+				$logo_id      = buddyboss_theme_get_option( 'logo', 'id' );
+				$logo_dark_id = buddyboss_theme_get_option( 'logo_dark', 'id' );
 
-			// Localize script (pass data to the React app).
-			wp_localize_script( $script_handle, 'ielts_writing_data', $localized_data );
+				// Get logo sizes.
+				$logo_size        = buddyboss_theme_get_option( 'logo_size' );
+				$mobile_logo_size = buddyboss_theme_get_option( 'mobile_logo_size' );
+
+				// Default sizes if not set.
+				// Default sizes if not set.
+				$logo_size        = isset( $logo_size ) && ! empty( $logo_size ) ? $logo_size : '70';
+				$mobile_logo_size = isset( $mobile_logo_size ) && ! empty( $mobile_logo_size ) ? $mobile_logo_size : '60';
+
+				// Get logo URLs instead of HTML.
+				$logo_url      = ( $show && $logo_id ) ? wp_get_attachment_image_url( $logo_id, 'full' ) : '';
+				$logo_dark_url = ( $show && $show_dark && $logo_dark_id ) ? wp_get_attachment_image_url( $logo_dark_id, 'full' ) : '';
+
+				// Get logo alt text.
+				$logo_alt      = ( $logo_id ) ? get_post_meta( $logo_id, '_wp_attachment_image_alt', true ) : get_bloginfo( 'name' );
+				$logo_dark_alt = ( $logo_dark_id ) ? get_post_meta( $logo_dark_id, '_wp_attachment_image_alt', true ) : get_bloginfo( 'name' );
+
+				// Site information.
+				$site_title    = get_bloginfo( 'name' );
+				$site_url      = home_url( '/' );
+				$front_page_id = get_option( 'page_on_front' );
+
+				// Combine all data to be localized.
+				$localized_data = array(
+					'pages'                   => $page_data_for_js,
+					'nonce'                   => $nonce,
+					'root_url'                => $root_url,
+					'is_logged_in'            => is_user_logged_in(),
+					'header_menu'             => $formatted_header_menu_items,
+					'account_menu'            => $formatted_account_menu_items,
+					'user_link'               => $user_link,
+					'user_display_name'       => $display_name,
+					'user_mention'            => $user_mention,
+					'user_avatar'             => $user_avatar,
+					'feed_data'               => $feed_data,
+					'max_concurrent_requests' => $api_settings['max_concurrent_requests'],
+					'login_url'               => $login_url,
+					'register_url'            => $register_url,
+					'current_page'            => $current_page,
+					// New logo data.
+					'site_logo_url'           => $logo_url,
+					'site_logo_dark_url'      => $logo_dark_url,
+					'logo_size'               => $logo_size,
+					'mobile_logo_size'        => $mobile_logo_size,
+					'logo_alt'                => $logo_alt,
+					'logo_dark_alt'           => $logo_dark_alt,
+					'site_title'              => $site_title,
+					'site_url'                => $site_url,
+					'front_page'              => $front_page_id,
+				);
+
+				// Localize script (pass data to the React app).
+				wp_localize_script( $script_handle, 'ielts_writing_data', $localized_data );
 		}
 	}
 
