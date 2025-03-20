@@ -437,11 +437,12 @@ class Ieltssci_Writing_REST {
 				},
 			),
 			'essay_content'   => array(
-				'required'          => true,
+				'required'          => false,
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_textarea_field',
 				'validate_callback' => function ( $param ) {
-					return is_string( $param ) && ! empty( $param );
+					// Allow empty string or null for essay_content.
+					return is_null( $param ) || is_string( $param );
 				},
 			),
 			'original_id'     => array(

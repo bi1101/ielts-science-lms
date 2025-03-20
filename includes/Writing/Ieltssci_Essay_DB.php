@@ -84,14 +84,14 @@ class Ieltssci_Essay_DB {
 	}
 
 	/**
-	 * Create a new essay.
+	 * Create a new essay or update an existing one based on UUID.
 	 *
 	 * @param array $essay_data Essay data.
-	 * @return array|WP_Error Created essay data or error.
+	 * @return array|WP_Error Created/updated essay data or error.
 	 * @throws \Exception If there is a database error.
 	 */
 	public function create_essay( $essay_data ) {
-		if ( empty( $essay_data['essay_type'] ) || empty( $essay_data['question'] ) || empty( $essay_data['essay_content'] ) ) {
+		if ( empty( $essay_data['essay_type'] ) || empty( $essay_data['question'] ) ) {
 			return new WP_Error( 'missing_required', 'Missing required fields.', array( 'status' => 400 ) );
 		}
 
@@ -101,42 +101,73 @@ class Ieltssci_Essay_DB {
 			// Generate UUID if not provided.
 			$uuid = ! empty( $essay_data['uuid'] ) ? $essay_data['uuid'] : wp_generate_uuid4();
 
+			// Check if an essay with this UUID already exists.
+			$existing_essay = null;
+			if ( ! empty( $essay_data['uuid'] ) ) {
+				$existing_essays = $this->get_essays( array( 'uuid' => $uuid ) );
+				if ( ! empty( $existing_essays ) && ! is_wp_error( $existing_essays ) ) {
+					$existing_essay = $existing_essays[0];
+				}
+			}
+
 			$ocr_image_ids   = ! empty( $essay_data['ocr_image_ids'] ) ? wp_json_encode( $essay_data['ocr_image_ids'] ) : null;
 			$chart_image_ids = ! empty( $essay_data['chart_image_ids'] ) ? wp_json_encode( $essay_data['chart_image_ids'] ) : null;
 
-			$insert_data = array(
+			$data = array(
 				'uuid'            => $uuid,
 				'original_id'     => $essay_data['original_id'] ?? null,
 				'ocr_image_ids'   => $ocr_image_ids,
 				'chart_image_ids' => $chart_image_ids,
 				'essay_type'      => $essay_data['essay_type'],
 				'question'        => $essay_data['question'],
-				'essay_content'   => $essay_data['essay_content'],
+				'essay_content'   => $essay_data['essay_content'] ?? '',
 				'created_by'      => $essay_data['created_by'],
 			);
 
-			$result = $this->wpdb->insert(
-				$this->essays_table,
-				$insert_data,
-				array(
-					'%s', // uuid.
-					'%d', // original_id.
-					'%s', // ocr_image_ids.
-					'%s', // chart_image_ids.
-					'%s', // essay_type.
-					'%s', // question.
-					'%s', // essay_content.
-					'%d', // created_by.
-				)
+			$format = array(
+				'%s', // uuid.
+				'%d', // original_id.
+				'%s', // ocr_image_ids.
+				'%s', // chart_image_ids.
+				'%s', // essay_type.
+				'%s', // question.
+				'%s', // essay_content.
+				'%d', // created_by.
 			);
 
-			if ( false === $result ) {
-				throw new \Exception( 'Failed to create essay: ' . $this->wpdb->last_error );
+			$essay_id = null;
+
+			if ( $existing_essay ) {
+				// Update existing essay.
+				$result = $this->wpdb->update(
+					$this->essays_table,
+					$data,
+					array( 'id' => $existing_essay['id'] ),
+					$format,
+					array( '%d' ) // id format.
+				);
+
+				if ( false === $result ) {
+					throw new \Exception( 'Failed to update essay: ' . $this->wpdb->last_error );
+				}
+
+				$essay_id = $existing_essay['id'];
+			} else {
+				// Create new essay.
+				$result = $this->wpdb->insert(
+					$this->essays_table,
+					$data,
+					$format
+				);
+
+				if ( false === $result ) {
+					throw new \Exception( 'Failed to create essay: ' . $this->wpdb->last_error );
+				}
+
+				$essay_id = $this->wpdb->insert_id;
 			}
 
-			$essay_id = $this->wpdb->insert_id;
-
-			// Get the created essay.
+			// Get the created/updated essay.
 			$essay = $this->get_essays( array( 'id' => $essay_id ) )[0];
 
 			$this->wpdb->query( 'COMMIT' );
