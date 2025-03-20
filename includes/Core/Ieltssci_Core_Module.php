@@ -34,6 +34,7 @@ class Ieltssci_Core_Module {
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit_Module();
 		new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys();
 		$this->db_schema = new Ieltssci_Database_Schema();
+		new Ieltssci_Core_Ajax();
 		add_filter( 'theme_page_templates', array( $this, 'add_custom_page_template' ) );
 		add_filter( 'template_include', array( $this, 'load_custom_page_template' ) );
 		add_filter( 'display_post_states', array( $this, 'add_module_page_post_state' ), 10, 2 );

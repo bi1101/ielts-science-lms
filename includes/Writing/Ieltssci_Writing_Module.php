@@ -267,6 +267,7 @@ class Ieltssci_Writing_Module {
 					'max_concurrent_requests' => $api_settings['max_concurrent_requests'],
 					'login_url'               => $login_url,
 					'register_url'            => $register_url,
+					'ajax_url'                => admin_url( 'admin-ajax.php' ), // Add AJAX URL for custom login.
 					'current_page'            => $current_page,
 					// New logo data.
 					'site_logo_url'           => $logo_url,
