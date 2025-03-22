@@ -125,9 +125,6 @@ class Ieltssci_Writing_Feedback_Processor {
 
 		$feed = $feeds[0];
 
-		// Add an action hook before processing the feed.
-		do_action( 'ieltssci_before_process_feed', $feed, $uuid, $segment_order, $language, $feedback_style, $guide_score, $guide_feedback );
-
 		try {
 			// Process the feed.
 			$this->process_feed( $feed, $uuid, $segment_order, $language, $feedback_style, $guide_score, $guide_feedback );
