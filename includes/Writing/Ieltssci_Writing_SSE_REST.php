@@ -13,7 +13,7 @@ namespace IeltsScienceLMS\Writing;
 
 use WP_REST_Server;
 use WP_REST_Request;
-use WP_Error;
+use IeltsScienceLMS\RateLimits\Ieltssci_RateLimit;
 
 /**
  * Class Ieltssci_Writing_SSE_REST
@@ -180,6 +180,13 @@ class Ieltssci_Writing_SSE_REST {
 		$guide_score    = $request->get_param( 'guide_score' );
 		$guide_feedback = $request->get_param( 'guide_feedback' );
 
+		// Check rate limits before setting headers.
+		$rate_limiter = new Ieltssci_RateLimit();
+		$rate_check   = $rate_limiter->check_rate_limit( 'essay_feedback', $uuid, $feed_id );
+		if ( is_wp_error( $rate_check ) ) {
+			return $rate_check;
+		}
+
 		// Set up SSE headers.
 		$this->set_sse_headers();
 
@@ -227,6 +234,13 @@ class Ieltssci_Writing_SSE_REST {
 		$feedback_style = $request->get_param( 'feedback_style' );
 		$guide_score    = $request->get_param( 'guide_score' );
 		$guide_feedback = $request->get_param( 'guide_feedback' );
+
+		// Check rate limits before setting headers.
+		$rate_limiter = new Ieltssci_RateLimit();
+		$rate_check   = $rate_limiter->check_rate_limit( 'segment_feedback', $uuid, $feed_id, $segment_order );
+		if ( is_wp_error( $rate_check ) ) {
+			return $rate_check;
+		}
 
 		// Set up SSE headers.
 		$this->set_sse_headers();

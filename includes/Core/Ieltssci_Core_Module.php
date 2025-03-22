@@ -31,7 +31,7 @@ class Ieltssci_Core_Module {
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
 		new \IeltsScienceLMS\Settings\Ieltssci_Settings();
 		new \IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeed_Module();
-		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit_Module();
+		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit();
 		new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys();
 		$this->db_schema = new Ieltssci_Database_Schema();
 		new Ieltssci_Core_Ajax();
