@@ -34,7 +34,7 @@ Table ieltssci_segment {
 
 Table ieltssci_segment_feedback {
   id integer [primary key, increment]
-  feedback_criteria varchar [not null, note: 'tiêu chí feedback e.g relevance, clearAnswer (score, Cot, feedback), rewrite, logicDepth, etc.'] 
+  feedback_criteria varchar [not null, note: 'tiêu chí feedback e.g relevance, clearAnswer (score, Cot, feedback), rewrite, logicDepth, etc.']
   segment_id integer [not null]
   feedback_language varchar [not null, note: 'Ngôn ngữ của feedback']
   source FeedbackSource [not null]
@@ -61,39 +61,39 @@ Table ieltssci_essay_feedback {
 }
 
 Table ieltssci_api_feed_essay_type {
-    id integer [primary key, increment]
-    api_feed_id integer [not null, note: 'ID của API feed']
-    essay_type varchar [not null, note: 'loại bài e.g Task 1, Task 2, Task 1 OCR, Task 2 OCR.']
-    process_order integer [not null, note: 'Thứ tự xử lý feed, vd: 2 feed cùng thứ tự 1 thì sử lý song song, cả 2 hoàn thành thì mới tiếp tục (các) feed thứ tự 2']
+  id integer [primary key, increment]
+  api_feed_id integer [not null, note: 'ID của API feed']
+  essay_type varchar [not null, note: 'loại bài e.g Task 1, Task 2, Task 1 OCR, Task 2 OCR.']
+  process_order integer [not null, note: 'Thứ tự xử lý feed, vd: 2 feed cùng thứ tự 1 thì sử lý song song, cả 2 hoàn thành thì mới tiếp tục (các) feed thứ tự 2']
 }
 
 Table ieltssci_api_feed {
-    id integer [primary key, increment]
-    feed_title varchar [not null, note: 'Tiêu đề của API feed']
-    feed_desc text [not null, note: 'Mô tả của API feed']
-    feedback_criteria varchar [not null, note: 'Tiêu chí feedback e.g relevance, clearAnswer (score, Cot, feedback), rewrite, logicDepth, etc.']
-    apply_to varchar [not null, note: 'Áp dụng cho cả bài hay từng đoạn, mở thân, kết, vv']
-    meta json [not null, note: 'Setting cho API feed, base URL, parameters, step vv']
+  id integer [primary key, increment]
+  feed_title varchar [not null, note: 'Tiêu đề của API feed']
+  feed_desc text [not null, note: 'Mô tả của API feed']
+  feedback_criteria varchar [not null, note: 'Tiêu chí feedback e.g relevance, clearAnswer (score, Cot, feedback), rewrite, logicDepth, etc.']
+  apply_to varchar [not null, note: 'Áp dụng cho cả bài hay từng đoạn, mở thân, kết, vv']
+  meta json [not null, note: 'Setting cho API feed, base URL, parameters, step vv']
 }
 
 Table ieltssci_rate_limit_rule {
-    id integer [primary key, increment]
-    rate_limit integer [not null, note: 'Số lần request cho phép trong 1 khoảng thời gian']
-    time_period_type LimitType [not null, note: 'Loại giới hạn, theo thời gian, theo lịch, vĩnh viễn']
-    limit_rule json [not null, note: 'Chi tiết rule, ví dụ: {"time_period": 1, "unit": "month"}']
-    message json [not null, note: 'Thông báo khi vượt quá rate limit']
+  id integer [primary key, increment]
+  rate_limit integer [not null, note: 'Số lần request cho phép trong 1 khoảng thời gian']
+  time_period_type LimitType [not null, note: 'Loại giới hạn, theo thời gian, theo lịch, vĩnh viễn']
+  limit_rule json [not null, note: 'Chi tiết rule, ví dụ: {"time_period": 1, "unit": "month"}']
+  message json [not null, note: 'Thông báo khi vượt quá rate limit']
 }
 
 Table ieltssci_api_feed_rate_limit_rule {
-    id integer [primary key, increment]
-    api_feed_id integer [not null, note: 'ID của API feed']
-    rate_limit_rule_id integer [not null, note: 'ID của rule áp dụng cho API feed']
+  id integer [primary key, increment]
+  api_feed_id integer [not null, note: 'ID của API feed']
+  rate_limit_rule_id integer [not null, note: 'ID của rule áp dụng cho API feed']
 }
 
 Table ieltssci_role_rate_limit_rule {
-    id integer [primary key, increment]
-    role varchar [not null, note: 'User role']
-    rate_limit_rule_id integer [not null, note: 'ID of the rate limit rule']
+  id integer [primary key, increment]
+  role varchar [not null, note: 'User role']
+  rate_limit_rule_id integer [not null, note: 'ID of the rate limit rule']
 }
 
 // Relationships
@@ -122,9 +122,9 @@ Table ieltssci_api_key {
 }
 
 Enum LimitType {
-    Forever
-    TimePeriod
-    CalendarPeriod
+  Forever
+  TimePeriod
+  CalendarPeriod
 }
 
 // Relationships
