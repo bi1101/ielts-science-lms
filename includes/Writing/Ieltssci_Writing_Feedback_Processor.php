@@ -125,6 +125,9 @@ class Ieltssci_Writing_Feedback_Processor {
 
 		$feed = $feeds[0];
 
+		// Add an action hook before processing the feed.
+		do_action( 'ieltssci_before_process_feed', $feed, $uuid, $segment_order, $language, $feedback_style, $guide_score, $guide_feedback );
+
 		try {
 			// Process the feed.
 			$this->process_feed( $feed, $uuid, $segment_order, $language, $feedback_style, $guide_score, $guide_feedback );
@@ -472,7 +475,7 @@ class Ieltssci_Writing_Feedback_Processor {
 		}
 
 		// Save the results to the database.
-		$this->feedback_db->save_feedback_to_database( $result, $feed, $uuid, $step_type, $segment );
+		$this->feedback_db->save_feedback_to_database( $result, $feed, $uuid, $step_type, $segment, $language );
 
 		// if $feed['apply_to'] is paragraph, query all segments and send them back to the client.
 		if ( 'paragraph' === $feed['apply_to'] ) {

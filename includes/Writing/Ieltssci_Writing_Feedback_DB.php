@@ -183,23 +183,24 @@ class Ieltssci_Writing_Feedback_DB {
 	 * @param string $uuid The UUID of the essay.
 	 * @param string $step_type The type of step being processed.
 	 * @param array  $segment Optional. The segment data if processing a specific segment.
+	 * @param string $language The language of the feedback.
 	 * @return bool True on success, false on failure.
 	 */
-	public function save_feedback_to_database( $feedback, $feed, $uuid, $step_type, $segment = null ) {
-			// Check if we have a valid apply_to setting.
+	public function save_feedback_to_database( $feedback, $feed, $uuid, $step_type, $segment = null, $language = 'en' ) {
+		// Check if we have a valid apply_to setting.
 		if ( empty( $feed['apply_to'] ) ) {
 			return false;
 		}
 
-			// Get the apply_to value which determines where to save.
-			$apply_to = $feed['apply_to'];
+		// Get the apply_to value which determines where to save.
+		$apply_to = $feed['apply_to'];
 
-			// Implement the database saving logic based on the apply_to value.
+		// Implement the database saving logic based on the apply_to value.
 		switch ( $apply_to ) {
 
 			case 'essay':
 				// Save the essay-level feedback.
-				$this->save_essay_feedback( $uuid, $feedback, $feed, $step_type );
+				$this->save_essay_feedback( $uuid, $feedback, $feed, $step_type, $language );
 				break;
 
 			case 'paragraph':
@@ -212,25 +213,26 @@ class Ieltssci_Writing_Feedback_DB {
 			case 'main-point':
 			case 'conclusion':
 				// Save feedback for the specific segment.
-				$this->save_segment_feedback( $uuid, $feedback, $feed, $step_type, $segment );
+				$this->save_segment_feedback( $uuid, $feedback, $feed, $step_type, $segment, $language );
 				break;
 
 			// Add other cases as needed.
 		}
-			return true;
+		return true;
 	}
 
-		/**
-		 * Save segment feedback to the database
-		 *
-		 * @param string $uuid       The UUID of the essay.
-		 * @param string $feedback   The feedback content to save.
-		 * @param array  $feed       The feed data (containing criteria, etc.).
-		 * @param string $step_type  The type of step (chain-of-thought, scoring, feedback).
-		 * @param array  $segment    The segment data object.
-		 * @return int|WP_Error|bool ID of created/updated feedback, error, or false if skipped.
-		 */
-	private function save_segment_feedback( $uuid, $feedback, $feed, $step_type, $segment ) {
+	/**
+	 * Save segment feedback to the database
+	 *
+	 * @param string $uuid       The UUID of the essay.
+	 * @param string $feedback   The feedback content to save.
+	 * @param array  $feed       The feed data (containing criteria, etc.).
+	 * @param string $step_type  The type of step (chain-of-thought, scoring, feedback).
+	 * @param array  $segment    The segment data object.
+	 * @param string $language   The language of the feedback.
+	 * @return int|WP_Error|bool ID of created/updated feedback, error, or false if skipped.
+	 */
+	private function save_segment_feedback( $uuid, $feedback, $feed, $step_type, $segment, $language = 'en' ) {
 		// Check if segment is null - if so, return false (nothing to save).
 		if ( empty( $segment ) || empty( $segment['id'] ) ) {
 			return false;
@@ -241,7 +243,6 @@ class Ieltssci_Writing_Feedback_DB {
 
 		// Extract needed feed attributes.
 		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
-		$feedback_language = isset( $feed['feedback_language'] ) ? $feed['feedback_language'] : 'en';
 		$source            = isset( $feed['source'] ) ? $feed['source'] : 'ai';
 
 		// Map step_type to the appropriate database column.
@@ -275,7 +276,7 @@ class Ieltssci_Writing_Feedback_DB {
 		$feedback_data = array(
 			'segment_id'        => $segment_id,
 			'feedback_criteria' => $feedback_criteria,
-			'feedback_language' => $feedback_language,
+			'feedback_language' => $language,
 			'source'            => $source,
 			$content_field      => $feedback,
 		);
@@ -306,9 +307,10 @@ class Ieltssci_Writing_Feedback_DB {
 	 * @param string $feedback The feedback content to save.
 	 * @param array  $feed The feed data (containing feedback criteria, etc.).
 	 * @param string $step_type The type of step (chain-of-thought, scoring, feedback).
+	 * @param string $language The language of the feedback.
 	 * @return int|WP_Error|bool ID of created feedback, error, or false if skipped.
 	 */
-	private function save_essay_feedback( $uuid, $feedback, $feed, $step_type ) {
+	private function save_essay_feedback( $uuid, $feedback, $feed, $step_type, $language = 'en' ) {
 		// Initialize Essay DB.
 		$essay_db = new Ieltssci_Essay_DB();
 
@@ -329,7 +331,6 @@ class Ieltssci_Writing_Feedback_DB {
 
 		// Extract needed feed attributes.
 		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
-		$feedback_language = isset( $feed['feedback_language'] ) ? $feed['feedback_language'] : 'en';
 		$source            = isset( $feed['source'] ) ? $feed['source'] : 'ai';
 
 		// Map step_type to the appropriate database column.
@@ -360,7 +361,7 @@ class Ieltssci_Writing_Feedback_DB {
 		$feedback_data = array(
 			'essay_id'          => $essay_id,
 			'feedback_criteria' => $feedback_criteria,
-			'feedback_language' => $feedback_language,
+			'feedback_language' => $language,
 			'source'            => $source,
 			$content_field      => $feedback,
 		);
