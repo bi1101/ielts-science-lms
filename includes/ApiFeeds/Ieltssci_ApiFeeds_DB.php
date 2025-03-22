@@ -292,7 +292,7 @@ class Ieltssci_ApiFeeds_DB {
 			// Include rate limits if requested.
 			if ( in_array( 'rate_limits', $args['include'], true ) ) {
 				try {
-					$feed['rate_limits'] = $this->rate_limit_db->get_rate_limits( $feed['id'] );
+					$feed['rate_limits'] = $this->rate_limit_db->get_rate_limits( array( 'feed_id' => $feed['id'] ) );
 				} catch ( \Exception $e ) {
 					return new WP_Error(
 						500,
