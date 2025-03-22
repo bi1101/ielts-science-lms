@@ -465,6 +465,14 @@ class Ieltssci_Writing_Feedback_Processor {
 			} elseif ( 'scoring' === $step_type ) {
 				// For scoring, use API client's score API call.
 				$result = $this->api_client->make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex, $images );
+				// Send score to frontend.
+				$this->send_message(
+					$this->transform_case( $step_type, 'snake_upper' ),
+					array(
+						'content'     => $result,
+						'regex_used'  => $score_regex,
+					)
+				);
 			} else {
 				// For non-scoring steps, use API client's streaming API call.
 				$result = $this->api_client->make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images );
