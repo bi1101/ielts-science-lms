@@ -319,6 +319,23 @@ class Ieltssci_Writing_Feedback_Processor {
 		$enable_multi_modal = isset( $config['general-setting']['enableMultiModal'] ) ? $config['general-setting']['enableMultiModal'] : false;
 		$multi_modal_fields = isset( $config['general-setting']['multiModalField'] ) ? $config['general-setting']['multiModalField'] : array();
 
+		// Map step_type to the appropriate database column.
+		switch ( $step_type ) {
+			case 'chain-of-thought':
+				$content_field = 'cot_content';
+				break;
+			case 'scoring':
+				$content_field = 'score_content';
+				break;
+			case 'feedback':
+			default:
+				$content_field = 'feedback_content';
+				break;
+		}
+
+		// Check if this step has already been processed.
+		$existing_content = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $segment, $content_field );
+
 		$images = array();
 		if ( $enable_multi_modal && ! empty( $multi_modal_fields ) ) {
 			// Convert to array if it's a string.
@@ -365,23 +382,6 @@ class Ieltssci_Writing_Feedback_Processor {
 
 		// Select prompt based on language parameter.
 		$selected_prompt = 'vi' === strtolower( $language ) ? $vietnamese_prompt : $english_prompt;
-
-		// Map step_type to the appropriate database column.
-		switch ( $step_type ) {
-			case 'chain-of-thought':
-				$content_field = 'cot_content';
-				break;
-			case 'scoring':
-				$content_field = 'score_content';
-				break;
-			case 'feedback':
-			default:
-				$content_field = 'feedback_content';
-				break;
-		}
-
-		// Check if this step has already been processed.
-		$existing_content = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $segment, $content_field );
 
 		// If existing content is found, send it back without making a new API call.
 		if ( ! empty( $existing_content ) ) {
