@@ -323,12 +323,13 @@ class Ieltssci_RateLimit {
 		if ( $usage_exceeded && $exceeded_limit ) {
 			return new WP_Error(
 				'rate_limit_exceeded',
-				$exceeded_limit['message']['body'] ?? 'You have reached the limit for this feature. Please try again later.',
+				$exceeded_limit['message']['message'] ?? 'You have reached the limit for this feature. Please try again later.',
 				array(
 					'status'        => 429,
 					'title'         => $exceeded_limit['message']['title'] ?? 'Too Many Requests',
-					'message'       => $exceeded_limit['message']['body'] ?? 'You have reached the limit for this feature. Please try again later.',
-					'cta'           => $exceeded_limit['message']['cta'] ?? '',
+					'message'       => $exceeded_limit['message']['message'] ?? 'You have reached the limit for this feature. Please try again later.',
+					'cta_title'     => $exceeded_limit['message']['ctaTitle'] ?? '',
+					'cta_link'      => $exceeded_limit['message']['ctaLink'] ?? '',
 					'limit_info'    => $exceeded_limit,
 					'current_usage' => $current_usage,
 				)
