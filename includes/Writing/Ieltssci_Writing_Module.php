@@ -166,11 +166,13 @@ class Ieltssci_Writing_Module {
 			// --- End of Menu Retrieval ---
 
 			// --- User Data ---
-			$current_user = wp_get_current_user();
-			$user_link    = '';
-			$display_name = '';
-			$user_mention = '';
-			$user_avatar  = '';
+			$current_user            = wp_get_current_user();
+			$user_link               = '';
+			$display_name            = '';
+			$user_mention            = '';
+			$user_avatar             = '';
+			$user_roles              = array(); // Initialize user roles array.
+			$has_subscription_active = false; // Initialize subscription status.
 
 			if ( is_user_logged_in() ) {
 				// BuddyBoss-specific functions (if BuddyBoss is active).
@@ -193,6 +195,15 @@ class Ieltssci_Writing_Module {
 				}
 
 				$user_avatar = get_avatar_url( $current_user->ID, array( 'size' => 100 ) );
+
+				// Get user roles.
+				$user_roles = $current_user->roles;
+
+				// Check if WooCommerce Subscriptions is active and user has active subscription.
+				if ( class_exists( 'WC_Subscriptions' ) && function_exists( 'wcs_user_has_subscription' ) ) {
+					// Check if user has any active subscription without specifying a product ID.
+					$has_subscription_active = wcs_user_has_subscription( $current_user->ID, 0, 'active' );
+				}
 			}
 
 			// Add WordPress login and register URLs.
@@ -263,6 +274,8 @@ class Ieltssci_Writing_Module {
 					'user_display_name'       => $display_name,
 					'user_mention'            => $user_mention,
 					'user_avatar'             => $user_avatar,
+					'user_roles'              => $user_roles,
+					'has_subscription_active' => $has_subscription_active, // Add subscription status.
 					'feed_data'               => $feed_data,
 					'max_concurrent_requests' => $api_settings['max_concurrent_requests'],
 					'login_url'               => $login_url,
