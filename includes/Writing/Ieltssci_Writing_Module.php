@@ -234,102 +234,102 @@ class Ieltssci_Writing_Module {
 				)
 			);
 
-				// Get logo data.
-				$show         = buddyboss_theme_get_option( 'logo_switch' );
-				$show_dark    = buddyboss_theme_get_option( 'logo_dark_switch' );
-				$logo_id      = buddyboss_theme_get_option( 'logo', 'id' );
-				$logo_dark_id = buddyboss_theme_get_option( 'logo_dark', 'id' );
+			// Get logo data.
+			$show         = buddyboss_theme_get_option( 'logo_switch' );
+			$show_dark    = buddyboss_theme_get_option( 'logo_dark_switch' );
+			$logo_id      = buddyboss_theme_get_option( 'logo', 'id' );
+			$logo_dark_id = buddyboss_theme_get_option( 'logo_dark', 'id' );
 
-				// Get logo sizes.
-				$logo_size        = buddyboss_theme_get_option( 'logo_size' );
-				$mobile_logo_size = buddyboss_theme_get_option( 'mobile_logo_size' );
+			// Get logo sizes.
+			$logo_size        = buddyboss_theme_get_option( 'logo_size' );
+			$mobile_logo_size = buddyboss_theme_get_option( 'mobile_logo_size' );
 
-				// Default sizes if not set.
-				// Default sizes if not set.
-				$logo_size        = isset( $logo_size ) && ! empty( $logo_size ) ? $logo_size : '70';
-				$mobile_logo_size = isset( $mobile_logo_size ) && ! empty( $mobile_logo_size ) ? $mobile_logo_size : '60';
+			// Default sizes if not set.
+			// Default sizes if not set.
+			$logo_size        = isset( $logo_size ) && ! empty( $logo_size ) ? $logo_size : '70';
+			$mobile_logo_size = isset( $mobile_logo_size ) && ! empty( $mobile_logo_size ) ? $mobile_logo_size : '60';
 
-				// Get logo URLs instead of HTML.
-				$logo_url      = ( $show && $logo_id ) ? wp_get_attachment_image_url( $logo_id, 'full' ) : '';
-				$logo_dark_url = ( $show && $show_dark && $logo_dark_id ) ? wp_get_attachment_image_url( $logo_dark_id, 'full' ) : '';
+			// Get logo URLs instead of HTML.
+			$logo_url      = ( $show && $logo_id ) ? wp_get_attachment_image_url( $logo_id, 'full' ) : '';
+			$logo_dark_url = ( $show && $show_dark && $logo_dark_id ) ? wp_get_attachment_image_url( $logo_dark_id, 'full' ) : '';
 
-				// Get logo alt text.
-				$logo_alt      = ( $logo_id ) ? get_post_meta( $logo_id, '_wp_attachment_image_alt', true ) : get_bloginfo( 'name' );
-				$logo_dark_alt = ( $logo_dark_id ) ? get_post_meta( $logo_dark_id, '_wp_attachment_image_alt', true ) : get_bloginfo( 'name' );
+			// Get logo alt text.
+			$logo_alt      = ( $logo_id ) ? get_post_meta( $logo_id, '_wp_attachment_image_alt', true ) : get_bloginfo( 'name' );
+			$logo_dark_alt = ( $logo_dark_id ) ? get_post_meta( $logo_dark_id, '_wp_attachment_image_alt', true ) : get_bloginfo( 'name' );
 
-				// Site information.
-				$site_title    = get_bloginfo( 'name' );
-				$site_url      = home_url( '/' );
-				$front_page_id = get_option( 'page_on_front' );
+			// Site information.
+			$site_title    = get_bloginfo( 'name' );
+			$site_url      = home_url( '/' );
+			$front_page_id = get_option( 'page_on_front' );
 
-				// Combine all data to be localized.
-				$localized_data = array(
-					'pages'                   => $page_data_for_js,
-					'nonce'                   => $nonce,
-					'root_url'                => $root_url,
-					'is_logged_in'            => is_user_logged_in(),
-					'header_menu'             => $formatted_header_menu_items,
-					'account_menu'            => $formatted_account_menu_items,
-					'user_link'               => $user_link,
-					'user_display_name'       => $display_name,
-					'user_mention'            => $user_mention,
-					'user_avatar'             => $user_avatar,
-					'user_roles'              => $user_roles,
-					'has_subscription_active' => $has_subscription_active, // Add subscription status.
-					'feed_data'               => $feed_data,
-					'max_concurrent_requests' => $api_settings['max_concurrent_requests'],
-					'login_url'               => $login_url,
-					'register_url'            => $register_url,
-					'ajax_url'                => admin_url( 'admin-ajax.php' ), // Add AJAX URL for custom login.
-					'current_page'            => $current_page,
-					// New logo data.
-					'site_logo_url'           => $logo_url,
-					'site_logo_dark_url'      => $logo_dark_url,
-					'logo_size'               => $logo_size,
-					'mobile_logo_size'        => $mobile_logo_size,
-					'logo_alt'                => $logo_alt,
-					'logo_dark_alt'           => $logo_dark_alt,
-					'site_title'              => $site_title,
-					'site_url'                => $site_url,
-					'front_page'              => $front_page_id,
-					// WooCommerce data.
-					'show_shopping_cart'      => buddyboss_theme_get_option( 'desktop_component_opt_multi_checkbox', 'desktop_shopping_cart' ) && class_exists( 'WooCommerce' ),
-					'woocommerce_urls'        => array(
-						'cart'     => class_exists( 'WooCommerce' ) ? wc_get_cart_url() : '#',
-						'checkout' => class_exists( 'WooCommerce' ) ? wc_get_checkout_url() : '#',
-					),
-					// Footer data.
-					'footer_copyright_text'   => do_shortcode( buddyboss_theme_get_option( 'copyright_text' ) ),
-					'footer_description'      => buddyboss_theme_get_option( 'footer_description' ),
-					'footer_tagline'          => buddyboss_theme_get_option( 'footer_tagline' ),
-					'footer_style'            => (int) buddyboss_theme_get_option( 'footer_style' ),
-					'footer_logo_url'         => wp_get_attachment_image_url( buddyboss_theme_get_option( 'footer_logo', 'id' ), 'full' ),
-				);
+			// Combine all data to be localized.
+			$localized_data = array(
+				'pages'                   => $page_data_for_js,
+				'nonce'                   => $nonce,
+				'root_url'                => $root_url,
+				'is_logged_in'            => is_user_logged_in(),
+				'header_menu'             => $formatted_header_menu_items,
+				'account_menu'            => $formatted_account_menu_items,
+				'user_link'               => $user_link,
+				'user_display_name'       => $display_name,
+				'user_mention'            => $user_mention,
+				'user_avatar'             => $user_avatar,
+				'user_roles'              => $user_roles,
+				'has_subscription_active' => $has_subscription_active, // Add subscription status.
+				'feed_data'               => $feed_data,
+				'max_concurrent_requests' => $api_settings['max_concurrent_requests'],
+				'login_url'               => $login_url,
+				'register_url'            => $register_url,
+				'ajax_url'                => admin_url( 'admin-ajax.php' ), // Add AJAX URL for custom login.
+				'current_page'            => $current_page,
+				// New logo data.
+				'site_logo_url'           => $logo_url,
+				'site_logo_dark_url'      => $logo_dark_url,
+				'logo_size'               => $logo_size,
+				'mobile_logo_size'        => $mobile_logo_size,
+				'logo_alt'                => $logo_alt,
+				'logo_dark_alt'           => $logo_dark_alt,
+				'site_title'              => $site_title,
+				'site_url'                => $site_url,
+				'front_page'              => $front_page_id,
+				// WooCommerce data.
+				'show_shopping_cart'      => buddyboss_theme_get_option( 'desktop_component_opt_multi_checkbox', 'desktop_shopping_cart' ) && class_exists( 'WooCommerce' ),
+				'woocommerce_urls'        => array(
+					'cart'     => class_exists( 'WooCommerce' ) ? wc_get_cart_url() : '#',
+					'checkout' => class_exists( 'WooCommerce' ) ? wc_get_checkout_url() : '#',
+				),
+				// Footer data.
+				'footer_copyright_text'   => do_shortcode( buddyboss_theme_get_option( 'copyright_text' ) ),
+				'footer_description'      => buddyboss_theme_get_option( 'footer_description' ),
+				'footer_tagline'          => buddyboss_theme_get_option( 'footer_tagline' ),
+				'footer_style'            => (int) buddyboss_theme_get_option( 'footer_style' ),
+				'footer_logo_url'         => wp_get_attachment_image_url( buddyboss_theme_get_option( 'footer_logo', 'id' ), 'full' ),
+			);
 
-				// Get footer menu items.
-				$footer_menu_name = 'footer-menu';
-				$footer_locations = get_nav_menu_locations();
-				if ( isset( $footer_locations[ $footer_menu_name ] ) ) {
-					$footer_menu                   = wp_get_nav_menu_object( $footer_locations[ $footer_menu_name ] );
-					$footer_menu_items             = wp_get_nav_menu_items( $footer_menu->term_id, array( 'order' => 'ASC' ) );
-					$localized_data['footer_menu'] = $this->build_hierarchical_menu( $footer_menu_items );
-				}
+			// Get footer menu items.
+			$footer_menu_name = 'footer-menu';
+			$footer_locations = get_nav_menu_locations();
+			if ( isset( $footer_locations[ $footer_menu_name ] ) ) {
+				$footer_menu                   = wp_get_nav_menu_object( $footer_locations[ $footer_menu_name ] );
+				$footer_menu_items             = wp_get_nav_menu_items( $footer_menu->term_id, array( 'order' => 'ASC' ) );
+				$localized_data['footer_menu'] = $this->build_hierarchical_menu( $footer_menu_items );
+			}
 
-				// Get footer secondary menu items.
-				$footer_secondary_menu_name = 'footer-secondary';
-				if ( isset( $footer_locations[ $footer_secondary_menu_name ] ) ) {
-					$footer_secondary_menu                   = wp_get_nav_menu_object( $footer_locations[ $footer_secondary_menu_name ] );
-					$footer_secondary_menu_items             = wp_get_nav_menu_items( $footer_secondary_menu->term_id, array( 'order' => 'ASC' ) );
-					$localized_data['footer_secondary_menu'] = $this->build_hierarchical_menu( $footer_secondary_menu_items );
-				}
+			// Get footer secondary menu items.
+			$footer_secondary_menu_name = 'footer-secondary';
+			if ( isset( $footer_locations[ $footer_secondary_menu_name ] ) ) {
+				$footer_secondary_menu                   = wp_get_nav_menu_object( $footer_locations[ $footer_secondary_menu_name ] );
+				$footer_secondary_menu_items             = wp_get_nav_menu_items( $footer_secondary_menu->term_id, array( 'order' => 'ASC' ) );
+				$localized_data['footer_secondary_menu'] = $this->build_hierarchical_menu( $footer_secondary_menu_items );
+			}
 
-				// Get social links.
-				$footer_socials = buddyboss_theme_get_option( 'boss_footer_social_links' );
-				// Pass the social links object directly.
-				$localized_data['footer_socials'] = is_array( $footer_socials ) ? $footer_socials : array();
+			// Get social links.
+			$footer_socials = buddyboss_theme_get_option( 'boss_footer_social_links' );
+			// Pass the social links object directly.
+			$localized_data['footer_socials'] = is_array( $footer_socials ) ? $footer_socials : array();
 
-				// Localize script (pass data to the React app).
-				wp_localize_script( $script_handle, 'ielts_writing_data', $localized_data );
+			// Localize script (pass data to the React app).
+			wp_localize_script( $script_handle, 'ielts_writing_data', $localized_data );
 		}
 	}
 
