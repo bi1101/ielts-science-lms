@@ -23,6 +23,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/vendor/autoload.php';
 
+/**
+ * Load plugin text domain for translations.
+ */
+function ieltssci_load_textdomain() {
+	load_plugin_textdomain( 'ielts-science-lms', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+}
+add_action( 'plugins_loaded', 'ieltssci_load_textdomain' );
+
 // Initialize the core module.
 $ieltssci_core_module = new \IeltsScienceLMS\Core\Ieltssci_Core_Module();
 

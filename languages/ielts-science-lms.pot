@@ -1,1044 +1,1219 @@
-# Copyright (C) 2025 src
-# This file is distributed under the GPL v2 or later license.
+# Copyright (C) 2025 ielts-science-lms
+# This file is distributed under the Proprietary license.
 msgid ""
 msgstr ""
-"Project-Id-Version: src 1.0.0\n"
-"Report-Msgid-Bugs-To: undefined <EMAIL>\n"
+"Project-Id-Version: ielts-science-lms 0.0.1\n"
+"Report-Msgid-Bugs-To: IELTS Science <EMAIL>\n"
 "MIME-Version: 1.0\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Content-Type: text/plain; charset=iso-8859-1\n"
 "Plural-Forms: nplurals=2; plural=(n!=1);\n"
-"POT-Creation-Date: 2025-03-25T06:12:03.684Z\n"
+"POT-Creation-Date: 2025-03-25T11:24:28.805Z\n"
 "PO-Revision-Date: 2025-MO-DA HO:MI+ZONE\n"
-"Last-Translator: undefined <EMAIL>\n"
-"Language-Team: undefined <EMAIL>\n"
+"Last-Translator: IELTS Science <EMAIL>\n"
+"Language-Team: IELTS Science <EMAIL>\n"
 "X-Generator: @wp-blocks/make-pot 1.4.0\n"
 "Language: en\n"
-"domain: \n"
+"domain: X-Domain: ielts-science-lms\n"
 
-#: src.php
-#. Author URI of the plugin
-msgid ""
+#: ielts-science-lms.php
+#: includes/Settings/Ieltssci_Settings.php:56
+#: includes/Settings/Ieltssci_Settings.php:57
+#: includes/Core/Ieltssci_Core_Module.php:99
+#. Name of the plugin
+msgid "IELTS Science LMS"
 msgstr ""
 
-#: utils/bandDescriptor.ts:63
-#: utils/bandDescriptor.ts:540
+#: ielts-science-lms.php
+#. Author URI of the plugin
+msgid "https://ieltsscience.fun/"
+msgstr ""
+
+#: ielts-science-lms.php
+#. Description of the plugin
+msgid "IELTS Science Learning Management System."
+msgstr ""
+
+#: ielts-science-lms.php
+#. Author of the plugin
+msgid "IELTS Science"
+msgstr ""
+
+#: includes/Writing/Ieltssci_Writing_Settings.php:50
+msgid "Writing APIs"
+msgstr ""
+
+#: includes/Writing/Ieltssci_Writing_Settings.php:55
+msgid "Writing APIs Process Order"
+msgstr ""
+
+#: includes/Writing/Ieltssci_Writing_REST.php:532
+msgid "Essay not found"
+msgstr ""
+
+#: includes/Writing/Ieltssci_Writing_Module.php:486
+msgid "Writing Module Pages"
+msgstr ""
+
+#: includes/Writing/Ieltssci_Writing_Module.php:487
+msgid "Select the pages for the Writing Module."
+msgstr ""
+
+#: includes/Writing/Ieltssci_Writing_Module.php:489
+msgid "IELTS Science Writing"
+msgstr ""
+
+#: includes/Writing/Ieltssci_Writing_Module.php:490
+msgid "Result Task 2"
+msgstr ""
+
+#: includes/Writing/Ieltssci_Writing_Module.php:491
+msgid "Result Task 1"
+msgstr ""
+
+#: includes/Writing/Ieltssci_Writing_Module.php:492
+msgid "Result General Essay"
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings_Config.php:262
+#: includes/Settings/Ieltssci_Settings.php:250
+msgid "API Settings"
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:67
+#: includes/Settings/Ieltssci_Settings.php:68
+msgid "Pages"
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:76
+#: includes/Settings/Ieltssci_Settings.php:77
+#: public/writing/src/components/global/TopBar.tsx:295
+#: public/writing/src/components/global/SettingDialog.tsx:96
+msgid "Settings"
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:113
+#: includes/Settings/Ieltssci_Settings.php:214
+#: includes/Settings/Ieltssci_Settings.php:466
+msgid "Security check failed."
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:219
+msgid "IELTS Science LMS Settings"
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:251
+msgid "Configure the API settings for IELTS Science LMS."
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:257
+msgid "API Max Concurrent Requests"
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:269
+msgid "Maximum number of concurrent API requests allowed."
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:355
+msgid "Pages Settings"
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:356
+msgid "Associate a WordPress page with each of the following pages."
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:386
+msgid "- Select a page -"
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:394
+msgid "View Page"
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:399
+#: includes/Settings/Ieltssci_Settings.php:443
+msgid "Create Page"
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:430
+msgid "Creating..."
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:461
+msgid "You do not have sufficient permissions to access this page."
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:473
+msgid "Invalid page key or module name."
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:491
+msgid "Page title not found for the given key and module."
+msgstr ""
+
+#: includes/Settings/Ieltssci_Settings.php:497
+msgid "Page created successfully!"
+msgstr ""
+
+# %s: Page label
+#: includes/Settings/Ieltssci_Settings.php:566
+msgid "%s page created successfully!"
+msgstr ""
+
+# 1: Page label, 2: Error message
+#: includes/Settings/Ieltssci_Settings.php:582
+msgid "Error creating %1$s page: %2$s"
+msgstr ""
+
+#: includes/Core/Ieltssci_Core_Module.php:99
+msgid "requires WordPress version 6.0 or higher. The plugin has been deactivated."
+msgstr ""
+
+#: includes/RateLimits/Ieltssci_RateLimit_Settings.php:43
+msgid "Rate Limits"
+msgstr ""
+
+#: includes/ApiKeys/Ieltssci_ApiKeys_Settings.php:46
+msgid "API Keys"
+msgstr ""
+
+#: includes/ApiKeys/Ieltssci_ApiKeys_Settings.php:68
+msgid "Open Key AI"
+msgstr ""
+
+#: includes/ApiKeys/Ieltssci_ApiKeys_Settings.php:73
+msgid "Open AI"
+msgstr ""
+
+#: includes/ApiKeys/Ieltssci_ApiKeys_Settings.php:78
+msgid "Azure"
+msgstr ""
+
+#: includes/ApiKeys/Ieltssci_ApiKeys_Settings.php:94
+msgid "Google"
+msgstr ""
+
+#: includes/ApiKeys/Ieltssci_ApiKeys_Settings.php:99
+msgid "Huggingface"
+msgstr ""
+
+#: includes/ApiKeys/Ieltssci_ApiKeys_Settings.php:104
+msgid "Google Console"
+msgstr ""
+
+#: public/writing/src/utils/bandDescriptor.ts:63
+#: public/writing/src/utils/bandDescriptor.ts:540
 msgid "Well extended and supported"
 msgstr ""
 
-#: utils/bandDescriptor.ts:69
+#: public/writing/src/utils/bandDescriptor.ts:69
 msgid "Extended and supported, but overgeneralized, lack focus or precision"
 msgstr ""
 
-#: utils/bandDescriptor.ts:77
+#: public/writing/src/utils/bandDescriptor.ts:77
 msgid "Insufficiently developed or lack clarity"
 msgstr ""
 
-#: utils/bandDescriptor.ts:85
+#: public/writing/src/utils/bandDescriptor.ts:85
 msgid "Little to no development, containing irrelevant or illogical detail"
 msgstr ""
 
-#: utils/bandDescriptor.ts:95
-#: utils/bandDescriptor.ts:568
+#: public/writing/src/utils/bandDescriptor.ts:95
+#: public/writing/src/utils/bandDescriptor.ts:568
 msgid "ALL parts of the question are answered"
 msgstr ""
 
-#: utils/bandDescriptor.ts:103
-#: utils/bandDescriptor.ts:576
+#: public/writing/src/utils/bandDescriptor.ts:103
+#: public/writing/src/utils/bandDescriptor.ts:576
 msgid "SOME parts of the question are NOT answered"
 msgstr ""
 
-#: utils/bandDescriptor.ts:111
+#: public/writing/src/utils/bandDescriptor.ts:111
 msgid "Answers are not exact to the requirement"
 msgstr ""
 
-#: utils/bandDescriptor.ts:119
+#: public/writing/src/utils/bandDescriptor.ts:119
 msgid "The prompt has been misunderstood"
 msgstr ""
 
-#: utils/bandDescriptor.ts:126
+#: public/writing/src/utils/bandDescriptor.ts:126
 msgid "Has a position directly answering the question"
 msgstr ""
 
-#: utils/bandDescriptor.ts:134
-#: utils/bandDescriptor.ts:606
+#: public/writing/src/utils/bandDescriptor.ts:134
+#: public/writing/src/utils/bandDescriptor.ts:606
 msgid "Hard to discern position"
 msgstr ""
 
-#: utils/bandDescriptor.ts:139
-#: utils/bandDescriptor.ts:611
+#: public/writing/src/utils/bandDescriptor.ts:139
+#: public/writing/src/utils/bandDescriptor.ts:611
 msgid "Hard to discern answer"
 msgstr ""
 
-#: utils/bandDescriptor.ts:144
-#: utils/bandDescriptor.ts:616
+#: public/writing/src/utils/bandDescriptor.ts:144
+#: public/writing/src/utils/bandDescriptor.ts:616
 msgid "No discernable position"
 msgstr ""
 
-#: utils/bandDescriptor.ts:149
-#: utils/bandDescriptor.ts:621
+#: public/writing/src/utils/bandDescriptor.ts:149
+#: public/writing/src/utils/bandDescriptor.ts:621
 msgid "No discernable answer"
 msgstr ""
 
-#: utils/bandDescriptor.ts:158
+#: public/writing/src/utils/bandDescriptor.ts:158
 msgid "Ideas are connected flawlessly"
 msgstr ""
 
-#: utils/bandDescriptor.ts:163
+#: public/writing/src/utils/bandDescriptor.ts:163
 msgid "Ideas are logically connected; minor sentence-level disruptions"
 msgstr ""
 
-#: utils/bandDescriptor.ts:172
+#: public/writing/src/utils/bandDescriptor.ts:172
 msgid ""
 "Ideas are logically connected; minor paragraph-level disruptions or "
 "considerable sentence-level disruptions"
 msgstr ""
 
-#: utils/bandDescriptor.ts:180
+#: public/writing/src/utils/bandDescriptor.ts:180
 msgid "Ideas recognizable but not logically connected"
 msgstr ""
 
-#: utils/bandDescriptor.ts:188
+#: public/writing/src/utils/bandDescriptor.ts:188
 msgid "Idea arrangement causes confusion"
 msgstr ""
 
-#: utils/bandDescriptor.ts:195
+#: public/writing/src/utils/bandDescriptor.ts:195
 msgid "Effective paragraphing"
 msgstr ""
 
-#: utils/bandDescriptor.ts:200
+#: public/writing/src/utils/bandDescriptor.ts:200
 msgid "Clear structure, not all paragraphs have a clear purpose"
 msgstr ""
 
-#: utils/bandDescriptor.ts:208
+#: public/writing/src/utils/bandDescriptor.ts:208
 msgid "Missing paragraph"
 msgstr ""
 
-#: utils/bandDescriptor.ts:213
+#: public/writing/src/utils/bandDescriptor.ts:213
 msgid "No paragraphing or all paragraphs lack a clear purpose"
 msgstr ""
 
-#: utils/bandDescriptor.ts:221
+#: public/writing/src/utils/bandDescriptor.ts:221
 msgid "No identifiable paragraphing"
 msgstr ""
 
-#: utils/bandDescriptor.ts:228
+#: public/writing/src/utils/bandDescriptor.ts:228
 msgid "Skillfully used, no lapse"
 msgstr ""
 
-#: utils/bandDescriptor.ts:233
+#: public/writing/src/utils/bandDescriptor.ts:233
 msgid "Some lapses"
 msgstr ""
 
-#: utils/bandDescriptor.ts:238
+#: public/writing/src/utils/bandDescriptor.ts:238
 msgid "Unclear referencing causes some repetition & misunderstanding"
 msgstr ""
 
-#: utils/bandDescriptor.ts:246
+#: public/writing/src/utils/bandDescriptor.ts:246
 msgid "Inadequate & inaccurate referencing causes frequent repetition"
 msgstr ""
 
-#: utils/bandDescriptor.ts:254
+#: public/writing/src/utils/bandDescriptor.ts:254
 msgid "Minimal & inaccurate use of referencing"
 msgstr ""
 
-#: utils/bandDescriptor.ts:264
+#: public/writing/src/utils/bandDescriptor.ts:264
 msgid "Perfect use"
 msgstr ""
 
-#: utils/bandDescriptor.ts:269
+#: public/writing/src/utils/bandDescriptor.ts:269
 msgid "Mostly accurate & flexible use, not mechanical"
 msgstr ""
 
-#: utils/bandDescriptor.ts:277
+#: public/writing/src/utils/bandDescriptor.ts:277
 msgid "Some good use, but some grammar errors; mechanical use"
 msgstr ""
 
-#: utils/bandDescriptor.ts:285
+#: public/writing/src/utils/bandDescriptor.ts:285
 msgid "Limited/overuse and frequent inaccurate use"
 msgstr ""
 
-#: utils/bandDescriptor.ts:293
+#: public/writing/src/utils/bandDescriptor.ts:293
 msgid "Some use of basic devices inaccurately or repetitively"
 msgstr ""
 
-#: utils/bandDescriptor.ts:306
+#: public/writing/src/utils/bandDescriptor.ts:306
 msgid "Wide resources, flexible use, and precise meaning"
 msgstr ""
 
-#: utils/bandDescriptor.ts:314
+#: public/writing/src/utils/bandDescriptor.ts:314
 msgid "Sufficient resource to allow flexibility, not repetitive"
 msgstr ""
 
-#: utils/bandDescriptor.ts:322
+#: public/writing/src/utils/bandDescriptor.ts:322
 msgid "Adequate resources, some repetition & few paraphrasing"
 msgstr ""
 
-#: utils/bandDescriptor.ts:330
+#: public/writing/src/utils/bandDescriptor.ts:330
 msgid "Limited and minimally adequate, frequent repetition"
 msgstr ""
 
-#: utils/bandDescriptor.ts:338
+#: public/writing/src/utils/bandDescriptor.ts:338
 msgid "Limited and inadequate, frequent repetition, no paraphrasing"
 msgstr ""
 
-#: utils/bandDescriptor.ts:348
+#: public/writing/src/utils/bandDescriptor.ts:348
 msgid "Occasional error in word choice, collocation and informal language"
 msgstr ""
 
-#: utils/bandDescriptor.ts:356
+#: public/writing/src/utils/bandDescriptor.ts:356
 msgid "Few minor errors in style and collocation. No word choice errors"
 msgstr ""
 
-#: utils/bandDescriptor.ts:364
+#: public/writing/src/utils/bandDescriptor.ts:364
 msgid "Some errors, not affecting comprehension"
 msgstr ""
 
-#: utils/bandDescriptor.ts:372
+#: public/writing/src/utils/bandDescriptor.ts:372
 msgid "Frequent errors, not affecting comprehension"
 msgstr ""
 
-#: utils/bandDescriptor.ts:380
+#: public/writing/src/utils/bandDescriptor.ts:380
 msgid "Errors impede meaning"
 msgstr ""
 
-#: utils/bandDescriptor.ts:388
+#: public/writing/src/utils/bandDescriptor.ts:388
 msgid "Uncommon vocab does not impede comprehension, occasional unnatural usage"
 msgstr ""
 
-#: utils/bandDescriptor.ts:396
+#: public/writing/src/utils/bandDescriptor.ts:396
 msgid "Uncommon vocab does not impede comprehension, some unnatural usage"
 msgstr ""
 
-#: utils/bandDescriptor.ts:404
+#: public/writing/src/utils/bandDescriptor.ts:404
 msgid "Uncommon vocab may not be appropriate"
 msgstr ""
 
-#: utils/bandDescriptor.ts:412
+#: public/writing/src/utils/bandDescriptor.ts:412
 msgid "No usage of uncommon vocab"
 msgstr ""
 
-#: utils/bandDescriptor.ts:419
+#: public/writing/src/utils/bandDescriptor.ts:419
 msgid "Spelling mistakes never impede meaning, few errors"
 msgstr ""
 
-#: utils/bandDescriptor.ts:427
+#: public/writing/src/utils/bandDescriptor.ts:427
 msgid "Spelling mistakes never impede meaning, some errors"
 msgstr ""
 
-#: utils/bandDescriptor.ts:435
+#: public/writing/src/utils/bandDescriptor.ts:435
 msgid "Spelling mistakes never impede meaning, several errors"
 msgstr ""
 
-#: utils/bandDescriptor.ts:443
+#: public/writing/src/utils/bandDescriptor.ts:443
 msgid "Spelling sometimes impedes meaning"
 msgstr ""
 
-#: utils/bandDescriptor.ts:448
+#: public/writing/src/utils/bandDescriptor.ts:448
 msgid "Spelling errors always impede meaning"
 msgstr ""
 
-#: utils/bandDescriptor.ts:460
+#: public/writing/src/utils/bandDescriptor.ts:460
 msgid "A wide range of structures is flexibly and accurately used"
 msgstr ""
 
-#: utils/bandDescriptor.ts:468
+#: public/writing/src/utils/bandDescriptor.ts:468
 msgid "A variety of structures is used with SOME flexibility"
 msgstr ""
 
-#: utils/bandDescriptor.ts:477
+#: public/writing/src/utils/bandDescriptor.ts:477
 msgid ""
 "A mix of simple and multi-clause sentences; limited flexibility, complex "
 "structures are less accurate"
 msgstr ""
 
-#: utils/bandDescriptor.ts:486
+#: public/writing/src/utils/bandDescriptor.ts:486
 msgid ""
 "The range of structures is limited and repetitive; some multi-clause "
 "sentences are used"
 msgstr ""
 
-#: utils/bandDescriptor.ts:495
+#: public/writing/src/utils/bandDescriptor.ts:495
 msgid "A very limited range of structures is used, only single clause sentences"
 msgstr ""
 
-#: utils/bandDescriptor.ts:505
+#: public/writing/src/utils/bandDescriptor.ts:505
 msgid "Rare, non-systematic errors, NEVER impede meaning"
 msgstr ""
 
-#: utils/bandDescriptor.ts:513
+#: public/writing/src/utils/bandDescriptor.ts:513
 msgid "Few errors, NEVER impede meaning"
 msgstr ""
 
-#: utils/bandDescriptor.ts:518
+#: public/writing/src/utils/bandDescriptor.ts:518
 msgid "Some errors, RARELY impede meaning"
 msgstr ""
 
-#: utils/bandDescriptor.ts:523
+#: public/writing/src/utils/bandDescriptor.ts:523
 msgid "Frequent errors & SOMETIMES impede meaning"
 msgstr ""
 
-#: utils/bandDescriptor.ts:531
+#: public/writing/src/utils/bandDescriptor.ts:531
 msgid "Errors FREQUENTLY impede meaning"
 msgstr ""
 
-#: utils/bandDescriptor.ts:545
+#: public/writing/src/utils/bandDescriptor.ts:545
 msgid "Extended and supported"
 msgstr ""
 
-#: utils/bandDescriptor.ts:550
+#: public/writing/src/utils/bandDescriptor.ts:550
 msgid "Insufficiently developed, containing unclear detail"
 msgstr ""
 
-#: utils/bandDescriptor.ts:558
+#: public/writing/src/utils/bandDescriptor.ts:558
 msgid "Little to no development, may contain illogical detail"
 msgstr ""
 
-#: utils/bandDescriptor.ts:584
+#: public/writing/src/utils/bandDescriptor.ts:584
 msgid "Not exact to the question"
 msgstr ""
 
-#: utils/bandDescriptor.ts:589
+#: public/writing/src/utils/bandDescriptor.ts:589
 msgid "The question has been misunderstood"
 msgstr ""
 
-#: utils/bandDescriptor.ts:596
+#: public/writing/src/utils/bandDescriptor.ts:596
 msgid "Clear position"
 msgstr ""
 
-#: utils/bandDescriptor.ts:601
+#: public/writing/src/utils/bandDescriptor.ts:601
 msgid "Clear answer"
 msgstr ""
 
-#: utils/bandDescriptor.ts:628
+#: public/writing/src/utils/bandDescriptor.ts:628
 msgid "Include a brief overview of main points"
 msgstr ""
 
-#: utils/bandDescriptor.ts:636
+#: public/writing/src/utils/bandDescriptor.ts:636
 msgid "No overview of main points"
 msgstr ""
 
-#: utils/bandDescriptor.ts:643
+#: public/writing/src/utils/bandDescriptor.ts:643
 msgid "No overgeneralization"
 msgstr ""
 
-#: utils/bandDescriptor.ts:648
+#: public/writing/src/utils/bandDescriptor.ts:648
 msgid "Contain overgeneralized details"
 msgstr ""
 
-#: utils/bandDescriptor.ts:655
-#: utils/bandDescriptor.ts:677
+#: public/writing/src/utils/bandDescriptor.ts:655
+#: public/writing/src/utils/bandDescriptor.ts:677
 msgid "Good"
 msgstr ""
 
-#: utils/bandDescriptor.ts:660
+#: public/writing/src/utils/bandDescriptor.ts:660
 msgid "Contain lack-of-focus details"
 msgstr ""
 
-#: utils/bandDescriptor.ts:665
+#: public/writing/src/utils/bandDescriptor.ts:665
 msgid "Contain less relevant details"
 msgstr ""
 
-#: utils/bandDescriptor.ts:670
+#: public/writing/src/utils/bandDescriptor.ts:670
 msgid "Contain irrelevant details"
 msgstr ""
 
-#: utils/bandDescriptor.ts:682
+#: public/writing/src/utils/bandDescriptor.ts:682
 msgid "Could be improved"
 msgstr ""
 
-#: utils/bandDescriptor.ts:687
+#: public/writing/src/utils/bandDescriptor.ts:687
 msgid "Fair"
 msgstr ""
 
-#: utils/bandDescriptor.ts:692
+#: public/writing/src/utils/bandDescriptor.ts:692
 msgid "Needs work"
 msgstr ""
 
-#: utils/bandDescriptor.ts:697
+#: public/writing/src/utils/bandDescriptor.ts:697
 msgid "Requires attention"
 msgstr ""
 
-#: utils/bandDescriptor.ts:706
+#: public/writing/src/utils/bandDescriptor.ts:706
 msgid "Accurate and relevant data"
 msgstr ""
 
-#: utils/bandDescriptor.ts:711
+#: public/writing/src/utils/bandDescriptor.ts:711
 msgid "Inaccurate data"
 msgstr ""
 
-#: utils/bandDescriptor.ts:716
+#: public/writing/src/utils/bandDescriptor.ts:716
 msgid "The data has been misunderstood"
 msgstr ""
 
-#: utils/bandDescriptor.ts:723
+#: public/writing/src/utils/bandDescriptor.ts:723
 msgid "Key features are skillfully selected and clearly highlighted"
 msgstr ""
 
-#: utils/bandDescriptor.ts:732
+#: public/writing/src/utils/bandDescriptor.ts:732
 msgid ""
 "Key features are covered, and clearly highlighted, but could be further "
 "extended"
 msgstr ""
 
-#: utils/bandDescriptor.ts:741
+#: public/writing/src/utils/bandDescriptor.ts:741
 msgid "Key features are adequately covered, some missing or excessive details"
 msgstr ""
 
-#: utils/bandDescriptor.ts:750
+#: public/writing/src/utils/bandDescriptor.ts:750
 msgid ""
 "Key features are not adequately covered, irrelevant or mechanically "
 "recounted"
 msgstr ""
 
-#: utils/bandDescriptor.ts:759
+#: public/writing/src/utils/bandDescriptor.ts:759
 msgid "Few key features are selected, and they are irrelevant or repetitive"
 msgstr ""
 
-#: utils/bandDescriptor.ts:769
+#: public/writing/src/utils/bandDescriptor.ts:769
 msgid "Appropriately use data"
 msgstr ""
 
-#: utils/bandDescriptor.ts:774
+#: public/writing/src/utils/bandDescriptor.ts:774
 msgid "No data"
 msgstr ""
 
-#: utils/bandDescriptor.ts:781
+#: public/writing/src/utils/bandDescriptor.ts:781
 msgid "A clear overview with main trends or differences"
 msgstr ""
 
-#: utils/bandDescriptor.ts:789
+#: public/writing/src/utils/bandDescriptor.ts:789
 msgid "A relevant overview is attempted"
 msgstr ""
 
-#: utils/bandDescriptor.ts:794
+#: public/writing/src/utils/bandDescriptor.ts:794
 msgid "No overview, only focus on details"
 msgstr ""
 
-#: utils/bandDescriptor.ts:801
+#: public/writing/src/utils/bandDescriptor.ts:801
 msgid "Appropriate format, data are appropriately categorized"
 msgstr ""
 
-#: utils/bandDescriptor.ts:809
+#: public/writing/src/utils/bandDescriptor.ts:809
 msgid "Appropriate format"
 msgstr ""
 
-#: utils/bandDescriptor.ts:814
+#: public/writing/src/utils/bandDescriptor.ts:814
 msgid "Format may be inappropriate in places"
 msgstr ""
 
-#: utils/bandDescriptor.ts:822
+#: public/writing/src/utils/bandDescriptor.ts:822
 msgid "Inappropriate format"
 msgstr ""
 
-#: handlers/sseFetchHandler.ts:456
+#: public/writing/src/handlers/sseFetchHandler.ts:456
 msgid "You are probably offline."
 msgstr ""
 
-#: config/Layout.ts:15
-#: config/Layout.ts:61
-#: config/Layout.ts:99
-#: config/Layout.ts:118
-#: config/Layout.ts:179
+#: public/writing/src/config/Layout.ts:15
+#: public/writing/src/config/Layout.ts:61
+#: public/writing/src/config/Layout.ts:99
+#: public/writing/src/config/Layout.ts:118
+#: public/writing/src/config/Layout.ts:179
 msgid "Relevance"
 msgstr ""
 
-#: config/Layout.ts:23
-#: config/Layout.ts:126
+#: public/writing/src/config/Layout.ts:23
+#: public/writing/src/config/Layout.ts:126
 msgid "Clear Answer/Clear Opinion"
 msgstr ""
 
-#: config/Layout.ts:34
+#: public/writing/src/config/Layout.ts:34
 msgid "Brief Overview"
 msgstr ""
 
-#: config/Layout.ts:42
+#: public/writing/src/config/Layout.ts:42
 msgid "Introduction - Rewrite"
 msgstr ""
 
-#: config/Layout.ts:53
+#: public/writing/src/config/Layout.ts:53
 msgid "Linking"
 msgstr ""
 
-#: config/Layout.ts:69
+#: public/writing/src/config/Layout.ts:69
 msgid "Topic Sentence - Rewrite"
 msgstr ""
 
-#: config/Layout.ts:80
+#: public/writing/src/config/Layout.ts:80
 msgid "Logic & Depth"
 msgstr ""
 
-#: config/Layout.ts:88
+#: public/writing/src/config/Layout.ts:88
 msgid "Overgeneralize"
 msgstr ""
 
-#: config/Layout.ts:107
+#: public/writing/src/config/Layout.ts:107
 msgid "Main Point - Rewrite"
 msgstr ""
 
-#: config/Layout.ts:137
+#: public/writing/src/config/Layout.ts:137
 msgid "Conclusion - Rewrite"
 msgstr ""
 
-#: config/Layout.ts:148
+#: public/writing/src/config/Layout.ts:148
 msgid "Range of Vocabulary"
 msgstr ""
 
-#: config/Layout.ts:155
+#: public/writing/src/config/Layout.ts:155
 msgid "Word choice, Collocation, Style"
 msgstr ""
 
-#: config/Layout.ts:162
+#: public/writing/src/config/Layout.ts:162
 msgid "Uncommon/Topical Vocabulary"
 msgstr ""
 
-#: config/Layout.ts:169
+#: public/writing/src/config/Layout.ts:169
 msgid "Spelling, Word Form Error"
 msgstr ""
 
-#: config/Layout.ts:186
+#: public/writing/src/config/Layout.ts:186
 msgid "Clear Position/Answer"
 msgstr ""
 
-#: config/Layout.ts:193
+#: public/writing/src/config/Layout.ts:193
 msgid "Idea Development"
 msgstr ""
 
-#: config/Layout.ts:203
+#: public/writing/src/config/Layout.ts:203
 msgid "Flow"
 msgstr ""
 
-#: config/Layout.ts:210
+#: public/writing/src/config/Layout.ts:210
 msgid "Paragraphing"
 msgstr ""
 
-#: config/Layout.ts:217
+#: public/writing/src/config/Layout.ts:217
 msgid "Referencing"
 msgstr ""
 
-#: config/Layout.ts:224
+#: public/writing/src/config/Layout.ts:224
 msgid "Use of Cohesive Devices"
 msgstr ""
 
-#: config/Layout.ts:234
+#: public/writing/src/config/Layout.ts:234
 msgid "Range of Structures"
 msgstr ""
 
-#: config/Layout.ts:241
+#: public/writing/src/config/Layout.ts:241
 msgid "Accuracy"
 msgstr ""
 
-#: config/Layout.ts:251
+#: public/writing/src/config/Layout.ts:251
 msgid "New Vocabulary Table"
 msgstr ""
 
-#: config/Layout.ts:263
-#: config/Layout.ts:275
+#: public/writing/src/config/Layout.ts:263
+#: public/writing/src/config/Layout.ts:275
 msgid "Sample Essay"
 msgstr ""
 
-#: config/Layout.ts:287
+#: public/writing/src/config/Layout.ts:287
 msgid "Use Data Accurately"
 msgstr ""
 
-#: config/Layout.ts:294
+#: public/writing/src/config/Layout.ts:294
 msgid "Present Key Features"
 msgstr ""
 
-#: config/Layout.ts:301
+#: public/writing/src/config/Layout.ts:301
 msgid "Use Data"
 msgstr ""
 
-#: config/Layout.ts:308
+#: public/writing/src/config/Layout.ts:308
 msgid "Present an Overview"
 msgstr ""
 
-#: config/Layout.ts:315
+#: public/writing/src/config/Layout.ts:315
 msgid "Format"
 msgstr ""
 
-#: pages/result-task-2/RightPanel.tsx:67
-#: pages/result-task-2/LeftPanel.tsx:51
-#: pages/result-task-1/RightPanel.tsx:66
-#: pages/result-task-1/LeftPanel.tsx:51
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:66
+#: public/writing/src/pages/result-task-1/LeftPanel.tsx:51
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:67
+#: public/writing/src/pages/result-task-2/LeftPanel.tsx:51
 msgid "Lexical Resources"
 msgstr ""
 
-#: pages/result-task-2/RightPanel.tsx:73
-#: pages/result-task-2/LeftPanel.tsx:57
-#: pages/result-task-1/RightPanel.tsx:72
-#: pages/result-task-1/LeftPanel.tsx:57
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:72
+#: public/writing/src/pages/result-task-1/LeftPanel.tsx:57
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:73
+#: public/writing/src/pages/result-task-2/LeftPanel.tsx:57
 msgid "Grammatical Range & Accuracy"
 msgstr ""
 
-#: pages/result-task-2/RightPanel.tsx:79
-#: pages/result-task-2/LeftPanel.tsx:63
-msgid "Task Response"
-msgstr ""
-
-#: pages/result-task-2/RightPanel.tsx:85
-#: pages/result-task-2/LeftPanel.tsx:69
-#: pages/result-task-1/RightPanel.tsx:84
-#: pages/result-task-1/LeftPanel.tsx:69
-msgid "Coherence & Cohesion"
-msgstr ""
-
-#: pages/result-task-2/RightPanel.tsx:119
-#: pages/result-task-1/RightPanel.tsx:118
-#: pages/home/index.tsx:189
-msgid "Vocabulary Suggestions"
-msgstr ""
-
-#: pages/result-task-2/RightPanel.tsx:134
-#: pages/result-task-1/RightPanel.tsx:133
-msgid "Lexical Resources Feedback"
-msgstr ""
-
-#: pages/result-task-2/RightPanel.tsx:152
-#: pages/result-task-1/RightPanel.tsx:151
-msgid "New Vocabulary"
-msgstr ""
-
-#: pages/result-task-2/RightPanel.tsx:174
-#: pages/result-task-1/RightPanel.tsx:173
-msgid "Improved Essay"
-msgstr ""
-
-#: pages/result-task-2/RightPanel.tsx:215
-#: pages/result-task-1/RightPanel.tsx:214
-msgid "Grammar Suggestions"
-msgstr ""
-
-#: pages/result-task-2/RightPanel.tsx:229
-#: pages/result-task-1/RightPanel.tsx:228
-msgid "Grammar Feedback"
-msgstr ""
-
-#: pages/result-task-2/RightPanel.tsx:269
-msgid "Argument Enhancement"
-msgstr ""
-
-#: pages/result-task-2/RightPanel.tsx:281
-msgid "Task Response Feedback"
-msgstr ""
-
-#: pages/result-task-2/RightPanel.tsx:321
-#: pages/result-task-1/RightPanel.tsx:308
-msgid "Coherence & Cohesion Feedback"
-msgstr ""
-
-#: pages/result-task-1/RightPanel.tsx:78
-#: pages/result-task-1/LeftPanel.tsx:63
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:78
+#: public/writing/src/pages/result-task-1/LeftPanel.tsx:63
 msgid "Task Achievement"
 msgstr ""
 
-#: pages/result-task-1/RightPanel.tsx:268
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:84
+#: public/writing/src/pages/result-task-1/LeftPanel.tsx:69
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:85
+#: public/writing/src/pages/result-task-2/LeftPanel.tsx:69
+msgid "Coherence & Cohesion"
+msgstr ""
+
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:118
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:119
+#: public/writing/src/pages/home/index.tsx:189
+msgid "Vocabulary Suggestions"
+msgstr ""
+
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:133
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:134
+msgid "Lexical Resources Feedback"
+msgstr ""
+
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:151
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:152
+msgid "New Vocabulary"
+msgstr ""
+
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:173
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:174
+msgid "Improved Essay"
+msgstr ""
+
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:214
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:215
+msgid "Grammar Suggestions"
+msgstr ""
+
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:228
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:229
+msgid "Grammar Feedback"
+msgstr ""
+
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:268
 msgid "Task Achievement Feedback"
 msgstr ""
 
-#: pages/home/index.tsx:113
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:308
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:321
+msgid "Coherence & Cohesion Feedback"
+msgstr ""
+
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:79
+#: public/writing/src/pages/result-task-2/LeftPanel.tsx:63
+msgid "Task Response"
+msgstr ""
+
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:269
+msgid "Argument Enhancement"
+msgstr ""
+
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:281
+msgid "Task Response Feedback"
+msgstr ""
+
+#: public/writing/src/pages/home/index.tsx:113
 msgid "IELTS Writify"
 msgstr ""
 
-#: pages/home/index.tsx:116
+#: public/writing/src/pages/home/index.tsx:116
 msgid "Evaluate IELTS Writing x GPT"
 msgstr ""
 
-#: pages/home/index.tsx:162
+#: public/writing/src/pages/home/index.tsx:162
 msgid "Advanced Grammar Correction"
 msgstr ""
 
-#: pages/home/index.tsx:216
+#: public/writing/src/pages/home/index.tsx:216
 msgid "Detailed Scoring Evaluation"
 msgstr ""
 
-#: pages/home/index.tsx:243
+#: public/writing/src/pages/home/index.tsx:243
 msgid "Corrected Sample Essay"
 msgstr ""
 
-#: pages/home/index.tsx:260
+#: public/writing/src/pages/home/index.tsx:260
 msgid "settings"
 msgstr ""
 
-#: pages/home/index.tsx:274
+#: public/writing/src/pages/home/index.tsx:274
 msgid "essay-type tabs"
 msgstr ""
 
-#: pages/home/index.tsx:284
+#: public/writing/src/pages/home/index.tsx:284
 msgid "TASK 2"
 msgstr ""
 
-#: pages/home/index.tsx:293
+#: public/writing/src/pages/home/index.tsx:293
 msgid "TASK 1"
 msgstr ""
 
-#: pages/home/index.tsx:304
-#: pages/home/index.tsx:327
+#: public/writing/src/pages/home/index.tsx:304
+#: public/writing/src/pages/home/index.tsx:327
 msgid "VIP"
 msgstr ""
 
-#: pages/home/index.tsx:311
+#: public/writing/src/pages/home/index.tsx:311
 msgid "TASK 2 Handwritten"
 msgstr ""
 
-#: pages/home/index.tsx:334
+#: public/writing/src/pages/home/index.tsx:334
 msgid "TASK 1 Handwritten"
 msgstr ""
 
-#: components/global/TopBar.tsx:186
+#: public/writing/src/components/global/TopBar.tsx:186
 msgid "Submitted by"
 msgstr ""
 
-#: components/global/TopBar.tsx:233
+#: public/writing/src/components/global/TopBar.tsx:233
 msgid "Feedback by"
 msgstr ""
 
-#: components/global/TopBar.tsx:295
-#: components/global/SettingDialog.tsx:96
-msgid "Settings"
-msgstr ""
-
-#: components/global/TopBar.tsx:304
+#: public/writing/src/components/global/TopBar.tsx:304
 msgid "Share"
 msgstr ""
 
-#: components/global/SuggestionItem.tsx:223
-#: components/global/SuggestionItem.tsx:316
-#: components/global/HighlightPopover.tsx:216
-#: components/global/HighlightPopover.tsx:300
+#: public/writing/src/components/global/SuggestionItem.tsx:223
+#: public/writing/src/components/global/SuggestionItem.tsx:316
+#: public/writing/src/components/global/HighlightPopover.tsx:216
+#: public/writing/src/components/global/HighlightPopover.tsx:300
 msgid "Impact"
 msgstr ""
 
-#: components/global/SuggestionItem.tsx:244
-#: components/global/HighlightPopover.tsx:227
-#: components/global/HighlightPopover.tsx:236
+#: public/writing/src/components/global/SuggestionItem.tsx:244
+#: public/writing/src/components/global/HighlightPopover.tsx:227
+#: public/writing/src/components/global/HighlightPopover.tsx:236
 msgid "Edit Suggestion"
 msgstr ""
 
-#: components/global/SuggestionItem.tsx:281
-#: components/global/HighlightPopover.tsx:265
+#: public/writing/src/components/global/SuggestionItem.tsx:281
+#: public/writing/src/components/global/HighlightPopover.tsx:265
 msgid "Categories"
 msgstr ""
 
-#: components/global/SuggestionItem.tsx:282
-#: components/global/HighlightPopover.tsx:266
+#: public/writing/src/components/global/SuggestionItem.tsx:282
+#: public/writing/src/components/global/HighlightPopover.tsx:266
 msgid "Select or type categories"
 msgstr ""
 
-#: components/global/SuggestionItem.tsx:290
-#: components/global/HighlightPopover.tsx:274
+#: public/writing/src/components/global/SuggestionItem.tsx:290
+#: public/writing/src/components/global/HighlightPopover.tsx:274
 msgid "Suggested Text"
 msgstr ""
 
-#: components/global/SuggestionItem.tsx:303
-#: components/global/HighlightPopover.tsx:287
+#: public/writing/src/components/global/SuggestionItem.tsx:303
+#: public/writing/src/components/global/HighlightPopover.tsx:287
 msgid "Full Explanation"
 msgstr ""
 
-#: components/global/SuggestionItem.tsx:338
-#: components/global/RegenerateFeedbackDialog.tsx:413
-#: components/global/HighlightPopover.tsx:313
+#: public/writing/src/components/global/SuggestionItem.tsx:338
+#: public/writing/src/components/global/RegenerateFeedbackDialog.tsx:413
+#: public/writing/src/components/global/HighlightPopover.tsx:313
 msgid "Cancel"
 msgstr ""
 
-#: components/global/SuggestionItem.tsx:344
-#: components/global/RegenerateFeedbackDialog.tsx:422
-#: components/global/HighlightPopover.tsx:316
+#: public/writing/src/components/global/SuggestionItem.tsx:344
+#: public/writing/src/components/global/RegenerateFeedbackDialog.tsx:422
+#: public/writing/src/components/global/HighlightPopover.tsx:316
 msgid "Save"
 msgstr ""
 
-#: components/global/ShareDialog.js:31
-#: components/global/ShareDialog.js:57
-#: components/global/ShareDialog.js:71
+#: public/writing/src/components/global/ShareDialog.js:31
+#: public/writing/src/components/global/ShareDialog.js:57
+#: public/writing/src/components/global/ShareDialog.js:71
 msgid "Copy share link"
 msgstr ""
 
-#: components/global/ShareDialog.js:32
-#: components/global/ShareDialog.js:58
-#: components/global/ShareDialog.js:72
+#: public/writing/src/components/global/ShareDialog.js:32
+#: public/writing/src/components/global/ShareDialog.js:58
+#: public/writing/src/components/global/ShareDialog.js:72
 msgid "Copy Link"
 msgstr ""
 
-#: components/global/ShareDialog.js:53
-#: components/global/ShareDialog.js:54
-#: components/global/ShareDialog.js:67
-#: components/global/ShareDialog.js:68
+#: public/writing/src/components/global/ShareDialog.js:53
+#: public/writing/src/components/global/ShareDialog.js:54
+#: public/writing/src/components/global/ShareDialog.js:67
+#: public/writing/src/components/global/ShareDialog.js:68
 msgid "Copied"
 msgstr ""
 
-#: components/global/ShareDialog.js:102
+#: public/writing/src/components/global/ShareDialog.js:102
 msgid "Share Result"
 msgstr ""
 
-#: components/global/ShareDialog.js:117
+#: public/writing/src/components/global/ShareDialog.js:117
 msgid "Link"
 msgstr ""
 
-#: components/global/ShareDialog.js:166
-#: components/global/DocsExportDialog.tsx:79
+#: public/writing/src/components/global/ShareDialog.js:166
+#: public/writing/src/components/global/DocsExportDialog.tsx:79
 msgid "Export to GDocs/Word"
 msgstr ""
 
-#: components/global/ShareDialog.js:169
+#: public/writing/src/components/global/ShareDialog.js:169
 msgid "Get feedback from a certified teacher"
 msgstr ""
 
-#: components/global/ShareDialog.js:180
+#: public/writing/src/components/global/ShareDialog.js:180
 msgid "Get Pro Feedback"
 msgstr ""
 
-#: components/global/ShareDialog.js:189
+#: public/writing/src/components/global/ShareDialog.js:189
 msgid "Link copied"
 msgstr ""
 
-#: components/global/SettingDialog.tsx:109
+#: public/writing/src/components/global/SettingDialog.tsx:109
 msgid "Feedback Languague"
 msgstr ""
 
-#: components/global/SettingDialog.tsx:112
+#: public/writing/src/components/global/SettingDialog.tsx:112
 msgid "Language"
 msgstr ""
 
-#: components/global/SettingDialog.tsx:117
+#: public/writing/src/components/global/SettingDialog.tsx:117
 msgid "English"
 msgstr ""
 
-#: components/global/SettingDialog.tsx:120
+#: public/writing/src/components/global/SettingDialog.tsx:120
 msgid "Vietnamese"
 msgstr ""
 
-#: components/global/SettingDialog.tsx:130
+#: public/writing/src/components/global/SettingDialog.tsx:130
 msgid "Bulk Feedback"
 msgstr ""
 
-#: components/global/SettingDialog.tsx:133
+#: public/writing/src/components/global/SettingDialog.tsx:133
 msgid ""
 "This option open result page in new tabs helping teachers grade multiple "
 "essays simultaneously."
 msgstr ""
 
-#: components/global/SettingDialog.tsx:146
+#: public/writing/src/components/global/SettingDialog.tsx:146
 msgid "Feedback Style"
 msgstr ""
 
-#: components/global/SettingDialog.tsx:149
+#: public/writing/src/components/global/SettingDialog.tsx:149
 msgid ""
 "Give a sample of your usual feedback to help the AI learn your tone. This "
 "will not affect the scores."
 msgstr ""
 
-#: components/global/SettingDialog.tsx:157
+#: public/writing/src/components/global/SettingDialog.tsx:157
 msgid "Sample Feedback (EN)"
 msgstr ""
 
-#: components/global/SettingDialog.tsx:158
+#: public/writing/src/components/global/SettingDialog.tsx:158
 msgid ""
 "E.g. Your essay is pretty good ...| I find your essay exceeddingly "
 "acceptable ..."
 msgstr ""
 
-#: components/global/SettingDialog.tsx:170
+#: public/writing/src/components/global/SettingDialog.tsx:170
 msgid "Vietnamese Feedback Sample"
 msgstr ""
 
-#: components/global/SettingDialog.tsx:173
+#: public/writing/src/components/global/SettingDialog.tsx:173
 msgid "Provide your feedback sample in Vietnamese."
 msgstr ""
 
-#: components/global/SettingDialog.tsx:181
+#: public/writing/src/components/global/SettingDialog.tsx:181
 msgid "Sample Feedback (VI)"
 msgstr ""
 
-#: components/global/SettingDialog.tsx:182
+#: public/writing/src/components/global/SettingDialog.tsx:182
 msgid ""
 "V� d?: B�i vi?t c?a em kh� t?t ... | ?a th?y b�i n? kh� okela ... | C? th?y "
 "b�i ch�u c?ng ???c ..."
 msgstr ""
 
-#: components/global/ScoreMenuButton.tsx:135
-#: components/global/ChainOfThoughts.tsx:149
+#: public/writing/src/components/global/ScoreMenuButton.tsx:135
+#: public/writing/src/components/global/ChainOfThoughts.tsx:149
 msgid "Analyzing"
 msgstr ""
 
-#: components/global/ScoreMenu.tsx:129
-#: components/global/ScoreMenu.tsx:196
-#: components/global/RegenerateFeedbackDialog.tsx:282
+#: public/writing/src/components/global/ScoreMenu.tsx:129
+#: public/writing/src/components/global/ScoreMenu.tsx:196
+#: public/writing/src/components/global/RegenerateFeedbackDialog.tsx:282
 msgid "For Teachers only"
 msgstr ""
 
-#: components/global/ScoreMenu.tsx:131
-#: components/global/ScoreMenu.tsx:198
-#: components/global/RegenerateFeedbackDialog.tsx:284
+#: public/writing/src/components/global/ScoreMenu.tsx:131
+#: public/writing/src/components/global/ScoreMenu.tsx:198
+#: public/writing/src/components/global/RegenerateFeedbackDialog.tsx:284
 msgid "Regenerate feedback with your suggestion."
 msgstr ""
 
-#: components/global/ScoreMenu.tsx:174
-#: components/global/ScoreMenu.tsx:247
+#: public/writing/src/components/global/ScoreMenu.tsx:174
+#: public/writing/src/components/global/ScoreMenu.tsx:247
 msgid "Add your own feedback"
 msgstr ""
 
-#: components/global/RegenerateFeedbackDialog.tsx:145
+#: public/writing/src/components/global/RegenerateFeedbackDialog.tsx:145
 msgid "Select Score"
 msgstr ""
 
-#: components/global/RegenerateFeedbackDialog.tsx:371
+#: public/writing/src/components/global/RegenerateFeedbackDialog.tsx:371
 msgid "Write a brief feedback"
 msgstr ""
 
-#: components/global/RegenerateFeedbackDialog.tsx:393
+#: public/writing/src/components/global/RegenerateFeedbackDialog.tsx:393
 msgid "Feedback"
 msgstr ""
 
-#: components/global/OcrDialog.tsx:122
+#: public/writing/src/components/global/OcrDialog.tsx:122
 msgid "Processing your handwritten text..."
 msgstr ""
 
-#: components/global/OcrDialog.tsx:152
+#: public/writing/src/components/global/OcrDialog.tsx:152
 msgid "Text Recognition Complete"
 msgstr ""
 
-#: components/global/OcrDialog.tsx:154
+#: public/writing/src/components/global/OcrDialog.tsx:154
 msgid "You can edit the recognized text below before submitting"
 msgstr ""
 
-#: components/global/OcrDialog.tsx:167
+#: public/writing/src/components/global/OcrDialog.tsx:167
 msgid "Your essay text..."
 msgstr ""
 
-#: components/global/OcrDialog.tsx:247
+#: public/writing/src/components/global/OcrDialog.tsx:247
 msgid "close"
 msgstr ""
 
-#: components/global/OcrDialog.tsx:251
+#: public/writing/src/components/global/OcrDialog.tsx:251
 msgid "Handwriting Text Recognition"
 msgstr ""
 
-#: components/global/OcrDialog.tsx:261
+#: public/writing/src/components/global/OcrDialog.tsx:261
 msgid "Submit"
 msgstr ""
 
-#: components/global/OcrDialog.tsx:318
+#: public/writing/src/components/global/OcrDialog.tsx:318
 msgid ""
 "No OCR images available. Please upload handwritten images to use this "
 "feature."
 msgstr ""
 
-#: components/global/LoginDialog.tsx:66
+#: public/writing/src/components/global/LoginDialog.tsx:66
 msgid "Please enter both username and password"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:111
+#: public/writing/src/components/global/LoginDialog.tsx:111
 msgid "Login failed. Please check your credentials."
 msgstr ""
 
-#: components/global/LoginDialog.tsx:120
+#: public/writing/src/components/global/LoginDialog.tsx:120
 msgid "An error occurred. Please try again."
 msgstr ""
 
-#: components/global/LoginDialog.tsx:234
+#: public/writing/src/components/global/LoginDialog.tsx:234
 msgid "Welcome Back!"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:235
+#: public/writing/src/components/global/LoginDialog.tsx:235
 msgid "Analyze your essay now!"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:240
+#: public/writing/src/components/global/LoginDialog.tsx:240
 msgid "Log in to access your account"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:241
+#: public/writing/src/components/global/LoginDialog.tsx:241
 msgid "Create a free account to get started"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:262
+#: public/writing/src/components/global/LoginDialog.tsx:262
 msgid "Email or Username"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:271
+#: public/writing/src/components/global/LoginDialog.tsx:271
 msgid "Password"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:287
+#: public/writing/src/components/global/LoginDialog.tsx:287
 msgid "Remember me"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:309
+#: public/writing/src/components/global/LoginDialog.tsx:309
 msgid "Logging in..."
 msgstr ""
 
-#: components/global/LoginDialog.tsx:310
-#: components/global/LoginDialog.tsx:377
-#: components/global/HeaderAside.tsx:101
+#: public/writing/src/components/global/LoginDialog.tsx:310
+#: public/writing/src/components/global/LoginDialog.tsx:377
+#: public/writing/src/components/global/HeaderAside.tsx:101
 msgid "Login"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:315
-#: components/global/LoginDialog.tsx:360
+#: public/writing/src/components/global/LoginDialog.tsx:315
+#: public/writing/src/components/global/LoginDialog.tsx:360
 msgid "OR"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:332
+#: public/writing/src/components/global/LoginDialog.tsx:332
 msgid "Google Login"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:351
+#: public/writing/src/components/global/LoginDialog.tsx:351
 msgid "Login with Google"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:352
+#: public/writing/src/components/global/LoginDialog.tsx:352
 msgid "Sign up with Google"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:368
+#: public/writing/src/components/global/LoginDialog.tsx:368
 msgid "Don't have an account? "
 msgstr ""
 
-#: components/global/LoginDialog.tsx:369
+#: public/writing/src/components/global/LoginDialog.tsx:369
 msgid "Already have an account? "
 msgstr ""
 
-#: components/global/LoginDialog.tsx:376
-#: components/global/HeaderAside.tsx:113
+#: public/writing/src/components/global/LoginDialog.tsx:376
+#: public/writing/src/components/global/HeaderAside.tsx:113
 msgid "Sign up"
 msgstr ""
 
-#: components/global/LoginDialog.tsx:389
+#: public/writing/src/components/global/LoginDialog.tsx:389
 msgid "By continuing, you agree to our Terms of Service and Privacy Policy"
 msgstr ""
 
-#: components/global/DocsExportDialog.tsx:92
+#: public/writing/src/components/global/DocsExportDialog.tsx:92
 msgid "File name"
 msgstr ""
 
-#: components/global/DocsExportDialog.tsx:95
+#: public/writing/src/components/global/DocsExportDialog.tsx:95
 msgid "My student's name - IELTS Task 2 Result"
 msgstr ""
 
-#: components/global/DocsExportDialog.tsx:120
+#: public/writing/src/components/global/DocsExportDialog.tsx:120
 msgid "MS Word"
 msgstr ""
 
-#: components/global/DocsExportDialog.tsx:124
+#: public/writing/src/components/global/DocsExportDialog.tsx:124
 msgid "Export as Word"
 msgstr ""
 
-#: components/global/DocsExportDialog.tsx:133
+#: public/writing/src/components/global/DocsExportDialog.tsx:133
 msgid "Google Docs"
 msgstr ""
 
-#: components/global/DocsExportDialog.tsx:136
+#: public/writing/src/components/global/DocsExportDialog.tsx:136
 msgid "Export as GDocs"
 msgstr ""
 
-#: components/global/ChainOfThoughts.tsx:150
+#: public/writing/src/components/global/ChainOfThoughts.tsx:150
 msgid "Thinking"
 msgstr ""
 
-#: components/global/ChainOfThoughts.tsx:151
+#: public/writing/src/components/global/ChainOfThoughts.tsx:151
 msgid "Processing"
 msgstr ""
 
-#: components/global/ChainOfThoughts.tsx:197
+#: public/writing/src/components/global/ChainOfThoughts.tsx:197
 msgid "View details"
 msgstr ""

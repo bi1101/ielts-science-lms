@@ -54,7 +54,7 @@ class Ieltssci_Writing_Module {
 			$ver    = $asset['version'];
 
 			wp_register_script( $handle, $src, $deps, $ver, true );
-			wp_set_script_translations( $handle, 'ielts-science-lms', plugin_dir_path( __FILE__ ) . '../../languages' );
+			wp_set_script_translations( $handle, 'ielts-science-lms', dirname( plugin_dir_path( __FILE__ ), 2 ) . '/languages' );
 
 			$css_file = str_replace( '.asset.php', '.css', $asset_file );
 			if ( file_exists( $css_file ) ) {
