@@ -36,6 +36,9 @@
 	<!-- Exclude the Node Modules directory. -->
 	<exclude-pattern>/node_modules/*</exclude-pattern>
 
+	<!-- Exclude language files -->
+	<exclude-pattern>/languages/*.php</exclude-pattern>
+
 	<!-- Exclude minified Javascript files. -->
 	<exclude-pattern>*.min.js</exclude-pattern>
 

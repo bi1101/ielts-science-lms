@@ -1,0 +1,1036 @@
+# Copyright (C) 2025 src
+# This file is distributed under the GPL v2 or later license.
+msgid ""
+msgstr ""
+"Project-Id-Version: src 1.0.0\n"
+"Report-Msgid-Bugs-To: undefined <EMAIL>\n"
+"MIME-Version: 1.0\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"POT-Creation-Date: 2025-03-25T06:12:03.684Z\n"
+"PO-Revision-Date: 2025-03-25 08:52+0000\n"
+"Last-Translator: Lê Bá Hùng\n"
+"Language-Team: Vietnamese\n"
+"X-Generator: Loco https://localise.biz/\n"
+"Language: vi\n"
+"domain: \n"
+"X-Loco-Version: 2.7.1; wp-6.7.2"
+
+#: utils/bandDescriptor.ts:63 utils/bandDescriptor.ts:540
+msgid "Well extended and supported"
+msgstr "Phát triển và chứng minh tốt"
+
+#: utils/bandDescriptor.ts:69
+msgid "Extended and supported, but overgeneralized, lack focus or precision"
+msgstr ""
+"Được phát triển và chứng minh, nhưng còn chung chung, thiếu tập trung hoặc "
+"chưa chính xác"
+
+#: utils/bandDescriptor.ts:77
+msgid "Insufficiently developed or lack clarity"
+msgstr "Phát triển không đầy đủ hoặc thiếu rõ ràng"
+
+#: utils/bandDescriptor.ts:85
+msgid "Little to no development, containing irrelevant or illogical detail"
+msgstr ""
+"Ít hoặc không có sự phát triển ý, chứa chi tiết không liên quan hoặc không "
+"logic"
+
+#: utils/bandDescriptor.ts:95 utils/bandDescriptor.ts:568
+msgid "ALL parts of the question are answered"
+msgstr "TẤT CẢ các phần của câu hỏi đã dc trả lời"
+
+#: utils/bandDescriptor.ts:103 utils/bandDescriptor.ts:576
+msgid "SOME parts of the question are NOT answered"
+msgstr "MỘT SỐ phần của câu hỏi KHÔNG được trả lời"
+
+#: utils/bandDescriptor.ts:111
+msgid "Answers are not exact to the requirement"
+msgstr "Câu trả lời không hoàn toàn chính xác với đề bài"
+
+#: utils/bandDescriptor.ts:119
+msgid "The prompt has been misunderstood"
+msgstr "Đề bài đã bị hiểu sai"
+
+#: utils/bandDescriptor.ts:126
+msgid "Has a position directly answering the question"
+msgstr "Có quan điểm trả lời trực tiếp câu hỏi"
+
+#: utils/bandDescriptor.ts:134 utils/bandDescriptor.ts:606
+msgid "Hard to discern position"
+msgstr "Khó phân biệt lập trường"
+
+#: utils/bandDescriptor.ts:139 utils/bandDescriptor.ts:611
+msgid "Hard to discern answer"
+msgstr "Khó để nhận ra câu trả lời"
+
+#: utils/bandDescriptor.ts:144 utils/bandDescriptor.ts:616
+msgid "No discernable position"
+msgstr "Không có lập trường rõ ràng"
+
+#: utils/bandDescriptor.ts:149 utils/bandDescriptor.ts:621
+msgid "No discernable answer"
+msgstr "Không có câu trả lời rõ ràng"
+
+#: utils/bandDescriptor.ts:158
+msgid "Ideas are connected flawlessly"
+msgstr "Các ý tưởng được liên kết một cách hoàn hảo"
+
+#: utils/bandDescriptor.ts:163
+msgid "Ideas are logically connected; minor sentence-level disruptions"
+msgstr ""
+"Các ý tưởng được kết nối một cách logic; có những gián đoạn nhỏ ở cấp độ câu"
+
+#: utils/bandDescriptor.ts:172
+msgid ""
+"Ideas are logically connected; minor paragraph-level disruptions or "
+"considerable sentence-level disruptions"
+msgstr ""
+"Các ý tưởng được kết nối một cách logic; có sự gián đoạn nhỏ ở cấp độ đoạn "
+"văn hoặc sự gián đoạn đáng kể ở cấp độ câu"
+
+#: utils/bandDescriptor.ts:180
+msgid "Ideas recognizable but not logically connected"
+msgstr "Phân chia ý tưởng rõ nhưng không được kết nối một cách logic"
+
+#: utils/bandDescriptor.ts:188
+msgid "Idea arrangement causes confusion"
+msgstr "Sự sắp xếp ý tưởng gây ra sự khó hiểu"
+
+#: utils/bandDescriptor.ts:195
+msgid "Effective paragraphing"
+msgstr "Chia đoạn hiệu quả"
+
+#: utils/bandDescriptor.ts:200
+msgid "Clear structure, not all paragraphs have a clear purpose"
+msgstr ""
+"Cấu trúc rõ ràng, không phải tất cả các đoạn văn đều có mục đích rõ ràng"
+
+#: utils/bandDescriptor.ts:208
+msgid "Missing paragraph"
+msgstr "Thiếu đoạn"
+
+#: utils/bandDescriptor.ts:213
+msgid "No paragraphing or all paragraphs lack a clear purpose"
+msgstr "Không có đoạn văn hoặc tất cả các đoạn văn đều thiếu mục đích rõ ràng"
+
+#: utils/bandDescriptor.ts:221
+msgid "No identifiable paragraphing"
+msgstr "Không có đoạn văn rõ ràng"
+
+#: utils/bandDescriptor.ts:228
+msgid "Skillfully used, no lapse"
+msgstr "Sử dụng thành thạo, không có sai sót"
+
+#: utils/bandDescriptor.ts:233
+msgid "Some lapses"
+msgstr "Một vài sai sót"
+
+#: utils/bandDescriptor.ts:238
+msgid "Unclear referencing causes some repetition & misunderstanding"
+msgstr "Referencing không rõ ràng, đôi khi gây lặp từ và hiểu lầm"
+
+#: utils/bandDescriptor.ts:246
+msgid "Inadequate & inaccurate referencing causes frequent repetition"
+msgstr "Ít sử dụng referencing và chưa chính xác gây ra sự lặp từ thường xuyên"
+
+#: utils/bandDescriptor.ts:254
+msgid "Minimal & inaccurate use of referencing"
+msgstr "Ít sử dụng referencing và không chính xác"
+
+#: utils/bandDescriptor.ts:264
+msgid "Perfect use"
+msgstr "Sủ dụng hoàn hảo"
+
+#: utils/bandDescriptor.ts:269
+msgid "Mostly accurate & flexible use, not mechanical"
+msgstr "Sử dụng phần lớn đã chính xác và linh hoạt, không máy móc"
+
+#: utils/bandDescriptor.ts:277
+msgid "Some good use, but some grammar errors; mechanical use"
+msgstr "Một số nơi sử dụng tốt, nhưng còn lỗi ngữ pháp; sử dụng máy móc"
+
+#: utils/bandDescriptor.ts:285
+msgid "Limited/overuse and frequent inaccurate use"
+msgstr "Sử dụng hạn chế/quá mức và thường xuyên sử dụng không chính xác"
+
+#: utils/bandDescriptor.ts:293
+msgid "Some use of basic devices inaccurately or repetitively"
+msgstr "Đã sử dụng một số phép nối cơ bản nhưng chưa chính xác hoặc lặp lại"
+
+#: utils/bandDescriptor.ts:306
+msgid "Wide resources, flexible use, and precise meaning"
+msgstr "Vốn từ phong phú, sử dụng linh hoạt và chính xác"
+
+#: utils/bandDescriptor.ts:314
+msgid "Sufficient resource to allow flexibility, not repetitive"
+msgstr "Vốn từ đủ để sử dụng linh hoạt, không lặp từ"
+
+#: utils/bandDescriptor.ts:322
+msgid "Adequate resources, some repetition & few paraphrasing"
+msgstr "Vốn từ đủ, đôi khi lặp từ và ít paraphrasing"
+
+#: utils/bandDescriptor.ts:330
+msgid "Limited and minimally adequate, frequent repetition"
+msgstr "Hạn chế và chỉ gần đủ, lặp từ thường xuyên"
+
+#: utils/bandDescriptor.ts:338
+msgid "Limited and inadequate, frequent repetition, no paraphrasing"
+msgstr "Hạn chế và chưa đủ, lặp từ thường xuyên, không paraphrase"
+
+#: utils/bandDescriptor.ts:348
+msgid "Occasional error in word choice, collocation and informal language"
+msgstr "Hiếm lỗi chọn từ, cách kết hợp từ và ngôn ngữ không trang trọng"
+
+#: utils/bandDescriptor.ts:356
+msgid "Few minor errors in style and collocation. No word choice errors"
+msgstr "Một vài lỗi nhỏ về phong cách và cách kết hợp từ. Không có lỗi chọn từ"
+
+#: utils/bandDescriptor.ts:364
+msgid "Some errors, not affecting comprehension"
+msgstr "Một số lỗi, không ảnh hưởng đến ý nghĩa"
+
+#: utils/bandDescriptor.ts:372
+msgid "Frequent errors, not affecting comprehension"
+msgstr "Lỗi thường xuyên, không ảnh hưởng đến ý nghĩa"
+
+#: utils/bandDescriptor.ts:380
+msgid "Errors impede meaning"
+msgstr "Lỗi làm ảnh hưởng ý nghĩa"
+
+#: utils/bandDescriptor.ts:388
+msgid ""
+"Uncommon vocab does not impede comprehension, occasional unnatural usage"
+msgstr ""
+"Từ vựng ít phổ biến không cản trở nghĩa câu, hiếm khi sử dụng không tự nhiên"
+
+#: utils/bandDescriptor.ts:396
+msgid "Uncommon vocab does not impede comprehension, some unnatural usage"
+msgstr ""
+"Từ vựng ít phổ biến không cản trở nghĩa câu, đôi khi sử dụng không tự nhiên"
+
+#: utils/bandDescriptor.ts:404
+msgid "Uncommon vocab may not be appropriate"
+msgstr "Từ vựng ít phổ biến có thể không phù hợp"
+
+#: utils/bandDescriptor.ts:412
+msgid "No usage of uncommon vocab"
+msgstr "Không sử dụng từ vựng ít phổ biến"
+
+#: utils/bandDescriptor.ts:419
+msgid "Spelling mistakes never impede meaning, few errors"
+msgstr "Lỗi chính tả không bao giờ cản trở ý nghĩa, ít lỗi"
+
+#: utils/bandDescriptor.ts:427
+msgid "Spelling mistakes never impede meaning, some errors"
+msgstr "Lỗi chính tả không bao giờ cản trở ý nghĩa, một số lỗi"
+
+#: utils/bandDescriptor.ts:435
+msgid "Spelling mistakes never impede meaning, several errors"
+msgstr "Lỗi chính tả không bao giờ cản trở ý nghĩa, nhiều lỗi"
+
+#: utils/bandDescriptor.ts:443
+msgid "Spelling sometimes impedes meaning"
+msgstr "Chính tả đôi khi cản trở ý nghĩa"
+
+#: utils/bandDescriptor.ts:448
+msgid "Spelling errors always impede meaning"
+msgstr "Lỗi chính tả luôn cản trở ý nghĩa"
+
+#: utils/bandDescriptor.ts:460
+msgid "A wide range of structures is flexibly and accurately used"
+msgstr "Một loạt các cấu trúc được sử dụng linh hoạt và chính xác"
+
+#: utils/bandDescriptor.ts:468
+msgid "A variety of structures is used with SOME flexibility"
+msgstr "Một số các cấu trúc được sử dụng với sự linh hoạt NHẤT ĐỊNH"
+
+#: utils/bandDescriptor.ts:477
+msgid ""
+"A mix of simple and multi-clause sentences; limited flexibility, complex "
+"structures are less accurate"
+msgstr ""
+"Có sự kết hợp giữa các câu đơn giản và câu phức; tính linh hoạt hạn chế, các "
+"cấu trúc phức tạp ít chính xác hơn"
+
+#: utils/bandDescriptor.ts:486
+msgid ""
+"The range of structures is limited and repetitive; some multi-clause "
+"sentences are used"
+msgstr ""
+"Độ rộng cấu trúc còn hạn chế và lặp lại; một số câu có nhiều mệnh đề được sử "
+"dụng"
+
+#: utils/bandDescriptor.ts:495
+msgid ""
+"A very limited range of structures is used, only single clause sentences"
+msgstr "Số cấu trúc sử dụng rất hạn chế, chỉ có các câu đơn"
+
+#: utils/bandDescriptor.ts:505
+msgid "Rare, non-systematic errors, NEVER impede meaning"
+msgstr "Ít lỗi, lỗi không hệ thống, KHÔNG cản trở ý nghĩa"
+
+#: utils/bandDescriptor.ts:513
+msgid "Few errors, NEVER impede meaning"
+msgstr "Ít lỗi, KHÔNG BAO GIỜ ảnh hưởng ý nghĩa"
+
+#: utils/bandDescriptor.ts:518
+msgid "Some errors, RARELY impede meaning"
+msgstr "Một số lỗi, HIẾM KHI cản trở ý nghĩa"
+
+#: utils/bandDescriptor.ts:523
+msgid "Frequent errors & SOMETIMES impede meaning"
+msgstr "Lỗi thường xuyên và ĐÔI KHI cản trở ý nghĩa"
+
+#: utils/bandDescriptor.ts:531
+msgid "Errors FREQUENTLY impede meaning"
+msgstr "Lỗi THƯỜNG XUYÊN ảnh hưởng ý nghĩa"
+
+#: utils/bandDescriptor.ts:545
+msgid "Extended and supported"
+msgstr "Được phát triển và chứng minh"
+
+#: utils/bandDescriptor.ts:550
+msgid "Insufficiently developed, containing unclear detail"
+msgstr "Phát triển chưa đầy đủ, chứa chi tiết không rõ ràng"
+
+#: utils/bandDescriptor.ts:558
+msgid "Little to no development, may contain illogical detail"
+msgstr "Ít hoặc không có sự phát triển ý, có thể chứa chi tiết phi lý"
+
+#: utils/bandDescriptor.ts:584
+msgid "Not exact to the question"
+msgstr "Chưa chính xác với đề bài"
+
+#: utils/bandDescriptor.ts:589
+msgid "The question has been misunderstood"
+msgstr "Câu hỏi đã bị hiểu sai"
+
+#: utils/bandDescriptor.ts:596
+msgid "Clear position"
+msgstr "Lập trường rõ ràng"
+
+#: utils/bandDescriptor.ts:601
+msgid "Clear answer"
+msgstr "Câu trả lời rõ ràng"
+
+#: utils/bandDescriptor.ts:628
+msgid "Include a brief overview of main points"
+msgstr "Có tổng quan ngắn gọn về các luận điểm chính"
+
+#: utils/bandDescriptor.ts:636
+msgid "No overview of main points"
+msgstr "Không có tổng quan về các luận điểm chính"
+
+#: utils/bandDescriptor.ts:643
+msgid "No overgeneralization"
+msgstr "Không khái quát hóa quá mức"
+
+#: utils/bandDescriptor.ts:648
+msgid "Contain overgeneralized details"
+msgstr "Chứa các chi tiết quá khái quát"
+
+#: utils/bandDescriptor.ts:655 utils/bandDescriptor.ts:677
+msgid "Good"
+msgstr "Tốt"
+
+#: utils/bandDescriptor.ts:660
+msgid "Contain lack-of-focus details"
+msgstr "Chứa các chi tiết hơi lạc đề"
+
+#: utils/bandDescriptor.ts:665
+msgid "Contain less relevant details"
+msgstr "Chứa ít chi tiết ít liên quan vs đề"
+
+#: utils/bandDescriptor.ts:670
+msgid "Contain irrelevant details"
+msgstr "Chứa chi tiết không liên quan"
+
+#: utils/bandDescriptor.ts:682
+msgid "Could be improved"
+msgstr "Có thể cải thiện"
+
+#: utils/bandDescriptor.ts:687
+msgid "Fair"
+msgstr "Ổn"
+
+#: utils/bandDescriptor.ts:692
+msgid "Needs work"
+msgstr "Cần cải thiện"
+
+#: utils/bandDescriptor.ts:697
+msgid "Requires attention"
+msgstr "Cần chú ý"
+
+#: utils/bandDescriptor.ts:706
+msgid "Accurate and relevant data"
+msgstr "Dữ liệu chính xác và phù hơp"
+
+#: utils/bandDescriptor.ts:711
+msgid "Inaccurate data"
+msgstr "Dữ liệu không chính xác"
+
+#: utils/bandDescriptor.ts:716
+msgid "The data has been misunderstood"
+msgstr "Dữ liệu đã bị hiểu sai"
+
+#: utils/bandDescriptor.ts:723
+msgid "Key features are skillfully selected and clearly highlighted"
+msgstr ""
+"Các đặc điểm chính được chọn lọc một cách khéo léo và được làm nổi bật rõ "
+"ràng"
+
+#: utils/bandDescriptor.ts:732
+msgid ""
+"Key features are covered, and clearly highlighted, but could be further "
+"extended"
+msgstr ""
+"Các đặc điểm chính được đề cập và làm nổi bật rõ ràng, nhưng có thể được mở "
+"rộng thêm"
+
+#: utils/bandDescriptor.ts:741
+msgid "Key features are adequately covered, some missing or excessive details"
+msgstr ""
+"Các đặc điểm chính được đề cập đầy đủ, một số chi tiết bị thiếu hoặc thừa"
+
+#: utils/bandDescriptor.ts:750
+msgid ""
+"Key features are not adequately covered, irrelevant or mechanically recounted"
+msgstr ""
+"Các đặc điểm chính không được đề cập đầy đủ, không liên quan hoặc được kể "
+"lại một cách máy móc"
+
+#: utils/bandDescriptor.ts:759
+msgid "Few key features are selected, and they are irrelevant or repetitive"
+msgstr "Một vài chi tiết chính được chọn, nhưng không liên quan hoặc lặp lại"
+
+#: utils/bandDescriptor.ts:769
+msgid "Appropriately use data"
+msgstr "Sử dụng dữ liệu một cách thích hợp"
+
+#: utils/bandDescriptor.ts:774
+msgid "No data"
+msgstr "Không có dữ liệu"
+
+#: utils/bandDescriptor.ts:781
+msgid "A clear overview with main trends or differences"
+msgstr "Đoạn tổng quan rõ ràng với các xu hướng hoặc khác biệt chính"
+
+#: utils/bandDescriptor.ts:789
+msgid "A relevant overview is attempted"
+msgstr "Đã có cố gắng viết đoạn tổng quan phù hợp"
+
+#: utils/bandDescriptor.ts:794
+msgid "No overview, only focus on details"
+msgstr "Không có đoạn tổng quan, chỉ tập trung vào chi tiết"
+
+#: utils/bandDescriptor.ts:801
+msgid "Appropriate format, data are appropriately categorized"
+msgstr "Định dạng phù hợp, dữ liệu được phân loại một cách thích hợp"
+
+#: utils/bandDescriptor.ts:809
+msgid "Appropriate format"
+msgstr "Định dạng phù hợp"
+
+#: utils/bandDescriptor.ts:814
+msgid "Format may be inappropriate in places"
+msgstr "Định dạng có thể không phù hợp ở một số nơi"
+
+#: utils/bandDescriptor.ts:822
+msgid "Inappropriate format"
+msgstr "Định dạng không phù hợp"
+
+#: handlers/sseFetchHandler.ts:456
+msgid "You are probably offline."
+msgstr "Có lẽ bạn đang ngoại tuyến."
+
+#: config/Layout.ts:15 config/Layout.ts:61 config/Layout.ts:99
+#: config/Layout.ts:118 config/Layout.ts:179
+msgid "Relevance"
+msgstr "Chặt chẽ với đề bài"
+
+#: config/Layout.ts:23 config/Layout.ts:126
+msgid "Clear Answer/Clear Opinion"
+msgstr "Câu trả lời rõ ràng / Ý kiến rõ ràng"
+
+#: config/Layout.ts:34
+msgid "Brief Overview"
+msgstr "Tóm tắt ngắn"
+
+#: config/Layout.ts:42
+msgid "Introduction - Rewrite"
+msgstr "Mở bài - Viết lại"
+
+#: config/Layout.ts:53
+msgid "Linking"
+msgstr "Liên kết"
+
+#: config/Layout.ts:69
+msgid "Topic Sentence - Rewrite"
+msgstr "Câu chủ đề - Viết lại"
+
+#: config/Layout.ts:80
+msgid "Logic & Depth"
+msgstr "Logic & Chiều sâu"
+
+#: config/Layout.ts:88
+msgid "Overgeneralize"
+msgstr "Khái quát hóa quá mức"
+
+#: config/Layout.ts:107
+msgid "Main Point - Rewrite"
+msgstr "Luận điểm chính - Viết lại"
+
+#: config/Layout.ts:137
+msgid "Conclusion - Rewrite"
+msgstr "Kết luận - Viết lại"
+
+#: config/Layout.ts:148
+msgid "Range of Vocabulary"
+msgstr "Sự đa dạng từ vựng"
+
+#: config/Layout.ts:155
+msgid "Word choice, Collocation, Style"
+msgstr "Lựa chọn từ ngữ, kết hợp từ, Văn phong"
+
+#: config/Layout.ts:162
+msgid "Uncommon/Topical Vocabulary"
+msgstr "Từ vựng ít phổ biến/theo chủ đề"
+
+#: config/Layout.ts:169
+msgid "Spelling, Word Form Error"
+msgstr "Lỗi chính tả, lỗi dạng từ"
+
+#: config/Layout.ts:186
+msgid "Clear Position/Answer"
+msgstr "Lập trường/Câu trả lời rõ ràng"
+
+#: config/Layout.ts:193
+msgid "Idea Development"
+msgstr "Phát triển ý tưởng"
+
+#: config/Layout.ts:203
+msgid "Flow"
+msgstr "Mạch văn"
+
+#: config/Layout.ts:210
+msgid "Paragraphing"
+msgstr "Chia đoạn"
+
+#: config/Layout.ts:217
+msgid "Referencing"
+msgstr "Referencing"
+
+#: config/Layout.ts:224
+msgid "Use of Cohesive Devices"
+msgstr "Sử dụng phép nối"
+
+#: config/Layout.ts:234
+msgid "Range of Structures"
+msgstr "Sự đa dạng cấu trúc"
+
+#: config/Layout.ts:241
+msgid "Accuracy"
+msgstr "Chính xác"
+
+#: config/Layout.ts:251
+msgid "New Vocabulary Table"
+msgstr "Bảng Từ Vựng Mới"
+
+#: config/Layout.ts:263 config/Layout.ts:275
+msgid "Sample Essay"
+msgstr "Bài mẫu"
+
+#: config/Layout.ts:287
+msgid "Use Data Accurately"
+msgstr "Sử dụng dữ liệu chính xác"
+
+#: config/Layout.ts:294
+msgid "Present Key Features"
+msgstr "Trình bày các đặc điểm chính"
+
+#: config/Layout.ts:301
+msgid "Use Data"
+msgstr "Sử dụng dữ liệu"
+
+#: config/Layout.ts:308
+msgid "Present an Overview"
+msgstr "Trình bày đoạn tổng quan"
+
+#: config/Layout.ts:315
+msgid "Format"
+msgstr "Định dạng"
+
+#: pages/result-task-2/RightPanel.tsx:67 pages/result-task-2/LeftPanel.tsx:51
+#: pages/result-task-1/RightPanel.tsx:66 pages/result-task-1/LeftPanel.tsx:51
+msgid "Lexical Resources"
+msgstr "Vốn từ vựng"
+
+#: pages/result-task-2/RightPanel.tsx:73 pages/result-task-2/LeftPanel.tsx:57
+#: pages/result-task-1/RightPanel.tsx:72 pages/result-task-1/LeftPanel.tsx:57
+msgid "Grammatical Range & Accuracy"
+msgstr "Độ rộng và Độ chính xác Ngữ pháp"
+
+#: pages/result-task-2/RightPanel.tsx:79 pages/result-task-2/LeftPanel.tsx:63
+msgid "Task Response"
+msgstr ""
+
+#: pages/result-task-2/RightPanel.tsx:85 pages/result-task-2/LeftPanel.tsx:69
+#: pages/result-task-1/RightPanel.tsx:84 pages/result-task-1/LeftPanel.tsx:69
+msgid "Coherence & Cohesion"
+msgstr "Sự mạch lạc và liên kết"
+
+#: pages/result-task-2/RightPanel.tsx:119
+#: pages/result-task-1/RightPanel.tsx:118 pages/home/index.tsx:189
+msgid "Vocabulary Suggestions"
+msgstr "Gợi ý từ vựng"
+
+#: pages/result-task-2/RightPanel.tsx:134
+#: pages/result-task-1/RightPanel.tsx:133
+msgid "Lexical Resources Feedback"
+msgstr "Nhận xét từ vựng"
+
+#: pages/result-task-2/RightPanel.tsx:152
+#: pages/result-task-1/RightPanel.tsx:151
+msgid "New Vocabulary"
+msgstr "Từ vựng mới"
+
+#: pages/result-task-2/RightPanel.tsx:174
+#: pages/result-task-1/RightPanel.tsx:173
+msgid "Improved Essay"
+msgstr "Bài sửa mẫu"
+
+#: pages/result-task-2/RightPanel.tsx:215
+#: pages/result-task-1/RightPanel.tsx:214
+msgid "Grammar Suggestions"
+msgstr "Gợi ý ngữ pháp"
+
+#: pages/result-task-2/RightPanel.tsx:229
+#: pages/result-task-1/RightPanel.tsx:228
+msgid "Grammar Feedback"
+msgstr "Nhận xét ngữ pháp"
+
+#: pages/result-task-2/RightPanel.tsx:269
+msgid "Argument Enhancement"
+msgstr "Nâng cấp lập luận"
+
+#: pages/result-task-2/RightPanel.tsx:281
+msgid "Task Response Feedback"
+msgstr "Nhận xét Task Response"
+
+#: pages/result-task-2/RightPanel.tsx:321
+#: pages/result-task-1/RightPanel.tsx:308
+msgid "Coherence & Cohesion Feedback"
+msgstr "Nhận xét về sự mạch lạc và liên kết"
+
+#: pages/result-task-1/RightPanel.tsx:78 pages/result-task-1/LeftPanel.tsx:63
+msgid "Task Achievement"
+msgstr ""
+
+#: pages/result-task-1/RightPanel.tsx:268
+msgid "Task Achievement Feedback"
+msgstr "Nhận xét Task Achievement"
+
+#: pages/home/index.tsx:113
+msgid "IELTS Writify"
+msgstr ""
+
+#: pages/home/index.tsx:116
+msgid "Evaluate IELTS Writing x GPT"
+msgstr "Chấm IELTS Writing x GPT"
+
+#: pages/home/index.tsx:162
+msgid "Advanced Grammar Correction"
+msgstr "Sửa ngữ pháp nâng cao"
+
+#: pages/home/index.tsx:216
+msgid "Detailed Scoring Evaluation"
+msgstr "Chấm chi tiết 4 tiêu chí"
+
+#: pages/home/index.tsx:243
+msgid "Corrected Sample Essay"
+msgstr "Bài sửa mẫu"
+
+#: pages/home/index.tsx:260
+msgid "settings"
+msgstr "cài đặt"
+
+#: pages/home/index.tsx:274
+msgid "essay-type tabs"
+msgstr ""
+
+#: pages/home/index.tsx:284
+msgid "TASK 2"
+msgstr ""
+
+#: pages/home/index.tsx:293
+msgid "TASK 1"
+msgstr ""
+
+#: pages/home/index.tsx:304 pages/home/index.tsx:327
+msgid "VIP"
+msgstr "VIP"
+
+#: pages/home/index.tsx:311
+msgid "TASK 2 Handwritten"
+msgstr "TASK 2 Viết tay"
+
+#: pages/home/index.tsx:334
+msgid "TASK 1 Handwritten"
+msgstr "TASK 1 Viết tay"
+
+#: components/global/TopBar.tsx:186
+msgid "Submitted by"
+msgstr "Gửi bởi"
+
+#: components/global/TopBar.tsx:233
+msgid "Feedback by"
+msgstr "Nhận xét bởi"
+
+#: components/global/TopBar.tsx:295 components/global/SettingDialog.tsx:96
+msgid "Settings"
+msgstr "Cài đặt"
+
+#: components/global/TopBar.tsx:304
+msgid "Share"
+msgstr "Chia sẻ"
+
+#: components/global/SuggestionItem.tsx:223
+#: components/global/SuggestionItem.tsx:316
+#: components/global/HighlightPopover.tsx:216
+#: components/global/HighlightPopover.tsx:300
+msgid "Impact"
+msgstr "Ảnh hưởng"
+
+#: components/global/SuggestionItem.tsx:244
+#: components/global/HighlightPopover.tsx:227
+#: components/global/HighlightPopover.tsx:236
+msgid "Edit Suggestion"
+msgstr "Sửa nhận xét"
+
+#: components/global/SuggestionItem.tsx:281
+#: components/global/HighlightPopover.tsx:265
+msgid "Categories"
+msgstr "Danh mục"
+
+#: components/global/SuggestionItem.tsx:282
+#: components/global/HighlightPopover.tsx:266
+msgid "Select or type categories"
+msgstr "Chọn hoặc nhập loại lỗi"
+
+#: components/global/SuggestionItem.tsx:290
+#: components/global/HighlightPopover.tsx:274
+msgid "Suggested Text"
+msgstr "Văn bản gợi ý"
+
+#: components/global/SuggestionItem.tsx:303
+#: components/global/HighlightPopover.tsx:287
+msgid "Full Explanation"
+msgstr "Giải thích chi tiết"
+
+#: components/global/SuggestionItem.tsx:338
+#: components/global/RegenerateFeedbackDialog.tsx:413
+#: components/global/HighlightPopover.tsx:313
+msgid "Cancel"
+msgstr "Hủy"
+
+#: components/global/SuggestionItem.tsx:344
+#: components/global/RegenerateFeedbackDialog.tsx:422
+#: components/global/HighlightPopover.tsx:316
+msgid "Save"
+msgstr "Lưu"
+
+#: components/global/ShareDialog.js:31 components/global/ShareDialog.js:57
+#: components/global/ShareDialog.js:71
+msgid "Copy share link"
+msgstr "Sao chép liên kết chia sẻ"
+
+#: components/global/ShareDialog.js:32 components/global/ShareDialog.js:58
+#: components/global/ShareDialog.js:72
+msgid "Copy Link"
+msgstr "Sao chép liên kết"
+
+#: components/global/ShareDialog.js:53 components/global/ShareDialog.js:54
+#: components/global/ShareDialog.js:67 components/global/ShareDialog.js:68
+msgid "Copied"
+msgstr "Đã sao chép"
+
+#: components/global/ShareDialog.js:102
+msgid "Share Result"
+msgstr "Chia sẻ kết quả"
+
+#: components/global/ShareDialog.js:117
+msgid "Link"
+msgstr "Liên kết"
+
+#: components/global/ShareDialog.js:166
+#: components/global/DocsExportDialog.tsx:79
+msgid "Export to GDocs/Word"
+msgstr "Xuất ra GDocs/Word"
+
+#: components/global/ShareDialog.js:169
+msgid "Get feedback from a certified teacher"
+msgstr "Nhận nhận xét từ một giáo viên có chứng chỉ"
+
+#: components/global/ShareDialog.js:180
+msgid "Get Pro Feedback"
+msgstr "Nhận nhận xét chuyên nghiệp"
+
+#: components/global/ShareDialog.js:189
+msgid "Link copied"
+msgstr "Liên kết đã được sao chép"
+
+#: components/global/SettingDialog.tsx:109
+msgid "Feedback Languague"
+msgstr "Ngôn ngữ nhận xét"
+
+#: components/global/SettingDialog.tsx:112
+msgid "Language"
+msgstr "Ngôn ngữ"
+
+#: components/global/SettingDialog.tsx:117
+msgid "English"
+msgstr ""
+
+#: components/global/SettingDialog.tsx:120
+msgid "Vietnamese"
+msgstr "Tiếng Việt"
+
+#: components/global/SettingDialog.tsx:130
+msgid "Bulk Feedback"
+msgstr "Nhận xét hàng loạt"
+
+#: components/global/SettingDialog.tsx:133
+msgid ""
+"This option open result page in new tabs helping teachers grade multiple "
+"essays simultaneously."
+msgstr ""
+"Tùy chọn này mở trang kết quả trong tab mới, giúp giáo viên chấm điểm nhiều "
+"bài luận cùng lúc."
+
+#: components/global/SettingDialog.tsx:146
+msgid "Feedback Style"
+msgstr "Văn phong nhận xét"
+
+#: components/global/SettingDialog.tsx:149
+msgid ""
+"Give a sample of your usual feedback to help the AI learn your tone. This "
+"will not affect the scores."
+msgstr ""
+"Hãy đưa ra một ví dụ về nhận xét thông thường của bạn để giúp AI học văn "
+"phong của bạn. Điều này sẽ không ảnh hưởng đến điểm số."
+
+#: components/global/SettingDialog.tsx:157
+msgid "Sample Feedback (EN)"
+msgstr ""
+
+#: components/global/SettingDialog.tsx:158
+msgid ""
+"E.g. Your essay is pretty good ...| I find your essay exceeddingly "
+"acceptable ..."
+msgstr ""
+
+#: components/global/SettingDialog.tsx:170
+msgid "Vietnamese Feedback Sample"
+msgstr "Mẫu nhận xét tiếng Việt"
+
+#: components/global/SettingDialog.tsx:173
+msgid "Provide your feedback sample in Vietnamese."
+msgstr "Cung cấp mẫu nhận xét của bạn bằng tiếng Việt."
+
+#: components/global/SettingDialog.tsx:181
+msgid "Sample Feedback (VI)"
+msgstr "Mẫu nhận xét (VI)"
+
+#: components/global/SettingDialog.tsx:182
+msgid ""
+"Vï¿½ d?: Bï¿½i vi?t c?a em khï¿½ t?t ... | ?a th?y bï¿½i n? khï¿½ okela ... "
+"| C? th?y bï¿½i chï¿½u c?ng ???c ..."
+msgstr ""
+
+#: components/global/ScoreMenuButton.tsx:135
+#: components/global/ChainOfThoughts.tsx:149
+msgid "Analyzing"
+msgstr "Đang phân tích"
+
+#: components/global/ScoreMenu.tsx:129 components/global/ScoreMenu.tsx:196
+#: components/global/RegenerateFeedbackDialog.tsx:282
+msgid "For Teachers only"
+msgstr "Chỉ dành cho giáo viên"
+
+#: components/global/ScoreMenu.tsx:131 components/global/ScoreMenu.tsx:198
+#: components/global/RegenerateFeedbackDialog.tsx:284
+msgid "Regenerate feedback with your suggestion."
+msgstr "Tạo lại phản hồi với đề xuất của bạn."
+
+#: components/global/ScoreMenu.tsx:174 components/global/ScoreMenu.tsx:247
+msgid "Add your own feedback"
+msgstr "Tự thêm nhận xét"
+
+#: components/global/RegenerateFeedbackDialog.tsx:145
+msgid "Select Score"
+msgstr "Chọn điểm"
+
+#: components/global/RegenerateFeedbackDialog.tsx:371
+msgid "Write a brief feedback"
+msgstr "Viết nhận xét ngắn"
+
+#: components/global/RegenerateFeedbackDialog.tsx:393
+msgid "Feedback"
+msgstr "Nhận xét"
+
+#: components/global/OcrDialog.tsx:122
+msgid "Processing your handwritten text..."
+msgstr "Đang xử lý văn bản viết tay của bạn..."
+
+#: components/global/OcrDialog.tsx:152
+msgid "Text Recognition Complete"
+msgstr "Nhận diện văn bản hoàn tất"
+
+#: components/global/OcrDialog.tsx:154
+msgid "You can edit the recognized text below before submitting"
+msgstr "Bạn có thể chỉnh sửa văn bản đã nhận dạng bên dưới trước khi gửi"
+
+#: components/global/OcrDialog.tsx:167
+msgid "Your essay text..."
+msgstr "Bài luận của bạn..."
+
+#: components/global/OcrDialog.tsx:247
+msgid "close"
+msgstr "đóng"
+
+#: components/global/OcrDialog.tsx:251
+msgid "Handwriting Text Recognition"
+msgstr "Nhận diện chữ viết tay"
+
+#: components/global/OcrDialog.tsx:261
+msgid "Submit"
+msgstr "Gửi"
+
+#: components/global/OcrDialog.tsx:318
+msgid ""
+"No OCR images available. Please upload handwritten images to use this "
+"feature."
+msgstr ""
+"Không có hình ảnh bài viết tay nào có sẵn. Vui lòng tải lên hình ảnh viết "
+"tay để sử dụng tính năng này."
+
+#: components/global/LoginDialog.tsx:66
+msgid "Please enter both username and password"
+msgstr "Vui lòng nhập cả tên người dùng và mật khẩu"
+
+#: components/global/LoginDialog.tsx:111
+msgid "Login failed. Please check your credentials."
+msgstr "Đăng nhập thất bại. Vui lòng kiểm tra thông tin đăng nhập của bạn."
+
+#: components/global/LoginDialog.tsx:120
+msgid "An error occurred. Please try again."
+msgstr "Đã xảy ra lỗi. Vui lòng thử lại."
+
+#: components/global/LoginDialog.tsx:234
+msgid "Welcome Back!"
+msgstr "Chào mừng trở lại"
+
+#: components/global/LoginDialog.tsx:235
+msgid "Analyze your essay now!"
+msgstr "Chấm bài ngay!"
+
+#: components/global/LoginDialog.tsx:240
+msgid "Log in to access your account"
+msgstr "Đăng nhập để truy cập tài khoản của bạn"
+
+#: components/global/LoginDialog.tsx:241
+msgid "Create a free account to get started"
+msgstr "Tạo tài khoản miễn phí để bắt đầu"
+
+#: components/global/LoginDialog.tsx:262
+msgid "Email or Username"
+msgstr "Email hoặc Tên người dùng"
+
+#: components/global/LoginDialog.tsx:271
+msgid "Password"
+msgstr "Mật khẩu"
+
+#: components/global/LoginDialog.tsx:287
+msgid "Remember me"
+msgstr "Lưu mật khẩu"
+
+#: components/global/LoginDialog.tsx:309
+msgid "Logging in..."
+msgstr "Đang đăng nhập..."
+
+#: components/global/LoginDialog.tsx:310 components/global/LoginDialog.tsx:377
+#: components/global/HeaderAside.tsx:101
+msgid "Login"
+msgstr "Đăng nhập"
+
+#: components/global/LoginDialog.tsx:315 components/global/LoginDialog.tsx:360
+msgid "OR"
+msgstr "HOẶC"
+
+#: components/global/LoginDialog.tsx:332
+msgid "Google Login"
+msgstr "Đăng nhập Google"
+
+#: components/global/LoginDialog.tsx:351
+msgid "Login with Google"
+msgstr "Đăng nhập bằng Google"
+
+#: components/global/LoginDialog.tsx:352
+msgid "Sign up with Google"
+msgstr "Đăng ký bằng Google"
+
+#: components/global/LoginDialog.tsx:368
+msgid "Don't have an account? "
+msgstr "Chưa có tài khoản?"
+
+#: components/global/LoginDialog.tsx:369
+msgid "Already have an account? "
+msgstr "Đã có tài khoản?"
+
+#: components/global/LoginDialog.tsx:376 components/global/HeaderAside.tsx:113
+msgid "Sign up"
+msgstr "Đăng kí"
+
+#: components/global/LoginDialog.tsx:389
+msgid "By continuing, you agree to our Terms of Service and Privacy Policy"
+msgstr ""
+"Bằng cách tiếp tục, bạn đồng ý với Điều khoản Dịch vụ và Chính sách Bảo mật "
+"của chúng tôi"
+
+#: components/global/DocsExportDialog.tsx:92
+msgid "File name"
+msgstr "Tên file"
+
+#: components/global/DocsExportDialog.tsx:95
+msgid "My student's name - IELTS Task 2 Result"
+msgstr "Tên học sinh của tôi - Kết quả Bài viết IELTS Task 2"
+
+#: components/global/DocsExportDialog.tsx:120
+msgid "MS Word"
+msgstr ""
+
+#: components/global/DocsExportDialog.tsx:124
+msgid "Export as Word"
+msgstr "Xuất file Word"
+
+#: components/global/DocsExportDialog.tsx:133
+msgid "Google Docs"
+msgstr ""
+
+#: components/global/DocsExportDialog.tsx:136
+msgid "Export as GDocs"
+msgstr "Xuất GDocs"
+
+#: components/global/ChainOfThoughts.tsx:150
+msgid "Thinking"
+msgstr "Đang tư duy"
+
+#: components/global/ChainOfThoughts.tsx:151
+msgid "Processing"
+msgstr "Đang xử lý"
+
+#: components/global/ChainOfThoughts.tsx:197
+msgid "View details"
+msgstr "Xem chi tiết"
