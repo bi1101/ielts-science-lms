@@ -276,6 +276,11 @@ class Ieltssci_Writing_REST {
 			}
 		}
 
+		// If no UUID or ID is provided, filter by current user automatically.
+		if ( ! isset( $args['uuid'] ) && ! isset( $args['id'] ) ) {
+			$args['created_by'] = get_current_user_id();
+		}
+
 		// Get total count for pagination headers.
 		$count_args          = $args;
 		$count_args['count'] = true;

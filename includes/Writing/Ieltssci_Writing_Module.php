@@ -490,6 +490,7 @@ class Ieltssci_Writing_Module {
 				'result_task_2'        => __( 'Result Task 2', 'ielts-science-lms' ),
 				'result_task_1'        => __( 'Result Task 1', 'ielts-science-lms' ),
 				'result_general_essay' => __( 'Result General Essay', 'ielts-science-lms' ),
+				'evaluation_history'   => __( 'Evaluation History', 'ielts-science-lms' ),
 			),
 		);
 
