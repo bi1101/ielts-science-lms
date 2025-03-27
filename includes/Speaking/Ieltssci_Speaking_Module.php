@@ -23,6 +23,7 @@ class Ieltssci_Speaking_Module {
 	 */
 	public function __construct() {
 		new Ieltssci_Speaking_Settings();
+		new Ieltssci_Speaking_REST();
 		add_filter( 'ieltssci_lms_module_pages_data', array( $this, 'provide_module_pages_data' ) );
 	}
 
