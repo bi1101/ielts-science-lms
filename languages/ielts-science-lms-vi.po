@@ -7,9 +7,9 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 "POT-Creation-Date: 2025-03-25T06:12:03.684Z\n"
-"PO-Revision-Date: 2025-03-25 11:54+0000\n"
+"PO-Revision-Date: 2025-03-26 08:31+0000\n"
 "Last-Translator: Lê Bá Hùng\n"
-"Language-Team: Tiếng Việt\n"
+"Language-Team: Vietnamese\n"
 "X-Generator: Loco https://localise.biz/\n"
 "Language: vi\n"
 "domain: \n"
@@ -22,19 +22,15 @@ msgstr ""
 
 #: includes/Settings/Ieltssci_Settings.php:386
 msgid "- Select a page -"
-msgstr ""
+msgstr "- Chọn một trang -"
 
 #: public/writing/src/utils/bandDescriptor.ts:781
 msgid "A clear overview with main trends or differences"
 msgstr "Đoạn tổng quan rõ ràng với các xu hướng hoặc khác biệt chính"
 
 #: public/writing/src/utils/bandDescriptor.ts:477
-msgid ""
-"A mix of simple and multi-clause sentences; limited flexibility, complex "
-"structures are less accurate"
-msgstr ""
-"Có sự kết hợp giữa các câu đơn giản và câu phức; tính linh hoạt hạn chế, các "
-"cấu trúc phức tạp ít chính xác hơn"
+msgid "A mix of simple and multi-clause sentences; limited flexibility, complex structures are less accurate"
+msgstr "Có sự kết hợp giữa các câu đơn giản và câu phức; tính linh hoạt hạn chế, các cấu trúc phức tạp ít chính xác hơn"
 
 #: public/writing/src/utils/bandDescriptor.ts:789
 msgid "A relevant overview is attempted"
@@ -45,8 +41,7 @@ msgid "A variety of structures is used with SOME flexibility"
 msgstr "Một số các cấu trúc được sử dụng với sự linh hoạt NHẤT ĐỊNH"
 
 #: public/writing/src/utils/bandDescriptor.ts:495
-msgid ""
-"A very limited range of structures is used, only single clause sentences"
+msgid "A very limited range of structures is used, only single clause sentences"
 msgstr "Số cấu trúc sử dụng rất hạn chế, chỉ có các câu đơn"
 
 #: public/writing/src/utils/bandDescriptor.ts:460
@@ -61,8 +56,7 @@ msgstr "Chính xác"
 msgid "Accurate and relevant data"
 msgstr "Dữ liệu chính xác và phù hơp"
 
-#: public/writing/src/components/global/ScoreMenu.tsx:174
-#: public/writing/src/components/global/ScoreMenu.tsx:247
+#: public/writing/src/components/global/ScoreMenu.tsx:174 public/writing/src/components/global/ScoreMenu.tsx:247
 msgid "Add your own feedback"
 msgstr "Tự thêm nhận xét"
 
@@ -74,8 +68,7 @@ msgstr "Vốn từ đủ, đôi khi lặp từ và ít paraphrasing"
 msgid "Advanced Grammar Correction"
 msgstr "Sửa ngữ pháp nâng cao"
 
-#: public/writing/src/utils/bandDescriptor.ts:95
-#: public/writing/src/utils/bandDescriptor.ts:568
+#: public/writing/src/utils/bandDescriptor.ts:95 public/writing/src/utils/bandDescriptor.ts:568
 msgid "ALL parts of the question are answered"
 msgstr "TẤT CẢ các phần của câu hỏi đã dc trả lời"
 
@@ -91,8 +84,7 @@ msgstr "Đã xảy ra lỗi. Vui lòng thử lại."
 msgid "Analyze your essay now!"
 msgstr "Chấm bài ngay!"
 
-#: public/writing/src/components/global/ScoreMenuButton.tsx:135
-#: public/writing/src/components/global/ChainOfThoughts.tsx:149
+#: public/writing/src/components/global/ScoreMenuButton.tsx:135 public/writing/src/components/global/ChainOfThoughts.tsx:149
 msgid "Analyzing"
 msgstr "Đang phân tích"
 
@@ -108,8 +100,7 @@ msgstr ""
 msgid "API Max Concurrent Requests"
 msgstr ""
 
-#: includes/Settings/Ieltssci_Settings_Config.php:262
-#: includes/Settings/Ieltssci_Settings.php:250
+#: includes/Settings/Ieltssci_Settings_Config.php:262 includes/Settings/Ieltssci_Settings.php:250
 msgid "API Settings"
 msgstr ""
 
@@ -147,27 +138,25 @@ msgstr "Nhận xét hàng loạt"
 
 #: public/writing/src/components/global/LoginDialog.tsx:389
 msgid "By continuing, you agree to our Terms of Service and Privacy Policy"
-msgstr ""
-"Bằng cách tiếp tục, bạn đồng ý với Điều khoản Dịch vụ và Chính sách Bảo mật "
-"của chúng tôi"
+msgstr "Bằng cách tiếp tục, bạn đồng ý với Điều khoản Dịch vụ và Chính sách Bảo mật của chúng tôi"
 
-#: public/writing/src/components/global/SuggestionItem.tsx:338
-#: public/writing/src/components/global/RegenerateFeedbackDialog.tsx:413
-#: public/writing/src/components/global/HighlightPopover.tsx:313
+#: public/writing/src/components/global/SuggestionItem.tsx:338 public/writing/src/components/global/RegenerateFeedbackDialog.tsx:413 public/writing/src/components/global/HighlightPopover.tsx:313
 msgid "Cancel"
 msgstr "Hủy"
 
-#: public/writing/src/components/global/SuggestionItem.tsx:281
-#: public/writing/src/components/global/HighlightPopover.tsx:265
+#: public/writing/src/components/global/SuggestionItem.tsx:281 public/writing/src/components/global/HighlightPopover.tsx:265
 msgid "Categories"
 msgstr "Danh mục"
+
+#: public/writing/src/components/global/ShoppingCart.tsx:256
+msgid "Checkout"
+msgstr "Thanh toán"
 
 #: public/writing/src/utils/bandDescriptor.ts:601
 msgid "Clear answer"
 msgstr "Câu trả lời rõ ràng"
 
-#: public/writing/src/config/Layout.ts:23
-#: public/writing/src/config/Layout.ts:126
+#: public/writing/src/config/Layout.ts:23 public/writing/src/config/Layout.ts:126
 msgid "Clear Answer/Clear Opinion"
 msgstr "Câu trả lời rõ ràng / Ý kiến rõ ràng"
 
@@ -181,22 +170,17 @@ msgstr "Lập trường/Câu trả lời rõ ràng"
 
 #: public/writing/src/utils/bandDescriptor.ts:200
 msgid "Clear structure, not all paragraphs have a clear purpose"
-msgstr ""
-"Cấu trúc rõ ràng, không phải tất cả các đoạn văn đều có mục đích rõ ràng"
+msgstr "Cấu trúc rõ ràng, không phải tất cả các đoạn văn đều có mục đích rõ ràng"
 
 #: public/writing/src/components/global/OcrDialog.tsx:247
 msgid "close"
 msgstr "đóng"
 
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:84
-#: public/writing/src/pages/result-task-1/LeftPanel.tsx:69
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:85
-#: public/writing/src/pages/result-task-2/LeftPanel.tsx:69
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:85 public/writing/src/pages/result-task-2/LeftPanel.tsx:69 public/writing/src/pages/result-task-1/RightPanel.tsx:84 public/writing/src/pages/result-task-1/LeftPanel.tsx:69
 msgid "Coherence & Cohesion"
 msgstr "Sự mạch lạc và liên kết"
 
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:308
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:321
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:321 public/writing/src/pages/result-task-1/RightPanel.tsx:308
 msgid "Coherence & Cohesion Feedback"
 msgstr "Nhận xét về sự mạch lạc và liên kết"
 
@@ -224,22 +208,15 @@ msgstr "Chứa ít chi tiết ít liên quan vs đề"
 msgid "Contain overgeneralized details"
 msgstr "Chứa các chi tiết quá khái quát"
 
-#: public/writing/src/components/global/ShareDialog.js:53
-#: public/writing/src/components/global/ShareDialog.js:54
-#: public/writing/src/components/global/ShareDialog.js:67
-#: public/writing/src/components/global/ShareDialog.js:68
+#: public/writing/src/components/global/ShareDialog.js:53 public/writing/src/components/global/ShareDialog.js:54 public/writing/src/components/global/ShareDialog.js:67 public/writing/src/components/global/ShareDialog.js:68
 msgid "Copied"
 msgstr "Đã sao chép"
 
-#: public/writing/src/components/global/ShareDialog.js:32
-#: public/writing/src/components/global/ShareDialog.js:58
-#: public/writing/src/components/global/ShareDialog.js:72
+#: public/writing/src/components/global/ShareDialog.js:32 public/writing/src/components/global/ShareDialog.js:58 public/writing/src/components/global/ShareDialog.js:72
 msgid "Copy Link"
 msgstr "Sao chép liên kết"
 
-#: public/writing/src/components/global/ShareDialog.js:31
-#: public/writing/src/components/global/ShareDialog.js:57
-#: public/writing/src/components/global/ShareDialog.js:71
+#: public/writing/src/components/global/ShareDialog.js:31 public/writing/src/components/global/ShareDialog.js:57 public/writing/src/components/global/ShareDialog.js:71
 msgid "Copy share link"
 msgstr "Sao chép liên kết chia sẻ"
 
@@ -255,8 +232,7 @@ msgstr "Có thể cải thiện"
 msgid "Create a free account to get started"
 msgstr "Tạo tài khoản miễn phí để bắt đầu"
 
-#: includes/Settings/Ieltssci_Settings.php:399
-#: includes/Settings/Ieltssci_Settings.php:443
+#: includes/Settings/Ieltssci_Settings.php:399 includes/Settings/Ieltssci_Settings.php:443
 msgid "Create Page"
 msgstr ""
 
@@ -273,14 +249,10 @@ msgid "Don't have an account? "
 msgstr "Chưa có tài khoản?"
 
 #: public/writing/src/components/global/SettingDialog.tsx:158
-msgid ""
-"E.g. Your essay is pretty good ...| I find your essay exceeddingly "
-"acceptable ..."
+msgid "E.g. Your essay is pretty good ...| I find your essay exceeddingly acceptable ..."
 msgstr ""
 
-#: public/writing/src/components/global/SuggestionItem.tsx:244
-#: public/writing/src/components/global/HighlightPopover.tsx:227
-#: public/writing/src/components/global/HighlightPopover.tsx:236
+#: public/writing/src/components/global/SuggestionItem.tsx:244 public/writing/src/components/global/HighlightPopover.tsx:227 public/writing/src/components/global/HighlightPopover.tsx:236
 msgid "Edit Suggestion"
 msgstr "Sửa nhận xét"
 
@@ -301,6 +273,14 @@ msgstr ""
 msgid "Error creating %1$s page: %2$s"
 msgstr ""
 
+#: public/writing/src/components/global/ShoppingCart.tsx:151
+msgid "Error loading cart"
+msgstr "Lỗi khi tải giỏ hàng"
+
+#: public/writing/src/pages/evaluation-history/index.tsx:289
+msgid "Error loading essays:"
+msgstr "Lỗi tải bài viết:"
+
 #: public/writing/src/utils/bandDescriptor.ts:531
 msgid "Errors FREQUENTLY impede meaning"
 msgstr "Lỗi THƯỜNG XUYÊN ảnh hưởng ý nghĩa"
@@ -309,17 +289,21 @@ msgstr "Lỗi THƯỜNG XUYÊN ảnh hưởng ý nghĩa"
 msgid "Errors impede meaning"
 msgstr "Lỗi làm ảnh hưởng ý nghĩa"
 
-#: includes/Writing/Ieltssci_Writing_REST.php:532
+#: includes/Writing/Ieltssci_Writing_REST.php:537
 msgid "Essay not found"
-msgstr ""
+msgstr "Không tìm thấy bài luận"
 
-#: public/writing/src/pages/home/index.tsx:274
+#: public/writing/src/pages/home/index.tsx:274 public/writing/src/pages/evaluation-history/index.tsx:234
 msgid "essay-type tabs"
 msgstr ""
 
 #: public/writing/src/pages/home/index.tsx:116
 msgid "Evaluate IELTS Writing x GPT"
 msgstr "Chấm IELTS Writing x GPT"
+
+#: includes/Writing/Ieltssci_Writing_Module.php:493 public/writing/src/pages/evaluation-history/index.tsx:225
+msgid "Evaluation History"
+msgstr "Lịch sử bài chấm"
 
 #: public/writing/src/components/global/DocsExportDialog.tsx:136
 msgid "Export as GDocs"
@@ -329,8 +313,7 @@ msgstr "Xuất GDocs"
 msgid "Export as Word"
 msgstr "Xuất file Word"
 
-#: public/writing/src/components/global/ShareDialog.js:166
-#: public/writing/src/components/global/DocsExportDialog.tsx:79
+#: public/writing/src/components/global/ShareDialog.js:166 public/writing/src/components/global/DocsExportDialog.tsx:79
 msgid "Export to GDocs/Word"
 msgstr "Xuất ra GDocs/Word"
 
@@ -340,9 +323,7 @@ msgstr "Được phát triển và chứng minh"
 
 #: public/writing/src/utils/bandDescriptor.ts:69
 msgid "Extended and supported, but overgeneralized, lack focus or precision"
-msgstr ""
-"Được phát triển và chứng minh, nhưng còn chung chung, thiếu tập trung hoặc "
-"chưa chính xác"
+msgstr "Được phát triển và chứng minh, nhưng còn chung chung, thiếu tập trung hoặc chưa chính xác"
 
 #: public/writing/src/utils/bandDescriptor.ts:687
 msgid "Fair"
@@ -384,9 +365,7 @@ msgstr "Tên file"
 msgid "Flow"
 msgstr "Mạch văn"
 
-#: public/writing/src/components/global/ScoreMenu.tsx:129
-#: public/writing/src/components/global/ScoreMenu.tsx:196
-#: public/writing/src/components/global/RegenerateFeedbackDialog.tsx:282
+#: public/writing/src/components/global/ScoreMenu.tsx:129 public/writing/src/components/global/ScoreMenu.tsx:196 public/writing/src/components/global/RegenerateFeedbackDialog.tsx:282
 msgid "For Teachers only"
 msgstr "Chỉ dành cho giáo viên"
 
@@ -406,8 +385,7 @@ msgstr "Lỗi thường xuyên và ĐÔI KHI cản trở ý nghĩa"
 msgid "Frequent errors, not affecting comprehension"
 msgstr "Lỗi thường xuyên, không ảnh hưởng đến ý nghĩa"
 
-#: public/writing/src/components/global/SuggestionItem.tsx:303
-#: public/writing/src/components/global/HighlightPopover.tsx:287
+#: public/writing/src/components/global/SuggestionItem.tsx:303 public/writing/src/components/global/HighlightPopover.tsx:287
 msgid "Full Explanation"
 msgstr "Giải thích chi tiết"
 
@@ -420,15 +398,10 @@ msgid "Get Pro Feedback"
 msgstr "Nhận nhận xét chuyên nghiệp"
 
 #: public/writing/src/components/global/SettingDialog.tsx:149
-msgid ""
-"Give a sample of your usual feedback to help the AI learn your tone. This "
-"will not affect the scores."
-msgstr ""
-"Hãy đưa ra một ví dụ về nhận xét thông thường của bạn để giúp AI học văn "
-"phong của bạn. Điều này sẽ không ảnh hưởng đến điểm số."
+msgid "Give a sample of your usual feedback to help the AI learn your tone. This will not affect the scores."
+msgstr "Hãy đưa ra một ví dụ về nhận xét thông thường của bạn để giúp AI học văn phong của bạn. Điều này sẽ không ảnh hưởng đến điểm số."
 
-#: public/writing/src/utils/bandDescriptor.ts:655
-#: public/writing/src/utils/bandDescriptor.ts:677
+#: public/writing/src/utils/bandDescriptor.ts:655 public/writing/src/utils/bandDescriptor.ts:677
 msgid "Good"
 msgstr "Tốt"
 
@@ -448,20 +421,15 @@ msgstr ""
 msgid "Google Login"
 msgstr "Đăng nhập Google"
 
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:228
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:229
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:229 public/writing/src/pages/result-task-1/RightPanel.tsx:228
 msgid "Grammar Feedback"
 msgstr "Nhận xét ngữ pháp"
 
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:214
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:215
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:215 public/writing/src/pages/result-task-1/RightPanel.tsx:214
 msgid "Grammar Suggestions"
 msgstr "Gợi ý ngữ pháp"
 
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:72
-#: public/writing/src/pages/result-task-1/LeftPanel.tsx:57
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:73
-#: public/writing/src/pages/result-task-2/LeftPanel.tsx:57
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:73 public/writing/src/pages/result-task-2/LeftPanel.tsx:57 public/writing/src/pages/result-task-1/RightPanel.tsx:72 public/writing/src/pages/result-task-1/LeftPanel.tsx:57
 msgid "Grammatical Range & Accuracy"
 msgstr ""
 
@@ -469,13 +437,11 @@ msgstr ""
 msgid "Handwriting Text Recognition"
 msgstr "Nhận diện chữ viết tay"
 
-#: public/writing/src/utils/bandDescriptor.ts:139
-#: public/writing/src/utils/bandDescriptor.ts:611
+#: public/writing/src/utils/bandDescriptor.ts:139 public/writing/src/utils/bandDescriptor.ts:611
 msgid "Hard to discern answer"
 msgstr "Khó để nhận ra câu trả lời"
 
-#: public/writing/src/utils/bandDescriptor.ts:134
-#: public/writing/src/utils/bandDescriptor.ts:606
+#: public/writing/src/utils/bandDescriptor.ts:134 public/writing/src/utils/bandDescriptor.ts:606
 msgid "Hard to discern position"
 msgstr "Khó phân biệt lập trường"
 
@@ -505,17 +471,12 @@ msgid "Ideas are connected flawlessly"
 msgstr "Các ý tưởng được liên kết một cách hoàn hảo"
 
 #: public/writing/src/utils/bandDescriptor.ts:172
-msgid ""
-"Ideas are logically connected; minor paragraph-level disruptions or "
-"considerable sentence-level disruptions"
-msgstr ""
-"Các ý tưởng được kết nối một cách logic; có sự gián đoạn nhỏ ở cấp độ đoạn "
-"văn hoặc sự gián đoạn đáng kể ở cấp độ câu"
+msgid "Ideas are logically connected; minor paragraph-level disruptions or considerable sentence-level disruptions"
+msgstr "Các ý tưởng được kết nối một cách logic; có sự gián đoạn nhỏ ở cấp độ đoạn văn hoặc sự gián đoạn đáng kể ở cấp độ câu"
 
 #: public/writing/src/utils/bandDescriptor.ts:163
 msgid "Ideas are logically connected; minor sentence-level disruptions"
-msgstr ""
-"Các ý tưởng được kết nối một cách logic; có những gián đoạn nhỏ ở cấp độ câu"
+msgstr "Các ý tưởng được kết nối một cách logic; có những gián đoạn nhỏ ở cấp độ câu"
 
 #: public/writing/src/utils/bandDescriptor.ts:180
 msgid "Ideas recognizable but not logically connected"
@@ -532,9 +493,7 @@ msgid "IELTS Science Learning Management System."
 msgstr ""
 
 #. Name of the plugin
-#: ielts-science-lms.php includes/Settings/Ieltssci_Settings.php:56
-#: includes/Settings/Ieltssci_Settings.php:57
-#: includes/Core/Ieltssci_Core_Module.php:99
+#: ielts-science-lms.php includes/Settings/Ieltssci_Settings.php:56 includes/Settings/Ieltssci_Settings.php:57 includes/Core/Ieltssci_Core_Module.php:99
 msgid "IELTS Science LMS"
 msgstr ""
 
@@ -550,15 +509,11 @@ msgstr ""
 msgid "IELTS Writify"
 msgstr ""
 
-#: public/writing/src/components/global/SuggestionItem.tsx:223
-#: public/writing/src/components/global/SuggestionItem.tsx:316
-#: public/writing/src/components/global/HighlightPopover.tsx:216
-#: public/writing/src/components/global/HighlightPopover.tsx:300
+#: public/writing/src/components/global/SuggestionItem.tsx:223 public/writing/src/components/global/SuggestionItem.tsx:316 public/writing/src/components/global/HighlightPopover.tsx:216 public/writing/src/components/global/HighlightPopover.tsx:300
 msgid "Impact"
 msgstr "Ảnh hưởng"
 
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:173
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:174
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:174 public/writing/src/pages/result-task-1/RightPanel.tsx:173
 msgid "Improved Essay"
 msgstr "Bài sửa mẫu"
 
@@ -596,43 +551,29 @@ msgstr ""
 
 #: public/writing/src/utils/bandDescriptor.ts:741
 msgid "Key features are adequately covered, some missing or excessive details"
-msgstr ""
-"Các đặc điểm chính được đề cập đầy đủ, một số chi tiết bị thiếu hoặc thừa"
+msgstr "Các đặc điểm chính được đề cập đầy đủ, một số chi tiết bị thiếu hoặc thừa"
 
 #: public/writing/src/utils/bandDescriptor.ts:732
-msgid ""
-"Key features are covered, and clearly highlighted, but could be further "
-"extended"
-msgstr ""
-"Các đặc điểm chính được đề cập và làm nổi bật rõ ràng, nhưng có thể được mở "
-"rộng thêm"
+msgid "Key features are covered, and clearly highlighted, but could be further extended"
+msgstr "Các đặc điểm chính được đề cập và làm nổi bật rõ ràng, nhưng có thể được mở rộng thêm"
 
 #: public/writing/src/utils/bandDescriptor.ts:750
-msgid ""
-"Key features are not adequately covered, irrelevant or mechanically recounted"
-msgstr ""
-"Các đặc điểm chính không được đề cập đầy đủ, không liên quan hoặc được kể "
-"lại một cách máy móc"
+msgid "Key features are not adequately covered, irrelevant or mechanically recounted"
+msgstr "Các đặc điểm chính không được đề cập đầy đủ, không liên quan hoặc được kể lại một cách máy móc"
 
 #: public/writing/src/utils/bandDescriptor.ts:723
 msgid "Key features are skillfully selected and clearly highlighted"
-msgstr ""
-"Các đặc điểm chính được chọn lọc một cách khéo léo và được làm nổi bật rõ "
-"ràng"
+msgstr "Các đặc điểm chính được chọn lọc một cách khéo léo và được làm nổi bật rõ ràng"
 
 #: public/writing/src/components/global/SettingDialog.tsx:112
 msgid "Language"
 msgstr "Ngôn ngữ"
 
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:66
-#: public/writing/src/pages/result-task-1/LeftPanel.tsx:51
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:67
-#: public/writing/src/pages/result-task-2/LeftPanel.tsx:51
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:67 public/writing/src/pages/result-task-2/LeftPanel.tsx:51 public/writing/src/pages/result-task-1/RightPanel.tsx:66 public/writing/src/pages/result-task-1/LeftPanel.tsx:51
 msgid "Lexical Resources"
 msgstr ""
 
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:133
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:134
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:134 public/writing/src/pages/result-task-1/RightPanel.tsx:133
 msgid "Lexical Resources Feedback"
 msgstr "Nhận xét từ vựng"
 
@@ -662,9 +603,7 @@ msgstr "Liên kết"
 
 #: public/writing/src/utils/bandDescriptor.ts:85
 msgid "Little to no development, containing irrelevant or illogical detail"
-msgstr ""
-"Ít hoặc không có sự phát triển ý, chứa chi tiết không liên quan hoặc không "
-"logic"
+msgstr "Ít hoặc không có sự phát triển ý, chứa chi tiết không liên quan hoặc không logic"
 
 #: public/writing/src/utils/bandDescriptor.ts:558
 msgid "Little to no development, may contain illogical detail"
@@ -682,9 +621,7 @@ msgstr "Đang đăng nhập..."
 msgid "Logic & Depth"
 msgstr "Logic & Chiều sâu"
 
-#: public/writing/src/components/global/LoginDialog.tsx:310
-#: public/writing/src/components/global/LoginDialog.tsx:377
-#: public/writing/src/components/global/HeaderAside.tsx:101
+#: public/writing/src/components/global/LoginDialog.tsx:310 public/writing/src/components/global/LoginDialog.tsx:377 public/writing/src/components/global/HeaderAside.tsx:101
 msgid "Login"
 msgstr "Đăng nhập"
 
@@ -728,8 +665,7 @@ msgstr "Tên học sinh của tôi - Kết quả Bài viết IELTS Task 2"
 msgid "Needs work"
 msgstr "Cần cải thiện"
 
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:151
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:152
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:152 public/writing/src/pages/result-task-1/RightPanel.tsx:151
 msgid "New Vocabulary"
 msgstr "Từ vựng mới"
 
@@ -741,27 +677,25 @@ msgstr "Bảng Từ Vựng Mới"
 msgid "No data"
 msgstr "Không có dữ liệu"
 
-#: public/writing/src/utils/bandDescriptor.ts:149
-#: public/writing/src/utils/bandDescriptor.ts:621
+#: public/writing/src/utils/bandDescriptor.ts:149 public/writing/src/utils/bandDescriptor.ts:621
 msgid "No discernable answer"
 msgstr "Không có câu trả lời rõ ràng"
 
-#: public/writing/src/utils/bandDescriptor.ts:144
-#: public/writing/src/utils/bandDescriptor.ts:616
+#: public/writing/src/utils/bandDescriptor.ts:144 public/writing/src/utils/bandDescriptor.ts:616
 msgid "No discernable position"
 msgstr "Không có lập trường rõ ràng"
+
+#: public/writing/src/pages/evaluation-history/index.tsx:300
+msgid "No essays found for this type. Try submitting one first!"
+msgstr "Không tìm thấy bài luận nào cho loại này. Hãy thử nộp một bài trước!"
 
 #: public/writing/src/utils/bandDescriptor.ts:221
 msgid "No identifiable paragraphing"
 msgstr "Không có đoạn văn rõ ràng"
 
 #: public/writing/src/components/global/OcrDialog.tsx:318
-msgid ""
-"No OCR images available. Please upload handwritten images to use this "
-"feature."
-msgstr ""
-"Không có hình ảnh bài viết tay nào có sẵn. Vui lòng tải lên hình ảnh viết "
-"tay để sử dụng tính năng này."
+msgid "No OCR images available. Please upload handwritten images to use this feature."
+msgstr "Không có hình ảnh bài viết tay nào có sẵn. Vui lòng tải lên hình ảnh viết tay để sử dụng tính năng này."
 
 #: public/writing/src/utils/bandDescriptor.ts:643
 msgid "No overgeneralization"
@@ -799,8 +733,7 @@ msgstr ""
 msgid "Open Key AI"
 msgstr ""
 
-#: public/writing/src/components/global/LoginDialog.tsx:315
-#: public/writing/src/components/global/LoginDialog.tsx:360
+#: public/writing/src/components/global/LoginDialog.tsx:315 public/writing/src/components/global/LoginDialog.tsx:360
 msgid "OR"
 msgstr "HOẶC"
 
@@ -816,8 +749,7 @@ msgstr ""
 msgid "Page title not found for the given key and module."
 msgstr ""
 
-#: includes/Settings/Ieltssci_Settings.php:67
-#: includes/Settings/Ieltssci_Settings.php:68
+#: includes/Settings/Ieltssci_Settings.php:67 includes/Settings/Ieltssci_Settings.php:68
 msgid "Pages"
 msgstr ""
 
@@ -881,17 +813,11 @@ msgstr ""
 msgid "Referencing"
 msgstr "Referencing"
 
-#: public/writing/src/components/global/ScoreMenu.tsx:131
-#: public/writing/src/components/global/ScoreMenu.tsx:198
-#: public/writing/src/components/global/RegenerateFeedbackDialog.tsx:284
+#: public/writing/src/components/global/ScoreMenu.tsx:131 public/writing/src/components/global/ScoreMenu.tsx:198 public/writing/src/components/global/RegenerateFeedbackDialog.tsx:284
 msgid "Regenerate feedback with your suggestion."
 msgstr "Tạo lại phản hồi với đề xuất của bạn."
 
-#: public/writing/src/config/Layout.ts:15
-#: public/writing/src/config/Layout.ts:61
-#: public/writing/src/config/Layout.ts:99
-#: public/writing/src/config/Layout.ts:118
-#: public/writing/src/config/Layout.ts:179
+#: public/writing/src/config/Layout.ts:15 public/writing/src/config/Layout.ts:61 public/writing/src/config/Layout.ts:99 public/writing/src/config/Layout.ts:118 public/writing/src/config/Layout.ts:179
 msgid "Relevance"
 msgstr "Chặt chẽ với đề bài"
 
@@ -899,13 +825,16 @@ msgstr "Chặt chẽ với đề bài"
 msgid "Remember me"
 msgstr "Lưu mật khẩu"
 
+#: public/writing/src/components/global/ShoppingCart.tsx:225
+msgid "Remove item"
+msgstr "Bỏ mục"
+
 #: public/writing/src/utils/bandDescriptor.ts:697
 msgid "Requires attention"
 msgstr "Cần chú ý"
 
 #: includes/Core/Ieltssci_Core_Module.php:99
-msgid ""
-"requires WordPress version 6.0 or higher. The plugin has been deactivated."
+msgid "requires WordPress version 6.0 or higher. The plugin has been deactivated."
 msgstr ""
 
 #: includes/Writing/Ieltssci_Writing_Module.php:492
@@ -920,8 +849,7 @@ msgstr ""
 msgid "Result Task 2"
 msgstr ""
 
-#: public/writing/src/config/Layout.ts:263
-#: public/writing/src/config/Layout.ts:275
+#: public/writing/src/config/Layout.ts:263 public/writing/src/config/Layout.ts:275
 msgid "Sample Essay"
 msgstr "Bài mẫu"
 
@@ -933,20 +861,15 @@ msgstr ""
 msgid "Sample Feedback (VI)"
 msgstr "Mẫu nhận xét (VI)"
 
-#: public/writing/src/components/global/SuggestionItem.tsx:344
-#: public/writing/src/components/global/RegenerateFeedbackDialog.tsx:422
-#: public/writing/src/components/global/HighlightPopover.tsx:316
+#: public/writing/src/components/global/SuggestionItem.tsx:344 public/writing/src/components/global/RegenerateFeedbackDialog.tsx:422 public/writing/src/components/global/HighlightPopover.tsx:316
 msgid "Save"
 msgstr "Lưu"
 
-#: includes/Settings/Ieltssci_Settings.php:113
-#: includes/Settings/Ieltssci_Settings.php:214
-#: includes/Settings/Ieltssci_Settings.php:466
+#: includes/Settings/Ieltssci_Settings.php:113 includes/Settings/Ieltssci_Settings.php:214 includes/Settings/Ieltssci_Settings.php:466
 msgid "Security check failed."
 msgstr ""
 
-#: public/writing/src/components/global/SuggestionItem.tsx:282
-#: public/writing/src/components/global/HighlightPopover.tsx:266
+#: public/writing/src/components/global/SuggestionItem.tsx:282 public/writing/src/components/global/HighlightPopover.tsx:266
 msgid "Select or type categories"
 msgstr "Chọn hoặc nhập loại lỗi"
 
@@ -958,10 +881,7 @@ msgstr "Chọn điểm"
 msgid "Select the pages for the Writing Module."
 msgstr ""
 
-#: includes/Settings/Ieltssci_Settings.php:76
-#: includes/Settings/Ieltssci_Settings.php:77
-#: public/writing/src/components/global/TopBar.tsx:295
-#: public/writing/src/components/global/SettingDialog.tsx:96
+#: includes/Settings/Ieltssci_Settings.php:76 includes/Settings/Ieltssci_Settings.php:77 public/writing/src/components/global/TopBar.tsx:296 public/writing/src/components/global/SettingDialog.tsx:96
 msgid "Settings"
 msgstr "Cài đặt"
 
@@ -969,7 +889,7 @@ msgstr "Cài đặt"
 msgid "settings"
 msgstr "cài đặt"
 
-#: public/writing/src/components/global/TopBar.tsx:304
+#: public/writing/src/components/global/TopBar.tsx:307
 msgid "Share"
 msgstr "Chia sẻ"
 
@@ -977,8 +897,11 @@ msgstr "Chia sẻ"
 msgid "Share Result"
 msgstr "Chia sẻ kết quả"
 
-#: public/writing/src/components/global/LoginDialog.tsx:376
-#: public/writing/src/components/global/HeaderAside.tsx:113
+#: public/writing/src/components/global/ShoppingCart.tsx:129
+msgid "Shopping Cart"
+msgstr "Giỏ hàng"
+
+#: public/writing/src/components/global/LoginDialog.tsx:376 public/writing/src/components/global/HeaderAside.tsx:113
 msgid "Sign up"
 msgstr "Đăng kí"
 
@@ -1006,8 +929,7 @@ msgstr "Một số nơi sử dụng tốt, nhưng còn lỗi ngữ pháp; sử d
 msgid "Some lapses"
 msgstr "Một vài sai sót"
 
-#: public/writing/src/utils/bandDescriptor.ts:103
-#: public/writing/src/utils/bandDescriptor.ts:576
+#: public/writing/src/utils/bandDescriptor.ts:103 public/writing/src/utils/bandDescriptor.ts:576
 msgid "SOME parts of the question are NOT answered"
 msgstr "MỘT SỐ phần của câu hỏi KHÔNG được trả lời"
 
@@ -1047,16 +969,19 @@ msgstr "Gửi"
 msgid "Submitted by"
 msgstr "Gửi bởi"
 
+#: public/writing/src/components/global/ShoppingCart.tsx:247
+msgid "Subtotal:"
+msgstr "Tổng phụ:"
+
 #: public/writing/src/utils/bandDescriptor.ts:314
 msgid "Sufficient resource to allow flexibility, not repetitive"
 msgstr "Vốn từ đủ để sử dụng linh hoạt, không lặp từ"
 
-#: public/writing/src/components/global/SuggestionItem.tsx:290
-#: public/writing/src/components/global/HighlightPopover.tsx:274
+#: public/writing/src/components/global/SuggestionItem.tsx:290 public/writing/src/components/global/HighlightPopover.tsx:274
 msgid "Suggested Text"
 msgstr "Văn bản gợi ý"
 
-#: public/writing/src/pages/home/index.tsx:293
+#: public/writing/src/pages/home/index.tsx:293 public/writing/src/pages/evaluation-history/index.tsx:250
 msgid "TASK 1"
 msgstr ""
 
@@ -1064,7 +989,11 @@ msgstr ""
 msgid "TASK 1 Handwritten"
 msgstr "TASK 1 Viết tay"
 
-#: public/writing/src/pages/home/index.tsx:284
+#: public/writing/src/pages/evaluation-history/index.tsx:268
+msgid "TASK 1 OCR"
+msgstr ""
+
+#: public/writing/src/pages/home/index.tsx:284 public/writing/src/pages/evaluation-history/index.tsx:241
 msgid "TASK 2"
 msgstr ""
 
@@ -1072,8 +1001,11 @@ msgstr ""
 msgid "TASK 2 Handwritten"
 msgstr "TASK 2 Viết tay"
 
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:78
-#: public/writing/src/pages/result-task-1/LeftPanel.tsx:63
+#: public/writing/src/pages/evaluation-history/index.tsx:259
+msgid "TASK 2 OCR"
+msgstr ""
+
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:78 public/writing/src/pages/result-task-1/LeftPanel.tsx:63
 msgid "Task Achievement"
 msgstr ""
 
@@ -1081,8 +1013,7 @@ msgstr ""
 msgid "Task Achievement Feedback"
 msgstr "Nhận xét Task Achievement"
 
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:79
-#: public/writing/src/pages/result-task-2/LeftPanel.tsx:63
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:79 public/writing/src/pages/result-task-2/LeftPanel.tsx:63
 msgid "Task Response"
 msgstr ""
 
@@ -1107,43 +1038,36 @@ msgid "The question has been misunderstood"
 msgstr "Câu hỏi đã bị hiểu sai"
 
 #: public/writing/src/utils/bandDescriptor.ts:486
-msgid ""
-"The range of structures is limited and repetitive; some multi-clause "
-"sentences are used"
-msgstr ""
-"Độ rộng cấu trúc còn hạn chế và lặp lại; một số câu có nhiều mệnh đề được sử "
-"dụng"
+msgid "The range of structures is limited and repetitive; some multi-clause sentences are used"
+msgstr "Độ rộng cấu trúc còn hạn chế và lặp lại; một số câu có nhiều mệnh đề được sử dụng"
 
 #: public/writing/src/components/global/ChainOfThoughts.tsx:150
 msgid "Thinking"
 msgstr "Đang tư duy"
 
 #: public/writing/src/components/global/SettingDialog.tsx:133
-msgid ""
-"This option open result page in new tabs helping teachers grade multiple "
-"essays simultaneously."
-msgstr ""
-"Tùy chọn này mở trang kết quả trong tab mới, giúp giáo viên chấm điểm nhiều "
-"bài luận cùng lúc."
+msgid "This option open result page in new tabs helping teachers grade multiple essays simultaneously."
+msgstr "Tùy chọn này mở trang kết quả trong tab mới, giúp giáo viên chấm điểm nhiều bài luận cùng lúc."
 
 #: public/writing/src/config/Layout.ts:69
 msgid "Topic Sentence - Rewrite"
 msgstr "Câu chủ đề - Viết lại"
+
+#: public/writing/src/components/global/ShoppingCart.tsx:158
+msgid "Try Again"
+msgstr "Thử lại"
 
 #: public/writing/src/utils/bandDescriptor.ts:238
 msgid "Unclear referencing causes some repetition & misunderstanding"
 msgstr "Referencing không rõ ràng, đôi khi gây lặp từ và hiểu lầm"
 
 #: public/writing/src/utils/bandDescriptor.ts:388
-msgid ""
-"Uncommon vocab does not impede comprehension, occasional unnatural usage"
-msgstr ""
-"Từ vựng ít phổ biến không cản trở nghĩa câu, hiếm khi sử dụng không tự nhiên"
+msgid "Uncommon vocab does not impede comprehension, occasional unnatural usage"
+msgstr "Từ vựng ít phổ biến không cản trở nghĩa câu, hiếm khi sử dụng không tự nhiên"
 
 #: public/writing/src/utils/bandDescriptor.ts:396
 msgid "Uncommon vocab does not impede comprehension, some unnatural usage"
-msgstr ""
-"Từ vựng ít phổ biến không cản trở nghĩa câu, đôi khi sử dụng không tự nhiên"
+msgstr "Từ vựng ít phổ biến không cản trở nghĩa câu, đôi khi sử dụng không tự nhiên"
 
 #: public/writing/src/utils/bandDescriptor.ts:404
 msgid "Uncommon vocab may not be appropriate"
@@ -1152,6 +1076,10 @@ msgstr "Từ vựng ít phổ biến có thể không phù hợp"
 #: public/writing/src/config/Layout.ts:162
 msgid "Uncommon/Topical Vocabulary"
 msgstr "Từ vựng ít phổ biến/theo chủ đề"
+
+#: public/writing/src/pages/evaluation-history/index.tsx:292
+msgid "Unknown error"
+msgstr "Lỗi không xác định"
 
 #: public/writing/src/config/Layout.ts:301
 msgid "Use Data"
@@ -1173,6 +1101,10 @@ msgstr "Tiếng Việt"
 msgid "Vietnamese Feedback Sample"
 msgstr "Mẫu nhận xét tiếng Việt"
 
+#: public/writing/src/components/global/ShoppingCart.tsx:138
+msgid "View Cart"
+msgstr "Xem giỏ hàng"
+
 #: public/writing/src/components/global/ChainOfThoughts.tsx:197
 msgid "View details"
 msgstr "Xem chi tiết"
@@ -1181,29 +1113,27 @@ msgstr "Xem chi tiết"
 msgid "View Page"
 msgstr ""
 
-#: public/writing/src/pages/home/index.tsx:304
-#: public/writing/src/pages/home/index.tsx:327
+#: public/writing/src/pages/evaluation-history/index.tsx:119
+msgid "View Result"
+msgstr ""
+
+#: public/writing/src/pages/home/index.tsx:304 public/writing/src/pages/home/index.tsx:327
 msgid "VIP"
 msgstr "VIP"
 
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:118
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:119
-#: public/writing/src/pages/home/index.tsx:189
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:119 public/writing/src/pages/result-task-1/RightPanel.tsx:118 public/writing/src/pages/home/index.tsx:189
 msgid "Vocabulary Suggestions"
 msgstr "Gợi ý từ vựng"
 
 #: public/writing/src/components/global/SettingDialog.tsx:182
-msgid ""
-"Vï¿½ d?: Bï¿½i vi?t c?a em khï¿½ t?t ... | ?a th?y bï¿½i n? khï¿½ okela ... "
-"| C? th?y bï¿½i chï¿½u c?ng ???c ..."
+msgid "Vï¿½ d?: Bï¿½i vi?t c?a em khï¿½ t?t ... | ?a th?y bï¿½i n? khï¿½ okela ... | C? th?y bï¿½i chï¿½u c?ng ???c ..."
 msgstr ""
 
 #: public/writing/src/components/global/LoginDialog.tsx:234
 msgid "Welcome Back!"
 msgstr "Chào mừng trở lại"
 
-#: public/writing/src/utils/bandDescriptor.ts:63
-#: public/writing/src/utils/bandDescriptor.ts:540
+#: public/writing/src/utils/bandDescriptor.ts:63 public/writing/src/utils/bandDescriptor.ts:540
 msgid "Well extended and supported"
 msgstr "Phát triển và chứng minh tốt"
 
@@ -1241,7 +1171,11 @@ msgstr "Bạn có thể chỉnh sửa văn bản đã nhận dạng bên dưới
 
 #: includes/Settings/Ieltssci_Settings.php:461
 msgid "You do not have sufficient permissions to access this page."
-msgstr ""
+msgstr "Bạn không có quyền truy cập trang này."
+
+#: public/writing/src/components/global/ShoppingCart.tsx:164
+msgid "Your cart is empty"
+msgstr "Giỏ hàng của bạn đang trống"
 
 #: public/writing/src/components/global/OcrDialog.tsx:167
 msgid "Your essay text..."

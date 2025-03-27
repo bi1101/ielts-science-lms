@@ -8,7 +8,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Content-Type: text/plain; charset=iso-8859-1\n"
 "Plural-Forms: nplurals=2; plural=(n!=1);\n"
-"POT-Creation-Date: 2025-03-25T11:24:28.805Z\n"
+"POT-Creation-Date: 2025-03-26T08:19:11.025Z\n"
 "PO-Revision-Date: 2025-MO-DA HO:MI+ZONE\n"
 "Last-Translator: IELTS Science <EMAIL>\n"
 "Language-Team: IELTS Science <EMAIL>\n"
@@ -47,7 +47,7 @@ msgstr ""
 msgid "Writing APIs Process Order"
 msgstr ""
 
-#: includes/Writing/Ieltssci_Writing_REST.php:532
+#: includes/Writing/Ieltssci_Writing_REST.php:537
 msgid "Essay not found"
 msgstr ""
 
@@ -75,6 +75,11 @@ msgstr ""
 msgid "Result General Essay"
 msgstr ""
 
+#: includes/Writing/Ieltssci_Writing_Module.php:493
+#: public/writing/src/pages/evaluation-history/index.tsx:225
+msgid "Evaluation History"
+msgstr ""
+
 #: includes/Settings/Ieltssci_Settings_Config.php:262
 #: includes/Settings/Ieltssci_Settings.php:250
 msgid "API Settings"
@@ -87,7 +92,7 @@ msgstr ""
 
 #: includes/Settings/Ieltssci_Settings.php:76
 #: includes/Settings/Ieltssci_Settings.php:77
-#: public/writing/src/components/global/TopBar.tsx:295
+#: public/writing/src/components/global/TopBar.tsx:296
 #: public/writing/src/components/global/SettingDialog.tsx:96
 msgid "Settings"
 msgstr ""
@@ -165,12 +170,12 @@ msgstr ""
 msgid "Error creating %1$s page: %2$s"
 msgstr ""
 
-#: includes/Core/Ieltssci_Core_Module.php:99
-msgid "requires WordPress version 6.0 or higher. The plugin has been deactivated."
-msgstr ""
-
 #: includes/RateLimits/Ieltssci_RateLimit_Settings.php:43
 msgid "Rate Limits"
+msgstr ""
+
+#: includes/Core/Ieltssci_Core_Module.php:99
+msgid "requires WordPress version 6.0 or higher. The plugin has been deactivated."
 msgstr ""
 
 #: includes/ApiKeys/Ieltssci_ApiKeys_Settings.php:46
@@ -737,75 +742,61 @@ msgstr ""
 msgid "Format"
 msgstr ""
 
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:66
-#: public/writing/src/pages/result-task-1/LeftPanel.tsx:51
 #: public/writing/src/pages/result-task-2/RightPanel.tsx:67
 #: public/writing/src/pages/result-task-2/LeftPanel.tsx:51
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:66
+#: public/writing/src/pages/result-task-1/LeftPanel.tsx:51
 msgid "Lexical Resources"
 msgstr ""
 
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:72
-#: public/writing/src/pages/result-task-1/LeftPanel.tsx:57
 #: public/writing/src/pages/result-task-2/RightPanel.tsx:73
 #: public/writing/src/pages/result-task-2/LeftPanel.tsx:57
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:72
+#: public/writing/src/pages/result-task-1/LeftPanel.tsx:57
 msgid "Grammatical Range & Accuracy"
-msgstr ""
-
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:78
-#: public/writing/src/pages/result-task-1/LeftPanel.tsx:63
-msgid "Task Achievement"
-msgstr ""
-
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:84
-#: public/writing/src/pages/result-task-1/LeftPanel.tsx:69
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:85
-#: public/writing/src/pages/result-task-2/LeftPanel.tsx:69
-msgid "Coherence & Cohesion"
-msgstr ""
-
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:118
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:119
-#: public/writing/src/pages/home/index.tsx:189
-msgid "Vocabulary Suggestions"
-msgstr ""
-
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:133
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:134
-msgid "Lexical Resources Feedback"
-msgstr ""
-
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:151
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:152
-msgid "New Vocabulary"
-msgstr ""
-
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:173
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:174
-msgid "Improved Essay"
-msgstr ""
-
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:214
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:215
-msgid "Grammar Suggestions"
-msgstr ""
-
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:228
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:229
-msgid "Grammar Feedback"
-msgstr ""
-
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:268
-msgid "Task Achievement Feedback"
-msgstr ""
-
-#: public/writing/src/pages/result-task-1/RightPanel.tsx:308
-#: public/writing/src/pages/result-task-2/RightPanel.tsx:321
-msgid "Coherence & Cohesion Feedback"
 msgstr ""
 
 #: public/writing/src/pages/result-task-2/RightPanel.tsx:79
 #: public/writing/src/pages/result-task-2/LeftPanel.tsx:63
 msgid "Task Response"
+msgstr ""
+
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:85
+#: public/writing/src/pages/result-task-2/LeftPanel.tsx:69
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:84
+#: public/writing/src/pages/result-task-1/LeftPanel.tsx:69
+msgid "Coherence & Cohesion"
+msgstr ""
+
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:119
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:118
+#: public/writing/src/pages/home/index.tsx:189
+msgid "Vocabulary Suggestions"
+msgstr ""
+
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:134
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:133
+msgid "Lexical Resources Feedback"
+msgstr ""
+
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:152
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:151
+msgid "New Vocabulary"
+msgstr ""
+
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:174
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:173
+msgid "Improved Essay"
+msgstr ""
+
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:215
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:214
+msgid "Grammar Suggestions"
+msgstr ""
+
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:229
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:228
+msgid "Grammar Feedback"
 msgstr ""
 
 #: public/writing/src/pages/result-task-2/RightPanel.tsx:269
@@ -814,6 +805,20 @@ msgstr ""
 
 #: public/writing/src/pages/result-task-2/RightPanel.tsx:281
 msgid "Task Response Feedback"
+msgstr ""
+
+#: public/writing/src/pages/result-task-2/RightPanel.tsx:321
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:308
+msgid "Coherence & Cohesion Feedback"
+msgstr ""
+
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:78
+#: public/writing/src/pages/result-task-1/LeftPanel.tsx:63
+msgid "Task Achievement"
+msgstr ""
+
+#: public/writing/src/pages/result-task-1/RightPanel.tsx:268
+msgid "Task Achievement Feedback"
 msgstr ""
 
 #: public/writing/src/pages/home/index.tsx:113
@@ -841,14 +846,17 @@ msgid "settings"
 msgstr ""
 
 #: public/writing/src/pages/home/index.tsx:274
+#: public/writing/src/pages/evaluation-history/index.tsx:234
 msgid "essay-type tabs"
 msgstr ""
 
 #: public/writing/src/pages/home/index.tsx:284
+#: public/writing/src/pages/evaluation-history/index.tsx:241
 msgid "TASK 2"
 msgstr ""
 
 #: public/writing/src/pages/home/index.tsx:293
+#: public/writing/src/pages/evaluation-history/index.tsx:250
 msgid "TASK 1"
 msgstr ""
 
@@ -865,6 +873,30 @@ msgstr ""
 msgid "TASK 1 Handwritten"
 msgstr ""
 
+#: public/writing/src/pages/evaluation-history/index.tsx:119
+msgid "View Result"
+msgstr ""
+
+#: public/writing/src/pages/evaluation-history/index.tsx:259
+msgid "TASK 2 OCR"
+msgstr ""
+
+#: public/writing/src/pages/evaluation-history/index.tsx:268
+msgid "TASK 1 OCR"
+msgstr ""
+
+#: public/writing/src/pages/evaluation-history/index.tsx:289
+msgid "Error loading essays:"
+msgstr ""
+
+#: public/writing/src/pages/evaluation-history/index.tsx:292
+msgid "Unknown error"
+msgstr ""
+
+#: public/writing/src/pages/evaluation-history/index.tsx:300
+msgid "No essays found for this type. Try submitting one first!"
+msgstr ""
+
 #: public/writing/src/components/global/TopBar.tsx:186
 msgid "Submitted by"
 msgstr ""
@@ -873,7 +905,7 @@ msgstr ""
 msgid "Feedback by"
 msgstr ""
 
-#: public/writing/src/components/global/TopBar.tsx:304
+#: public/writing/src/components/global/TopBar.tsx:307
 msgid "Share"
 msgstr ""
 
@@ -920,6 +952,38 @@ msgstr ""
 #: public/writing/src/components/global/RegenerateFeedbackDialog.tsx:422
 #: public/writing/src/components/global/HighlightPopover.tsx:316
 msgid "Save"
+msgstr ""
+
+#: public/writing/src/components/global/ShoppingCart.tsx:129
+msgid "Shopping Cart"
+msgstr ""
+
+#: public/writing/src/components/global/ShoppingCart.tsx:138
+msgid "View Cart"
+msgstr ""
+
+#: public/writing/src/components/global/ShoppingCart.tsx:151
+msgid "Error loading cart"
+msgstr ""
+
+#: public/writing/src/components/global/ShoppingCart.tsx:158
+msgid "Try Again"
+msgstr ""
+
+#: public/writing/src/components/global/ShoppingCart.tsx:164
+msgid "Your cart is empty"
+msgstr ""
+
+#: public/writing/src/components/global/ShoppingCart.tsx:225
+msgid "Remove item"
+msgstr ""
+
+#: public/writing/src/components/global/ShoppingCart.tsx:247
+msgid "Subtotal:"
+msgstr ""
+
+#: public/writing/src/components/global/ShoppingCart.tsx:256
+msgid "Checkout"
 msgstr ""
 
 #: public/writing/src/components/global/ShareDialog.js:31
