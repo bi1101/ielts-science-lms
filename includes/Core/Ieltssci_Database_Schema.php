@@ -29,7 +29,7 @@ class Ieltssci_Database_Schema {
 	 *
 	 * @var string
 	 */
-	private $db_version = '0.0.3'; // Updated version number for adding is_preferred column.
+	private $db_version = '0.0.4'; // Updated version number for adding speech tables.
 
 	/**
 	 * WordPress database object.
@@ -69,6 +69,10 @@ class Ieltssci_Database_Schema {
 			$this->create_segment_table();
 			$this->create_segment_feedback_table();
 			$this->create_essay_feedback_table();
+
+			// Add speech tables.
+			$this->create_speech_table();
+			$this->create_speech_feedback_table();
 
 			update_option( 'ieltssci_db_version', $this->db_version );
 			$this->wpdb->query( 'COMMIT' );
@@ -365,6 +369,66 @@ class Ieltssci_Database_Schema {
 			CONSTRAINT fk_essay_feedback_essay
 				FOREIGN KEY (essay_id)
 				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "essays(id)
+				ON DELETE CASCADE
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
+	 * Creates the speech table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_speech_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			uuid varchar(36) NOT NULL,
+			audio_ids text NOT NULL COMMENT 'ID của file audio người dùng upload',
+			transcript longtext DEFAULT NULL COMMENT 'Transcript word timestamp',
+			created_at datetime DEFAULT CURRENT_TIMESTAMP,
+			created_by bigint(20) UNSIGNED NOT NULL COMMENT 'ID người tạo bài, nếu fork từ bài khác thì là ID của người fork',
+			PRIMARY KEY (id),
+			UNIQUE KEY uuid (uuid)
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
+	 * Creates the speech feedback table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_speech_feedback_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech_feedback';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			feedback_criteria varchar(191) NOT NULL COMMENT 'Tiêu chí feedback e.g relevance, clearAnswer, rewrite, logicDepth, etc.',
+			speech_id bigint(20) UNSIGNED NOT NULL,
+			feedback_language varchar(50) NOT NULL COMMENT 'Ngôn ngữ của feedback e.g English, Vietnamese',
+			source varchar(20) NOT NULL COMMENT 'Nguồn của feedback',
+			cot_content longtext DEFAULT NULL COMMENT 'Nội dung phần COT',
+			score_content longtext DEFAULT NULL COMMENT 'Nội dung phần điểm số',
+			feedback_content longtext DEFAULT NULL COMMENT 'Nội dung phần feedback',
+			is_preferred boolean DEFAULT 0 COMMENT 'Feedback được chọn làm feedback mặc định',
+			created_at datetime DEFAULT CURRENT_TIMESTAMP,
+			created_by bigint(20) UNSIGNED NOT NULL COMMENT 'ID của người call API hoặc update MANUAL feedback',
+			PRIMARY KEY (id),
+			KEY speech_id (speech_id),
+			KEY feedback_criteria (feedback_criteria(191)),
+			KEY feedback_language (feedback_language),
+			KEY source (source),
+			CONSTRAINT fk_speech_feedback_speech
+				FOREIGN KEY (speech_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "speech(id)
 				ON DELETE CASCADE
 		) $charset_collate";
 

@@ -59,7 +59,7 @@ class Ieltssci_ApiFeeds_DB {
 	 */
 	public function __construct() {
 		global $wpdb;
-		$this->wpdb             = $wpdb ?? $GLOBALS['wpdb'];
+		$this->wpdb             = $wpdb;
 		$this->api_feed_table   = "{$this->wpdb->prefix}ieltssci_api_feed";
 		$this->essay_type_table = "{$this->wpdb->prefix}ieltssci_api_feed_essay_type";
 		$this->rate_limit_db    = new Ieltssci_RateLimit_DB();

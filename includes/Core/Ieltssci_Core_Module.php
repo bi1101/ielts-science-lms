@@ -29,6 +29,7 @@ class Ieltssci_Core_Module {
 	 */
 	public function __construct() {
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
+		new \IeltsScienceLMS\Speaking\Ieltssci_Speaking_Module();
 		new \IeltsScienceLMS\Settings\Ieltssci_Settings();
 		new \IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeed_Module();
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit();
