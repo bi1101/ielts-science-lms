@@ -48,7 +48,7 @@ class Ieltssci_Writing_Module {
 
 		foreach ( $asset_files as $asset_file ) {
 			$asset  = include $asset_file;
-			$handle = 'ielts-science-' . basename( $asset_file, '.asset.php' );
+			$handle = 'ielts-science-writing-' . basename( $asset_file, '.asset.php' );
 			$src    = plugin_dir_url( __FILE__ ) . '../../public/writing/build/' . basename( $asset_file, '.asset.php' ) . '.js';
 			$deps   = $asset['dependencies'];
 			$ver    = $asset['version'];
@@ -99,9 +99,9 @@ class Ieltssci_Writing_Module {
 
 		if ( $should_enqueue ) {
 			// Define the handle for the index script and style.
-			$script_handle  = 'ielts-science-index';
-			$style_handle   = 'ielts-science-index-css';
-			$runtime_handle = 'ielts-science-runtime';
+			$script_handle  = 'ielts-science-writing-index';
+			$style_handle   = 'ielts-science-writing-index-css';
+			$runtime_handle = 'ielts-science-writing-runtime';
 
 			// Enqueue the runtime script if it's registered.
 			if ( wp_script_is( $runtime_handle, 'registered' ) ) {
