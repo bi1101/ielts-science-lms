@@ -1,0 +1,561 @@
+<?php
+/**
+ * Speaking Feedback Processor
+ *
+ * @package IeltsScienceLMS
+ * @subpackage Speaking
+ * @since 1.0.0
+ */
+
+namespace IeltsScienceLMS\Speaking;
+
+use WP_Error;
+use Exception;
+use IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_DB;
+use IeltsScienceLMS\API\Ieltssci_API_Client;
+use IeltsScienceLMS\API\Ieltssci_Message_Handler;
+use IeltsScienceLMS\MergeTags\Ieltssci_Merge_Tags_Processor;
+
+/**
+ * Class Ieltssci_Speaking_Feedback_Processor
+ *
+ * Handles the processing of feedback feeds for IELTS Science Speaking module.
+ * Responsible for processing feed groups, API integration, and content generation.
+ */
+class Ieltssci_Speaking_Feedback_Processor {
+
+	/**
+	 * API Feeds database handler.
+	 *
+	 * @var Ieltssci_ApiFeeds_DB
+	 */
+	private $api_feeds_db;
+
+	/**
+	 * Callback function for sending messages back to client.
+	 *
+	 * @var callable
+	 */
+	private $message_callback;
+
+	/**
+	 * Message handler for sending progress updates.
+	 *
+	 * @var Ieltssci_Message_Handler
+	 */
+	private $message_handler;
+
+	/**
+	 * API Client instance.
+	 *
+	 * @var Ieltssci_API_Client
+	 */
+	private $api_client;
+
+	/**
+	 * Merge Tags processor instance.
+	 *
+	 * @var Ieltssci_Merge_Tags_Processor
+	 */
+	private $merge_tags_processor;
+
+	/**
+	 * Feedback database handler.
+	 *
+	 * @var Ieltssci_Speaking_Feedback_DB
+	 */
+	private $feedback_db;
+
+	/**
+	 * Constructor
+	 *
+	 * @param callable|null $message_callback Function to call when sending messages back to client.
+	 */
+	public function __construct( $message_callback = null ) {
+		$this->api_feeds_db         = new Ieltssci_ApiFeeds_DB(); // Initialize API feeds database handler.
+		$this->message_callback     = $message_callback; // Set message callback function.
+		$this->merge_tags_processor = new Ieltssci_Merge_Tags_Processor(); // Initialize merge tags processor.
+
+		// Initialize message handler.
+		$this->message_handler = new Ieltssci_Message_Handler( $message_callback );
+
+		// Initialize API client with message handler.
+		$this->api_client = new Ieltssci_API_Client( message_handler: $this->message_handler );
+
+		$this->feedback_db = new Ieltssci_Speaking_Feedback_DB();
+	}
+
+	/**
+	 * Process a specific feed by ID
+	 *
+	 * @param int    $feed_id       ID of the feed to process.
+	 * @param string $uuid          The UUID of the recording.
+	 * @param string $language      The language of the feedback.
+	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
+	 * @param string $guide_score   Human-guided scoring for the AI to consider.
+	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @return WP_Error|null Error or null on success.
+	 * @throws Exception When feed processing fails.
+	 */
+	public function process_feed_by_id( $feed_id, $uuid, $language = 'en', $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
+		// Get the specific feed that needs processing.
+		$feeds = $this->api_feeds_db->get_api_feeds(
+			array(
+				'feed_id' => $feed_id,
+				'include' => array( 'meta' ),
+				'limit'   => 1,
+			)
+		);
+
+		if ( is_wp_error( $feeds ) ) {
+			return $feeds;
+		}
+
+		if ( empty( $feeds ) ) {
+			return new WP_Error( 404, 'Feed not found.' );
+		}
+
+		$feed = $feeds[0];
+
+		try {
+			// Process the feed (to be implemented).
+			$this->process_feed( $feed, $uuid, $language, $feedback_style, $guide_score, $guide_feedback );
+			return null;
+		} catch ( Exception $e ) {
+			return new WP_Error( 500, $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Process a feed
+	 *
+	 * @param array  $feed          The feed data.
+	 * @param string $uuid          The UUID of the recording.
+	 * @param string $language      The language of the feedback.
+	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
+	 * @param string $guide_score   Human-guided scoring for the AI to consider.
+	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 *
+	 * @throws Exception When feed processing fails.
+	 */
+	public function process_feed( $feed, $uuid, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
+		// Announce starting this feed.
+		$this->send_message(
+			'feed_start',
+			array(
+				'feed_id'           => $feed['id'],
+				'feed_title'        => isset( $feed['feed_title'] ) ? $feed['feed_title'] : 'Speaking Feedback',
+				'message'           => 'Starting speaking feedback processing...',
+				'feedback_criteria' => isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : '',
+			)
+		);
+
+		try {
+			$steps   = isset( $feed['meta'] ) ? json_decode( $feed['meta'], true )['steps'] : array();
+			$results = array();
+
+			foreach ( $steps as $step ) {
+				$result    = $this->process_step( $step, $uuid, $feed, $language, $feedback_style, $guide_score, $guide_feedback );
+				$results[] = $result;
+			}
+
+			// Signal completion of this feed.
+			$this->send_message(
+				'feed_complete',
+				array(
+					'feed_id'  => $feed['id'],
+					'status'   => 'success',
+					'feedback' => $results,
+				)
+			);
+		} catch ( Exception $e ) {
+			// Handle error.
+			$this->send_error(
+				'feed_error',
+				array(
+					'feed_id'  => isset( $feed['id'] ) ? $feed['id'] : 0,
+					'title'    => 'Error Processing Feedback',
+					'message'  => $e->getMessage(),
+					'ctaTitle' => 'Try Again',
+					'ctaLink'  => '#',
+				)
+			);
+			throw $e;
+		}
+	}
+
+	/**
+	 * Process a single step from a feed
+	 *
+	 * @param array  $step    The step configuration.
+	 * @param string $uuid    The UUID of the recording.
+	 * @param array  $feed    The feed data.
+	 * @param string $language The language of the feedback.
+	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
+	 * @param string $guide_score   Human-guided scoring for the AI to consider.
+	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 *
+	 * @return string The processed content.
+	 */
+	public function process_step( $step, $uuid, $feed, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
+		// Get settings from the step.
+		$step_type = isset( $step['step'] ) ? $step['step'] : 'feedback';
+		$sections  = isset( $step['sections'] ) ? $step['sections'] : array();
+
+		// Default settings.
+		$api_provider = 'google';
+		$model        = 'gemini-2.0-flash-lite';
+		$temperature  = 0.7;
+		$max_tokens   = 2048;
+		$prompt       = 'Hello.';
+		$score_regex  = '/\d+/';
+
+		$config = array();
+		foreach ( $sections as $section ) {
+			if ( isset( $section['section'] ) && ! empty( $section['section'] ) && isset( $section['fields'] ) ) {
+				$section_key            = $section['section'];
+				$config[ $section_key ] = array();
+
+				foreach ( $section['fields'] as $field ) {
+					if ( isset( $field['id'] ) && isset( $field['value'] ) ) {
+						$config[ $section_key ][ $field['id'] ] = $field['value'];
+					}
+				}
+			}
+		}
+
+		// Extract configuration settings from step.
+		$english_prompt    = isset( $config['general-setting']['englishPrompt'] ) ? $config['general-setting']['englishPrompt'] : $prompt;
+		$vietnamese_prompt = isset( $config['general-setting']['vietnamesePrompt'] ) ? $config['general-setting']['vietnamesePrompt'] : $prompt;
+		$api_provider      = isset( $config['general-setting']['apiProvider'] ) ? $config['general-setting']['apiProvider'] : $api_provider;
+		$model             = isset( $config['general-setting']['model'] ) ? $config['general-setting']['model'] : $model;
+		$temperature       = isset( $config['advanced-setting']['temperature'] ) ? $config['advanced-setting']['temperature'] : $temperature;
+		$max_tokens        = isset( $config['advanced-setting']['maxToken'] ) ? $config['advanced-setting']['maxToken'] : $max_tokens;
+
+		// Handle special case for transcription step.
+		if ( 'transcribe' === $step_type ) {
+			$transcription_prompt = isset( $config['general-setting']['prompt'] ) ? $config['general-setting']['prompt'] : '';
+			return $this->process_transcription_step( $uuid, $api_provider, $model, $transcription_prompt );
+		}
+
+		// Map step_type to the appropriate database column.
+		switch ( $step_type ) {
+			case 'chain-of-thought':
+				$content_field = 'cot_content';
+				break;
+			case 'scoring':
+				$content_field = 'score_content';
+				break;
+			case 'feedback':
+			default:
+				$content_field = 'feedback_content';
+				break;
+		}
+
+		// Check if this step has already been processed.
+		$existing_content = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $content_field );
+
+		// Get score regex if available in scoring step.
+		if ( 'scoring' === $step_type && isset( $config['advanced-setting']['scoreRegex'] ) ) {
+			$score_regex = $config['advanced-setting']['scoreRegex'];
+		}
+
+		// Select prompt based on language parameter.
+		$selected_prompt = 'vi' === strtolower( $language ) ? $vietnamese_prompt : $english_prompt;
+
+		// If existing content is found, send it back without making a new API call.
+		if ( ! empty( $existing_content ) ) {
+			$this->send_message(
+				$this->transform_case( $step_type, 'snake_upper' ),
+				array(
+					'content' => $existing_content,
+					'reused'  => true,
+				)
+			);
+			// Send DONE message to indicate completion.
+			$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
+			return $existing_content;
+		}
+
+		// Process merge tags in the prompt.
+		$processed_prompt = $this->merge_tags_processor->process_merge_tags(
+			$selected_prompt,
+			$uuid,
+			null, // No segment_order for speaking.
+			$feedback_style,
+			$guide_score,
+			$guide_feedback
+		);
+
+		// Handle different prompt processing results.
+		if ( is_array( $processed_prompt ) ) {
+			// For array of prompts, use parallel API calls.
+			$event_type = 'batch_processing';
+			$this->send_message(
+				$event_type,
+				array(
+					'total_prompts' => count( $processed_prompt ),
+					'message'       => 'Starting parallel processing of multiple prompts',
+				)
+			);
+
+			if ( 'scoring' === $step_type && ! empty( $guide_score ) ) {
+				$result = $guide_score; // Skip API call and use the guide_score directly.
+			} else {
+				// Use API client for parallel API calls.
+				$result = $this->api_client->make_parallel_api_calls(
+					$api_provider,
+					$model,
+					$processed_prompt,
+					$temperature,
+					$max_tokens,
+					$feed,
+					$step_type
+				);
+
+				// Process result for scoring step.
+				if ( 'scoring' === $step_type ) {
+					$extracted_score = $this->extract_score_from_result( $result, $score_regex );
+					// Send score to frontend.
+					$this->send_message(
+						$this->transform_case( $step_type, 'snake_upper' ),
+						array(
+							'content'     => $extracted_score,
+							'raw_content' => $result,
+							'regex_used'  => $score_regex,
+						)
+					);
+					$result = $extracted_score;
+				}
+			}
+		} else {
+			// For single prompt, proceed with appropriate call.
+			$prompt = $processed_prompt;
+
+			// Handle scoring or guided score.
+			if ( 'scoring' === $step_type && ! empty( $guide_score ) ) {
+				$result = $guide_score; // Skip API call and use guide_score.
+				$this->send_message(
+					$this->transform_case( $step_type, 'snake_upper' ),
+					array(
+						'content' => $result,
+						'type'    => 'score',
+						'guided'  => true,
+					)
+				);
+			} elseif ( 'scoring' === $step_type ) {
+				// For scoring, use non-streaming API call.
+				$result = $this->api_client->make_score_api_call(
+					$api_provider,
+					$model,
+					$prompt,
+					$temperature,
+					$max_tokens,
+					$score_regex
+				);
+			} else {
+				// For other step types, use streaming API call.
+				$result = $this->api_client->make_stream_api_call(
+					$api_provider,
+					$model,
+					$prompt,
+					$temperature,
+					$max_tokens,
+					$feed,
+					$step_type
+				);
+			}
+		}
+
+		// Save the results to the database.
+		$this->feedback_db->save_feedback_to_database( $result, $feed, $uuid, $step_type, $language );
+
+		// Send completion signal.
+		$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
+
+		return $result;
+	}
+
+	/**
+	 * Process transcription step for audio files
+	 *
+	 * @param string $uuid The UUID of the recording.
+	 * @param string $api_provider The API provider to use.
+	 * @param string $model The transcription model.
+	 * @param string $prompt Additional prompt to guide transcription.
+	 * @return string The concatenated responses from all transcription result API calls.
+	 * @throws Exception If the transcription process fails.
+	 */
+	private function process_transcription_step( $uuid, $api_provider, $model, $prompt ) {
+		// Get audio file paths associated with this recording.
+		$speech_db = new Ieltssci_Speech_DB();
+		$speech    = $speech_db->get_speeches(
+			array(
+				'uuid'     => $uuid,
+				'per_page' => 1,
+			)
+		);
+
+		if ( is_wp_error( $speech ) || empty( $speech ) ) {
+			throw new Exception( 'Speech recording not found.' );
+		}
+
+		$audio_ids = $speech[0]['audio_ids'];
+		if ( empty( $audio_ids ) ) {
+			throw new Exception( 'No audio files found for this recording.' );
+		}
+
+		// Format audio files in the structure expected by make_parallel_transcription_api_call.
+		$audio_files = array();
+		foreach ( $audio_ids as $media_id ) {
+			$file_path = get_attached_file( $media_id );
+			if ( $file_path && file_exists( $file_path ) ) {
+				$audio_files[] = array(
+					'media_id'  => $media_id,
+					'file_path' => $file_path,
+				);
+			}
+		}
+
+		if ( empty( $audio_files ) ) {
+			throw new Exception( 'No valid audio files found for transcription.' );
+		}
+
+		// Set transcription parameters.
+		$response_format         = 'verbose_json';
+		$timestamp_granularities = array( 'word' );
+
+		// Call the transcription API.
+		$transcription_results = $this->api_client->make_parallel_transcription_api_call(
+			$api_provider,
+			$model,
+			$audio_files,
+			$prompt,
+			$response_format,
+			$timestamp_granularities
+		);
+
+		// Finished processing let's save results.
+		$combined_transcript = '';
+
+		// Process results based on media ID.
+		foreach ( $transcription_results as $media_id => $result ) {
+			if ( is_wp_error( $result ) ) {
+				// Log error but continue with other transcriptions.
+				$this->message_handler->send_error(
+					'transcription_processing_error',
+					array(
+						'media_id' => $media_id,
+						'title'    => 'Transcription Processing Error',
+						'message'  => $result->get_error_message(),
+					)
+				);
+				continue;
+			}
+
+			// Extract the transcript text.
+			$transcript_text = isset( $result['text'] ) ? $result['text'] : '';
+
+			if ( ! empty( $transcript_text ) ) {
+				// Add to combined transcript.
+				if ( ! empty( $combined_transcript ) ) {
+					$combined_transcript .= "\n\n";
+				}
+				$combined_transcript .= $transcript_text;
+
+				// Update the media attachment with the transcript as metadata.
+				update_post_meta( $media_id, 'ieltssci_audio_transcription', $result );
+			}
+		}
+
+		// Send the transcription data to the client.
+		$this->send_message(
+			'TRANSCRIPTION_DATA',
+			$transcription_results
+		);
+		return $combined_transcript;
+	}
+
+	/**
+	 * Extract score from API result using regex pattern
+	 *
+	 * @param string $content The API response content.
+	 * @param string $regex_pattern The regex pattern to extract the score.
+	 * @return string The extracted score or original content if extraction fails.
+	 */
+	private function extract_score_from_result( $content, $regex_pattern ) {
+		// Default to original content if regex is invalid.
+		if ( empty( $regex_pattern ) ) {
+			$regex_pattern = '/\d+/';
+		}
+
+		// Try to extract score using the provided regex pattern.
+		$matches = array();
+		if ( preg_match( $regex_pattern, $content, $matches ) ) {
+			// Return the first match (should be the score).
+			return trim( $matches[0] );
+		}
+
+		// If no match found, return the original content.
+		return $content;
+	}
+
+	/**
+	 * Transform string to different case formats
+	 *
+	 * @param string $input_string The input string.
+	 * @param string $case_type The target case format (snake, camel, pascal, etc.).
+	 * @return string The transformed string.
+	 */
+	private function transform_case( $input_string, $case_type = 'snake_upper' ) {
+		// First normalize the string (remove special chars, replace spaces with underscores).
+		$normalized = preg_replace( '/[^a-zA-Z0-9]/', ' ', $input_string );
+		$normalized = preg_replace( '/\s+/', ' ', $normalized );
+		$normalized = trim( $normalized );
+
+		return match ( $case_type ) {
+			'snake' => strtolower( str_replace( ' ', '_', $normalized ) ),
+			'snake_upper' => strtoupper( str_replace( ' ', '_', $normalized ) ),
+			'kebab' => strtolower( str_replace( ' ', '-', $normalized ) ),
+			'camel' => lcfirst( str_replace( ' ', '', ucwords( $normalized ) ) ),
+			'pascal' => str_replace( ' ', '', ucwords( $normalized ) ),
+			'constant' => strtoupper( str_replace( ' ', '_', $normalized ) ),
+			default => $normalized,
+		};
+	}
+
+	/**
+	 * Send an SSE message
+	 *
+	 * @param string $event_type The event type.
+	 * @param mixed  $data The data to send.
+	 */
+	private function send_message( $event_type, $data ) {
+		if ( is_callable( $this->message_callback ) ) {
+			call_user_func( $this->message_callback, $event_type, $data, false, false );
+		}
+	}
+
+	/**
+	 * Send an error message
+	 *
+	 * @param string $event_type The event type.
+	 * @param array  $error Error details with title, message, ctaTitle, and ctaLink.
+	 */
+	private function send_error( $event_type, $error ) {
+		if ( is_callable( $this->message_callback ) ) {
+			call_user_func( $this->message_callback, $event_type, $error, true, false );
+		}
+	}
+
+	/**
+	 * Send a done signal
+	 *
+	 * @param string $event_type The event type.
+	 */
+	private function send_done( $event_type = null ) {
+		if ( is_callable( $this->message_callback ) ) {
+			call_user_func( $this->message_callback, $event_type, null, false, true );
+		}
+	}
+}

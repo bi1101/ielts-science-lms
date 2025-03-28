@@ -24,6 +24,7 @@ class Ieltssci_Speaking_Module {
 	public function __construct() {
 		new Ieltssci_Speaking_Settings();
 		new Ieltssci_Speaking_REST();
+		new Ieltssci_Speaking_SSE_REST();
 
 		// Register post meta for audio transcription.
 		add_action( 'init', array( $this, 'register_audio_transcription_meta' ) );
