@@ -465,8 +465,10 @@ class Ieltssci_Speaking_Feedback_Processor {
 				$timestamp_granularities
 			);
 
-			// Merge new results with existing ones.
-			$transcription_results = array_merge( $transcription_results, $new_transcription_results );
+			// Merge new transcription results.
+			foreach ( $new_transcription_results as $media_id => $result ) {
+				$transcription_results[ $media_id ] = $result;
+			}
 		}
 
 		// Finished processing let's save results.
