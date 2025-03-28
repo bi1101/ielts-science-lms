@@ -78,32 +78,52 @@ class Ieltssci_Speaking_Settings {
 		// Define speaking specific merge tags.
 		$speaking_merge_tags = array(
 			array(
-				'groupLabel' => 'Audio Data',
+				'groupLabel' => 'Speech Data',
 				'items'      => array(
 					array(
-						'label' => 'Audio Transcript',
-						'info'  => '{|audio:transcript|}',
-						'value' => '{|audio:transcript|}',
-					),
-					array(
-						'label' => 'Audio Duration',
-						'info'  => '{|audio:duration|}',
-						'value' => '{|audio:duration|}',
+						'label' => 'Speech Transcript Text',
+						'info'  => 'Combined text from all audio transcriptions',
+						'value' => '{|speech:transcript_text|}',
 					),
 				),
 			),
 			array(
-				'groupLabel' => 'Question Data',
+				'groupLabel' => 'Feedback Data',
 				'items'      => array(
 					array(
-						'label' => 'Question Text',
-						'info'  => '{|question:text|}',
-						'value' => '{|question:text|}',
+						'label' => 'Chain of Thought',
+						'info'  => 'Chain of thought content',
+						'value' => '{|speech_feedback:cot_content[feedback_criteria:FILL_IN]|}',
 					),
 					array(
-						'label' => 'Question Type',
-						'info'  => '{|question:type|}',
-						'value' => '{|question:type|}',
+						'label' => 'Score Content',
+						'info'  => 'Scoring content',
+						'value' => '{|speech_feedback:score_content[feedback_criteria:FILL_IN]|}',
+					),
+					array(
+						'label' => 'Feedback Content',
+						'info'  => 'Feedback content',
+						'value' => '{|speech_feedback:feedback_content[feedback_criteria:FILL_IN]|}',
+					),
+				),
+			),
+			array(
+				'groupLabel' => 'Guidance',
+				'items'      => array(
+					array(
+						'label' => 'Feedback Style',
+						'info'  => 'User provided feedback style',
+						'value' => '{|feedback_style|}',
+					),
+					array(
+						'label' => 'Guide Score',
+						'info'  => 'Human-guided score',
+						'value' => '{|guide_score|}',
+					),
+					array(
+						'label' => 'Guide Feedback',
+						'info'  => 'Human-guided feedback content',
+						'value' => '{|guide_feedback|}',
 					),
 				),
 			),

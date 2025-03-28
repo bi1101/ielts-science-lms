@@ -10,6 +10,7 @@
 namespace IeltsScienceLMS\MergeTags;
 
 use IeltsScienceLMS\Writing\Ieltssci_Essay_DB;
+use IeltsScienceLMS\Speaking\Ieltssci_Speech_DB;
 
 /**
  * Class Ieltssci_Merge_Tags_Processor
@@ -212,10 +213,22 @@ class Ieltssci_Merge_Tags_Processor {
 		}
 
 		// List of supported tables.
-		$supported_tables = array( 'essay', 'segment', 'essay_feedback', 'segment_feedback' );
+		$supported_tables = array(
+			'essay',
+			'segment',
+			'essay_feedback',
+			'segment_feedback',
+			'speech',
+			'speech_feedback',
+		);
 
 		if ( ! in_array( $table, $supported_tables, true ) ) {
 			return null;
+		}
+
+		// Handle speech tables.
+		if ( in_array( $table, array( 'speech', 'speech_feedback' ), true ) ) {
+			return $this->get_speech_content_from_database( $table, $field, $filter_field, $filter_value, $uuid );
 		}
 
 		// Initialize Essay DB.
@@ -405,6 +418,105 @@ class Ieltssci_Merge_Tags_Processor {
 		}
 
 		// If we get here, no results were found.
+		return null;
+	}
+
+	/**
+	 * Get speech content from database based on parameters
+	 *
+	 * @param string $table         The table to fetch from (speech or speech_feedback).
+	 * @param string $field         The field to retrieve.
+	 * @param string $filter_field  The field to filter by.
+	 * @param string $filter_value  The value to filter with.
+	 * @param string $uuid          The UUID of the speech recording.
+	 * @return string|array|null The retrieved content, array of values, or null if not found.
+	 */
+	private function get_speech_content_from_database( $table, $field, $filter_field, $filter_value, $uuid ) {
+		// Initialize Speech DB.
+		$speech_db = new Ieltssci_Speech_DB();
+
+		switch ( $table ) {
+			case 'speech':
+				// For speech table.
+				$query_args = array();
+
+				// Always include UUID filter for speech table.
+				$query_args['uuid'] = $uuid;
+
+				// Add additional filter if provided.
+				if ( ! empty( $filter_field ) && ! empty( $filter_value ) && 'uuid' !== $filter_field ) {
+					$query_args[ $filter_field ] = $filter_value;
+				}
+
+				$speeches = $speech_db->get_speeches( $query_args );
+				if ( ! is_wp_error( $speeches ) && ! empty( $speeches ) ) {
+					if ( 1 === count( $speeches ) ) {
+						// Handle special case for transcript field.
+						if ( 'transcript' === $field || 'transcript_text' === $field ) {
+							if ( isset( $speeches[0]['transcript'] ) && is_array( $speeches[0]['transcript'] ) ) {
+								// For transcript_text, return just the text content.
+								if ( 'transcript_text' === $field ) {
+									$texts = array();
+									foreach ( $speeches[0]['transcript'] as $attachment_id => $transcript ) {
+										if ( isset( $transcript['text'] ) ) {
+											$texts[] = $transcript['text'];
+										}
+									}
+									return implode( "\n\n", $texts );
+								}
+								return $speeches[0]['transcript'];
+							}
+							return null;
+						}
+
+						// Return just the specific field for single result.
+						return isset( $speeches[0][ $field ] ) ? $speeches[0][ $field ] : null;
+					} else {
+						// For multiple results, create an array of field values.
+						$values = array_column( $speeches, $field );
+						return ! empty( $values ) ? $values : null;
+					}
+				}
+				break;
+
+			case 'speech_feedback':
+				// For speech_feedback table, get speech_id first.
+				$speeches = $speech_db->get_speeches(
+					array(
+						'uuid'     => $uuid,
+						'per_page' => 1,
+						'fields'   => array( 'id' ),
+					)
+				);
+				if ( is_wp_error( $speeches ) || empty( $speeches ) ) {
+					return null;
+				}
+				$speech_id = $speeches[0]['id'];
+
+				// Build query for feedbacks.
+				$query_args = array(
+					'speech_id' => $speech_id,
+				);
+
+				// Add additional filter if provided.
+				if ( ! empty( $filter_field ) && ! empty( $filter_value ) ) {
+					$query_args[ $filter_field ] = $filter_value;
+				}
+
+				$feedbacks = $speech_db->get_speech_feedbacks( $query_args );
+				if ( ! is_wp_error( $feedbacks ) && ! empty( $feedbacks ) ) {
+					if ( 1 === count( $feedbacks ) ) {
+						// Return just the specific field for single result.
+						return isset( $feedbacks[0][ $field ] ) ? $feedbacks[0][ $field ] : null;
+					} else {
+						// For multiple results, create an array of field values.
+						$values = array_column( $feedbacks, $field );
+						return ! empty( $values ) ? $values : null;
+					}
+				}
+				break;
+		}
+
 		return null;
 	}
 
