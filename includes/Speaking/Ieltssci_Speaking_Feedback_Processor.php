@@ -406,34 +406,68 @@ class Ieltssci_Speaking_Feedback_Processor {
 		}
 
 		// Format audio files in the structure expected by make_parallel_transcription_api_call.
-		$audio_files = array();
+		$audio_files_to_transcribe = array();
+		$existing_transcriptions   = array();
+
+		// Check each audio file for existing transcriptions.
 		foreach ( $audio_ids as $media_id ) {
 			$file_path = get_attached_file( $media_id );
 			if ( $file_path && file_exists( $file_path ) ) {
-				$audio_files[] = array(
-					'media_id'  => $media_id,
-					'file_path' => $file_path,
-				);
-			}
-		}
+				// Check if this audio already has transcription metadata.
+				$existing_transcription = get_post_meta( $media_id, 'ieltssci_audio_transcription', true );
 
-		if ( empty( $audio_files ) ) {
-			throw new Exception( 'No valid audio files found for transcription.' );
+				if ( ! empty( $existing_transcription ) ) {
+					// Store existing transcription to use later.
+					$existing_transcriptions[ $media_id ] = $existing_transcription;
+
+					// Send message to indicate we're using cached transcription.
+					$this->send_message(
+						'TRANSCRIPTION_CACHE',
+						array(
+							'media_id' => $media_id,
+							'message'  => 'Using cached transcription',
+						)
+					);
+				} else {
+					// Only add files without existing transcriptions to the list for API calls.
+					$audio_files_to_transcribe[] = array(
+						'media_id'  => $media_id,
+						'file_path' => $file_path,
+					);
+				}
+			}
 		}
 
 		// Set transcription parameters.
 		$response_format         = 'verbose_json';
 		$timestamp_granularities = array( 'word' );
 
-		// Call the transcription API.
-		$transcription_results = $this->api_client->make_parallel_transcription_api_call(
-			$api_provider,
-			$model,
-			$audio_files,
-			$prompt,
-			$response_format,
-			$timestamp_granularities
-		);
+		// Initialize transcription results with existing transcriptions.
+		$transcription_results = $existing_transcriptions;
+
+		// Only make API calls if there are files that need transcription.
+		if ( ! empty( $audio_files_to_transcribe ) ) {
+			$this->send_message(
+				'TRANSCRIPTION_PROCESSING',
+				array(
+					'files_to_process' => count( $audio_files_to_transcribe ),
+					'message'          => 'Processing new transcriptions',
+				)
+			);
+
+			// Call the transcription API only for files without existing transcriptions.
+			$new_transcription_results = $this->api_client->make_parallel_transcription_api_call(
+				$api_provider,
+				$model,
+				$audio_files_to_transcribe,
+				$prompt,
+				$response_format,
+				$timestamp_granularities
+			);
+
+			// Merge new results with existing ones.
+			$transcription_results = array_merge( $transcription_results, $new_transcription_results );
+		}
 
 		// Finished processing let's save results.
 		$combined_transcript = '';
@@ -463,8 +497,10 @@ class Ieltssci_Speaking_Feedback_Processor {
 				}
 				$combined_transcript .= $transcript_text;
 
-				// Update the media attachment with the transcript as metadata.
-				update_post_meta( $media_id, 'ieltssci_audio_transcription', $result );
+				// Update the media attachment with the transcript as metadata if not already present.
+				if ( ! isset( $existing_transcriptions[ $media_id ] ) ) {
+					update_post_meta( $media_id, 'ieltssci_audio_transcription', $result );
+				}
 			}
 		}
 
