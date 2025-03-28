@@ -10,7 +10,9 @@
 namespace IeltsScienceLMS\API;
 
 use Exception;
+use WP_Error;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Psr7\MultipartStream;
 use GuzzleHttp\Client;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
@@ -69,6 +71,9 @@ class Ieltssci_API_Client {
 			case 'home-server':
 				$settings['base_uri'] = 'http://api3.ieltsscience.fun/v1/';
 				break;
+			case 'home-server-whisperx-api-server':
+				$settings['base_uri'] = 'https://api3.ieltsscience.fun/v1/';
+				break;
 			default:
 				// Default to OpenAI.
 				$settings['base_uri'] = 'https://api.openai.com/v1/';
@@ -96,7 +101,7 @@ class Ieltssci_API_Client {
 			)
 		);
 
-		if ( ! $api_key && 'home-server' !== $provider ) {
+		if ( ! $api_key && 'home-server' !== $provider && 'home-server-whisperx-api-server' !== $provider ) {
 			throw new Exception( esc_html( "API key not found for provider: {$provider}" ) );
 		}
 
@@ -123,6 +128,11 @@ class Ieltssci_API_Client {
 					'Accept'        => $accept_header,
 				);
 			case 'home-server':
+				return array(
+					'Content-Type' => 'application/json',
+					'Accept'       => $accept_header,
+				);
+			case 'home-server-whisperx-api-server':
 				return array(
 					'Content-Type' => 'application/json',
 					'Accept'       => $accept_header,
@@ -675,5 +685,271 @@ class Ieltssci_API_Client {
 		);
 
 		return $full_response;
+	}
+
+	/**
+	 * Get request payload for audio transcription
+	 *
+	 * @param string $file_path Local path to the audio file.
+	 * @param string $model Model name for transcription.
+	 * @param string $prompt Optional prompt to guide transcription.
+	 * @param string $response_format Format of the response.
+	 * @param array  $timestamp_granularities Timestamp granularity options.
+	 * @return array Multipart form data array for Guzzle.
+	 * @throws Exception When file doesn't exist or can't be read.
+	 */
+	private function get_transcription_payload( $file_path, $model, $prompt = '', $response_format = 'verbose_json', $timestamp_granularities = array( 'word' ) ) {
+		// Check if file exists and is readable.
+		if ( ! file_exists( $file_path ) || ! is_readable( $file_path ) ) {
+			throw new Exception( esc_html( "Audio file not found or not readable: {$file_path}" ) );
+		}
+
+		// Create base multipart payload.
+		$multipart = array(
+			array(
+				'name'     => 'file',
+				'contents' => fopen( $file_path, 'r' ),
+				'filename' => basename( $file_path ),
+			),
+			array(
+				'name'     => 'model',
+				'contents' => $model,
+			),
+			array(
+				'name'     => 'response_format',
+				'contents' => $response_format,
+			),
+		);
+
+		// Add timestamp granularities if provided.
+		if ( ! empty( $timestamp_granularities ) ) {
+			$multipart[] = array(
+				'name'     => 'timestamp_granularities',
+				'contents' => wp_json_encode( $timestamp_granularities ),
+			);
+		}
+
+		$multipart[] = array(
+			'name'     => 'language',
+			'contents' => 'en',
+		);
+
+		// Add prompt if provided.
+		if ( ! empty( $prompt ) ) {
+			$multipart[] = array(
+				'name'     => 'prompt',
+				'contents' => $prompt,
+			);
+		}
+
+		return $multipart;
+	}
+
+	/**
+	 * Make parallel API calls to transcribe multiple audio files
+	 *
+	 * @param string $api_provider The API provider to use.
+	 * @param string $model The transcription model to use.
+	 * @param array  $audio_files Array of local paths to audio files.
+	 * @param string $prompt Optional prompt to guide transcription.
+	 * @param string $response_format Desired response format (default: 'verbose_json').
+	 * @param array  $timestamp_granularities Options for timestamp granularity (e.g., ['word']).
+	 * @return array|WP_Error Array of transcription results indexed by file paths, or WP_Error on failure.
+	 */
+	public function make_parallel_transcription_api_call( $api_provider, $model, $audio_files, $prompt = '', $response_format = 'verbose_json', $timestamp_granularities = array( 'word' ) ) {
+		try {
+			// Get client settings.
+			$client_settings = $this->get_client_settings( $api_provider );
+
+			// Get headers including API key.
+			$headers = $this->get_request_headers( $api_provider, false );
+
+			// Combine settings and headers.
+			$client_settings['headers'] = $headers;
+
+			// Add retry middleware.
+			$stack = HandlerStack::create();
+			$stack->push(
+				Middleware::retry(
+					function ( $retries ) {
+						return $retries < 3; // Max 3 retries.
+					}
+				)
+			);
+			$client_settings['handler'] = $stack;
+
+			$client = new Client( $client_settings );
+
+			// Send progress update that transcription has started.
+			$this->message_handler->send_message(
+				'TRANSCRIPTION_START',
+				array(
+					'message'     => 'Starting batch audio transcription...',
+					'model'       => $model,
+					'total_files' => count( $audio_files ),
+				)
+			);
+
+			// Track results and errors.
+			$results         = array();
+			$errors          = array();
+			$processed_count = 0;
+			$total_files     = count( $audio_files );
+			$endpoint        = 'audio/transcriptions';
+
+			// Generate request objects.
+			$requests = function ( $audio_files ) use ( $api_provider, $model, $prompt, $response_format, $timestamp_granularities, $endpoint ) {
+				foreach ( $audio_files as $index => $audio_file ) {
+					try {
+						// Check if we have the expected structure with media_id and file_path.
+						if ( ! isset( $audio_file['file_path'] ) || ! isset( $audio_file['media_id'] ) ) {
+							throw new Exception( 'Invalid audio file data structure. Both media_id and file_path are required.' );
+						}
+
+						$file_path = $audio_file['file_path'];
+						$media_id  = $audio_file['media_id'];
+
+						// Generate multipart payload for this file.
+						$multipart_payload = $this->get_transcription_payload(
+							$file_path,
+							$model,
+							$prompt,
+							$response_format,
+							$timestamp_granularities
+						);
+
+						$boundary                = uniqid();
+						$headers                 = $this->get_request_headers( $api_provider, false );
+						$headers['Content-Type'] = 'multipart/form-data; boundary=' . $boundary;
+
+						$multipart_stream = new MultipartStream( $multipart_payload, $boundary );
+
+						// Use media_id as key instead of file_path to maintain tracking.
+						yield $media_id => new Request(
+							'POST',
+							$endpoint,
+							$headers,
+							$multipart_stream,
+							'1.1'
+						);
+					} catch ( Exception $e ) {
+						// Store error with media_id for reference.
+						$media_id            = isset( $audio_file['media_id'] ) ? $audio_file['media_id'] : $index;
+						$errors[ $media_id ] = new WP_Error( 'transcription_request_error', $e->getMessage() );
+					}
+				}
+			};
+
+			// Set up the request pool.
+			$pool = new Pool(
+				$client,
+				$requests( $audio_files ),
+				array(
+					'concurrency' => 3, // Process 3 files at a time.
+					'fulfilled'   => function ( $response, $file_path ) use ( &$results, &$processed_count, $total_files ) {
+						// Process successful response.
+						$response_body = $response->getBody()->getContents();
+						$result = json_decode( $response_body, true );
+
+						if ( JSON_ERROR_NONE !== json_last_error() ) {
+							$results[ $file_path ] = new WP_Error(
+								'transcription_parse_error',
+								'Failed to parse transcription response: ' . json_last_error_msg()
+							);
+						} else {
+							$results[ $file_path ] = $result;
+						}
+
+						// Update progress.
+						$processed_count++;
+						$progress = round( ( $processed_count / $total_files ) * 100 );
+
+						// Send progress update.
+						$this->message_handler->send_message(
+							'TRANSCRIPTION_PROGRESS',
+							array(
+								'file_path'  => $file_path,
+								'total'      => $total_files,
+								'processed'  => $processed_count,
+								'progress'   => $progress,
+								'transcript' => isset( $result['text'] ) ? $result['text'] : null,
+								'result'     => $result,
+							)
+						);
+					},
+					'rejected'    => function ( $reason, $file_path ) use ( &$errors, &$processed_count, $total_files ) {
+						// Handle failed request.
+						$error_message = $reason instanceof RequestException
+							? ( $reason->hasResponse() ? $reason->getResponse()->getBody()->getContents() : $reason->getMessage() )
+							: 'Unknown error';
+
+						$errors[ $file_path ] = new WP_Error( 'transcription_api_error', $error_message );
+
+						// Update progress even for errors.
+						$processed_count++;
+						$progress = round( ( $processed_count / $total_files ) * 100 );
+
+						// Send error message.
+						$this->message_handler->send_error(
+							'transcription_error',
+							array(
+								'file_path' => $file_path,
+								'filename'  => basename( $file_path ),
+								'title'     => 'Transcription Error',
+								'message'   => $error_message,
+								'progress'  => $progress,
+							)
+						);
+					},
+				)
+			);
+
+			// Execute all requests and wait for completion.
+			$promise = $pool->promise();
+			$promise->wait();
+
+			// Add any errors encountered during request creation.
+			foreach ( $errors as $file_path => $error ) {
+				if ( ! isset( $results[ $file_path ] ) ) {
+					$results[ $file_path ] = $error;
+
+					// Send error message if not already sent.
+					$this->message_handler->send_error(
+						'transcription_error',
+						array(
+							'file_path' => $file_path,
+							'filename'  => basename( $file_path ),
+							'title'     => 'Transcription Request Error',
+							'message'   => $error->get_error_message(),
+						)
+					);
+				}
+			}
+
+			// Send completion message.
+			$this->message_handler->send_message(
+				'TRANSCRIPTION_COMPLETE',
+				array(
+					'message'     => 'Batch audio transcription completed',
+					'total_files' => $total_files,
+					'successful'  => count( $results ) - count( $errors ),
+					'failed'      => count( $errors ),
+				)
+			);
+
+			return $results;
+
+		} catch ( Exception $e ) {
+			// Send error message for overall process failure.
+			$this->message_handler->send_error(
+				'transcription_batch_error',
+				array(
+					'title'   => 'Batch Transcription Error',
+					'message' => $e->getMessage(),
+				)
+			);
+
+			return new WP_Error( 'transcription_batch_error', $e->getMessage() );
+		}
 	}
 }
