@@ -168,8 +168,27 @@ class Ieltssci_Speech_DB {
 	/**
 	 * Get speech recordings with flexible query arguments.
 	 *
-	 * @param array $args Query arguments.
-	 * @return array|int|WP_Error Speech data, count, or error.
+	 * Retrieves speech records from the database based on the provided query arguments.
+	 * Supports filtering by ID, UUID, creator, and date ranges. Also offers pagination,
+	 * ordering, and counting functionality.
+	 *
+	 * @param array $args {
+	 *     Optional. Arguments to filter and control speech record retrieval.
+	 *
+	 *     @type int|array|null     $id         Optional. Speech ID(s) to filter by.
+	 *     @type string|array|null  $uuid       Optional. Speech UUID(s) to filter by.
+	 *     @type int|array|null     $created_by Optional. User ID(s) who created the speech.
+	 *     @type array|null         $date_query Optional. Date query parameters.
+	 *         @type string         $after      Optional. Retrieve records created after this date.
+	 *         @type string         $before     Optional. Retrieve records created before this date.
+	 *     @type string             $orderby    Optional. Field to order results by. Accepts 'id', 'uuid',
+	 *                                          created_at', or 'created_by'. Default 'id'.
+	 *     @type string             $order      Optional. Order direction. Accepts 'ASC' or 'DESC'. Default 'DESC'.
+	 *     @type int                $per_page   Optional.   Number of records per page. Default 10.
+	 *     @type int                $page       Optional.   Page number for pagination. Default 1.
+	 *     @type bool               $count      Optional.   Whether to return only the count. Default false.
+	 * }
+	 * @return array|int|WP_Error Speech data array with transcript info, count of records, or error.
 	 * @throws Exception If there is a database error.
 	 */
 	public function get_speeches( $args = array() ) {
