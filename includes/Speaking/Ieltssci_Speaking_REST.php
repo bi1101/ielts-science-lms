@@ -296,9 +296,27 @@ class Ieltssci_Speaking_REST {
 				},
 			),
 			'transcript' => array(
-				'type'              => 'string',
+				'type'              => 'object',
 				'required'          => false,
-				'sanitize_callback' => 'sanitize_textarea_field',
+				'validate_callback' => function ( $param ) {
+					if ( ! is_array( $param ) ) {
+						return false;
+					}
+
+					// Validate that each key is a numeric ID and each value is valid.
+					foreach ( $param as $key => $value ) {
+						if ( ! is_numeric( $key ) ) {
+							return false;
+						}
+
+						// Basic validation - can be enhanced based on expected transcript structure.
+						if ( empty( $value ) ) {
+							return false;
+						}
+					}
+					return true;
+				},
+				'description'       => 'Transcript data as an object with attachment IDs as keys',
 			),
 		);
 	}
@@ -316,6 +334,25 @@ class Ieltssci_Speaking_REST {
 			'transcript' => $request->get_param( 'transcript' ),
 			'created_by' => get_current_user_id(),
 		);
+
+		// Validate that transcript keys match audio IDs if transcript is provided.
+		if ( ! empty( $speech_data['transcript'] ) ) {
+			$audio_ids      = $speech_data['audio_ids'];
+			$transcript_ids = array_map( 'intval', array_keys( $speech_data['transcript'] ) );
+
+			$missing_ids = array_diff( $transcript_ids, $audio_ids );
+			if ( ! empty( $missing_ids ) ) {
+				return new WP_Error(
+					'invalid_transcript_ids',
+					sprintf(
+						// translators: %s: Comma-separated list of missing transcript IDs.
+						__( 'Transcript contains IDs that are not in the audio_ids list: %s', 'ielts-science-lms' ),
+						implode( ', ', $missing_ids )
+					),
+					array( 'status' => 400 )
+				);
+			}
+		}
 
 		$result = $this->speech_service->create_update_speech( $speech_data );
 

@@ -94,14 +94,12 @@ class Ieltssci_Speech_DB {
 			$data = array(
 				'uuid'       => $uuid,
 				'audio_ids'  => is_array( $speech_data['audio_ids'] ) ? json_encode( $speech_data['audio_ids'] ) : $speech_data['audio_ids'],
-				'transcript' => $speech_data['transcript'] ?? null,
 				'created_by' => $created_by,
 			);
 
 			$format = array(
 				'%s', // uuid.
 				'%s', // audio_ids.
-				'%s', // transcript.
 				'%d', // created_by.
 			);
 
@@ -135,6 +133,18 @@ class Ieltssci_Speech_DB {
 				$speech_id = $this->wpdb->insert_id;
 			}
 
+			// Handle transcript data in post meta if provided.
+			if ( ! empty( $speech_data['transcript'] ) && is_array( $speech_data['transcript'] ) ) {
+				foreach ( $speech_data['transcript'] as $attachment_id => $transcript_data ) {
+					// Make sure the attachment ID is in the audio_ids array.
+					$audio_ids = is_array( $speech_data['audio_ids'] ) ? $speech_data['audio_ids'] : json_decode( $speech_data['audio_ids'], true );
+
+					if ( in_array( (int) $attachment_id, $audio_ids, true ) ) {
+						update_post_meta( (int) $attachment_id, 'ieltssci_audio_transcription', $transcript_data );
+					}
+				}
+			}
+
 			// Get the created/updated speech.
 			$speech = $this->get_speeches( array( 'id' => $speech_id ) );
 
@@ -143,7 +153,12 @@ class Ieltssci_Speech_DB {
 			}
 
 			$this->wpdb->query( 'COMMIT' );
-			return $speech[0]; // Return the first (and should be only) speech.
+			$result_speech = $speech[0]; // The first (and should be only) speech.
+
+			// Add transcript data from post meta.
+			$result_speech['transcript'] = $this->get_speech_transcript( $result_speech );
+
+			return $result_speech;
 		} catch ( Exception $e ) {
 			$this->wpdb->query( 'ROLLBACK' );
 			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
@@ -270,8 +285,12 @@ class Ieltssci_Speech_DB {
 				foreach ( $results as &$speech ) {
 					if ( ! empty( $speech['audio_ids'] ) ) {
 						$speech['audio_ids'] = json_decode( $speech['audio_ids'], true );
+
+						// Add transcript data from post meta.
+						$speech['transcript'] = $this->get_speech_transcript( $speech );
 					} else {
-						$speech['audio_ids'] = array();
+						$speech['audio_ids']  = array();
+						$speech['transcript'] = null;
 					}
 				}
 
@@ -545,7 +564,6 @@ class Ieltssci_Speech_DB {
 				array(
 					'uuid'       => $options['generate_new_uuid'] ? wp_generate_uuid4() : $original['uuid'],
 					'audio_ids'  => $original['audio_ids'],
-					'transcript' => $original['transcript'],
 					'created_by' => $user_id,
 				)
 			);
@@ -589,5 +607,29 @@ class Ieltssci_Speech_DB {
 			$this->wpdb->query( 'ROLLBACK' );
 			return new WP_Error( 'fork_error', $e->getMessage(), array( 'status' => 500 ) );
 		}
+	}
+
+	/**
+	 * Get speech transcript from post meta of all audio attachments
+	 *
+	 * @param array $speech The speech data including audio_ids.
+	 * @return array|null An array of transcripts keyed by attachment_id or null if none found
+	 */
+	private function get_speech_transcript( $speech ) {
+		if ( empty( $speech['audio_ids'] ) || ! is_array( $speech['audio_ids'] ) ) {
+			return null;
+		}
+
+		$transcripts = array();
+
+		// Get transcript from each audio attachment.
+		foreach ( $speech['audio_ids'] as $attachment_id ) {
+			$transcript = get_post_meta( $attachment_id, 'ieltssci_audio_transcription', true );
+			if ( ! empty( $transcript ) ) {
+				$transcripts[ $attachment_id ] = $transcript;
+			}
+		}
+
+		return ! empty( $transcripts ) ? $transcripts : null;
 	}
 }

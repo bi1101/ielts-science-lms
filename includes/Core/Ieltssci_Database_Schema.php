@@ -29,7 +29,7 @@ class Ieltssci_Database_Schema {
 	 *
 	 * @var string
 	 */
-	private $db_version = '0.0.4'; // Updated version number for adding speech tables.
+	private $db_version = '0.0.5'; // Updated version number for removing transcript column from speech table.
 
 	/**
 	 * WordPress database object.
@@ -389,7 +389,6 @@ class Ieltssci_Database_Schema {
 			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 			uuid varchar(36) NOT NULL,
 			audio_ids text NOT NULL COMMENT 'ID của file audio người dùng upload',
-			transcript longtext DEFAULT NULL COMMENT 'Transcript word timestamp',
 			created_at datetime DEFAULT CURRENT_TIMESTAMP,
 			created_by bigint(20) UNSIGNED NOT NULL COMMENT 'ID người tạo bài, nếu fork từ bài khác thì là ID của người fork',
 			PRIMARY KEY (id),
