@@ -4,3 +4,6 @@
 [submodule "admin/settings"]
 	path = admin/settings
 	url = https://github.com/bi1101/ielts-science-wp-admin.git
+[submodule "public/speaking"]
+	path = public/speaking
+	url = https://github.com/bi1101/ielts-science-speaking.git
