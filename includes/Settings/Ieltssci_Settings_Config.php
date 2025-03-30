@@ -262,6 +262,11 @@ class Ieltssci_Settings_Config {
 				'label' => __( 'API Settings', 'ielts-science-lms' ),
 				'type'  => 'server-side',  // This indicates it's rendered server-side rather than with React.
 			);
+			$tab_list[] = array(
+				'id'    => 'sample-results',
+				'label' => __( 'Sample Results', 'ielts-science-lms' ),
+				'type'  => 'server-side',  // Server-side rendering.
+			);
 			return $tab_list;
 		} elseif ( isset( $all_settings[ $tab ] ) && isset( $all_settings[ $tab ]['settings'] ) ) {
 			// Return the full settings for the specified tab.

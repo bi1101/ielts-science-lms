@@ -263,6 +263,9 @@ class Ieltssci_Writing_Module {
 			$site_url      = home_url( '/' );
 			$front_page_id = get_option( 'page_on_front' );
 
+			// Get sample results data.
+			$sample_results = get_option( 'ielts_science_sample_results', array() );
+
 			// Combine all data to be localized.
 			$localized_data = array(
 				'pages'                   => $page_data_for_js,
@@ -283,6 +286,8 @@ class Ieltssci_Writing_Module {
 				'register_url'            => $register_url,
 				'ajax_url'                => admin_url( 'admin-ajax.php' ), // Add AJAX URL for custom login.
 				'current_page'            => $current_page,
+				// Add sample results data.
+				'sample_results'          => $sample_results,
 				// New logo data.
 				'site_logo_url'           => $logo_url,
 				'site_logo_dark_url'      => $logo_dark_url,

@@ -221,15 +221,79 @@ class Ieltssci_Settings {
 			<?php $this->render_tabs( $current_tab ); ?>
 
 			<?php
-			// Check if current tab is 'api-settings' to render server-side content instead of React component.
+			// Check if current tab is a server-side rendered tab.
 			if ( 'api-settings' === $current_tab ) {
 				$this->render_api_settings_page();
+			} elseif ( 'sample-results' === $current_tab ) {
+				$this->render_sample_results_page();
 			} else {
 				?>
 				<div id="ieltssci_settings_page"></div>
 				<?php
 			}
 			?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the Sample Results settings page.
+	 */
+	public function render_sample_results_page() {
+		// Get existing sample results.
+		$sample_results = get_option( 'ielts_science_sample_results', array() );
+
+		// Apply filter to allow other modules to add their sample results sections.
+		$sample_results_data = apply_filters( 'ieltssci_sample_results_data', array() );
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Sample Results Settings', 'ielts-science-lms' ); ?></h1>
+			<p><?php esc_html_e( 'Configure sample result links that will be available in front-end applications.', 'ielts-science-lms' ); ?></p>
+
+			<form method="post" action="options.php">
+				<?php settings_fields( 'ielts_science_sample_results_group' ); ?>
+
+				<?php
+				// Loop Through Module Sample Results Data.
+				foreach ( $sample_results_data as $module_data ) :
+					?>
+					<div class="card" style="max-width: none; margin-top: 20px;">
+						<h2 class="title"><?php echo esc_html( $module_data['section_title'] ); ?></h2>
+						<p><?php echo esc_html( $module_data['section_desc'] ); ?></p>
+						<table class="form-table">
+							<?php
+							foreach ( $module_data['samples'] as $field_key => $field_data ) :
+								$field_value = isset( $sample_results[ $field_key ] ) ? $sample_results[ $field_key ] : '';
+								?>
+								<tr>
+									<th scope="row">
+										<label for="ielts_science_sample_<?php echo esc_attr( $field_key ); ?>">
+											<?php echo esc_html( $field_data['label'] ); ?>
+										</label>
+									</th>
+									<td>
+										<input type="url"
+											name="ielts_science_sample_results[<?php echo esc_attr( $field_key ); ?>]"
+											id="ielts_science_sample_<?php echo esc_attr( $field_key ); ?>"
+											value="<?php echo esc_url( $field_value ); ?>"
+											class="regular-text"
+										/>
+										<p class="description"><?php echo esc_html( $field_data['description'] ); ?></p>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+						</table>
+					</div>
+				<?php endforeach; ?>
+
+				<?php if ( ! empty( $sample_results_data ) ) : ?>
+					<?php submit_button(); ?>
+				<?php else : ?>
+					<div class="card" style="max-width: none; margin-top: 20px;">
+						<p><?php esc_html_e( 'No sample results are currently configured. Modules can add their own sample result sections through the filter.', 'ielts-science-lms' ); ?></p>
+					</div>
+				<?php endif; ?>
+			</form>
 		</div>
 		<?php
 	}
@@ -609,6 +673,13 @@ class Ieltssci_Settings {
 			'ielts_science_api_settings',      // Option name.
 			array( $this, 'sanitize_api_settings' ) // Sanitization callback.
 		);
+
+		// Register settings group for Sample Results.
+		register_setting(
+			'ielts_science_sample_results_group', // Settings group name.
+			'ielts_science_sample_results',       // Option name.
+			array( $this, 'sanitize_sample_results' ) // Sanitization callback.
+		);
 	}
 
 	/**
@@ -649,6 +720,25 @@ class Ieltssci_Settings {
 			$sanitized_input['max_concurrent_requests'] = min( 20, max( 1, $max_requests ) );
 		} else {
 			$sanitized_input['max_concurrent_requests'] = 5; // Default value.
+		}
+
+		return $sanitized_input;
+	}
+
+	/**
+	 * Sanitize the sample results settings.
+	 *
+	 * @param array $input The raw input array from the settings form.
+	 * @return array       The sanitized settings array.
+	 */
+	public function sanitize_sample_results( $input ) {
+		$sanitized_input = array();
+
+		if ( is_array( $input ) ) {
+			foreach ( $input as $key => $value ) {
+				// Sanitize URLs.
+				$sanitized_input[ $key ] = esc_url_raw( $value );
+			}
 		}
 
 		return $sanitized_input;

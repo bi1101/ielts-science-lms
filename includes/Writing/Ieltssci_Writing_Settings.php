@@ -34,6 +34,7 @@ class Ieltssci_Writing_Settings {
 	 */
 	public function __construct() {
 		add_filter( 'ieltssci_settings_config', array( $this, 'register_settings_config' ) );
+		add_filter( 'ieltssci_sample_results_data', array( $this, 'register_sample_results_data' ) );
 		$this->db = new Ieltssci_ApiFeeds_DB();
 	}
 
@@ -899,5 +900,35 @@ class Ieltssci_Writing_Settings {
 		);
 
 		return $writing_apis_settings;
+	}
+
+	/**
+	 * Register writing module sample results data.
+	 *
+	 * @param array $sample_results_data Existing sample results data.
+	 * @return array Updated sample results data with writing module information.
+	 */
+	public function register_sample_results_data( $sample_results_data ) {
+		$sample_results_data['writing_module'] = array(
+			'module_name'   => 'writing_module',
+			'section_title' => __( 'Writing Module Sample Results', 'ielts-science-lms' ),
+			'section_desc'  => __( 'Configure sample result links for the Writing Module.', 'ielts-science-lms' ),
+			'samples'       => array(
+				'writing_task1_sample'   => array(
+					'label'       => __( 'Writing Task 1 Sample Result', 'ielts-science-lms' ),
+					'description' => __( 'URL to a sample Task 1 result page. Will be available in front-end apps.', 'ielts-science-lms' ),
+				),
+				'writing_task2_sample'   => array(
+					'label'       => __( 'Writing Task 2 Sample Result', 'ielts-science-lms' ),
+					'description' => __( 'URL to a sample Task 2 result page. Will be available in front-end apps.', 'ielts-science-lms' ),
+				),
+				'writing_general_sample' => array(
+					'label'       => __( 'Writing General Essay Sample Result', 'ielts-science-lms' ),
+					'description' => __( 'URL to a sample General Essay result page. Will be available in front-end apps.', 'ielts-science-lms' ),
+				),
+			),
+		);
+
+		return $sample_results_data;
 	}
 }
