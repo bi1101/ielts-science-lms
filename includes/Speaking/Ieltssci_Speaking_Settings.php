@@ -10,6 +10,8 @@
 
 namespace IeltsScienceLMS\Speaking;
 
+use IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_DB;
+
 /**
  * Class Ieltssci_Speaking_Settings
  *
@@ -19,12 +21,20 @@ namespace IeltsScienceLMS\Speaking;
  */
 class Ieltssci_Speaking_Settings {
 	/**
+	 * Database instance for API feeds.
+	 *
+	 * @var Ieltssci_ApiFeeds_DB
+	 */
+	private $db;
+
+	/**
 	 * Constructor.
 	 *
 	 * Sets up filters for speaking settings.
 	 */
 	public function __construct() {
 		add_filter( 'ieltssci_settings_config', array( $this, 'register_settings_config' ) );
+		$this->db = new Ieltssci_ApiFeeds_DB();
 	}
 
 	/**
@@ -56,12 +66,42 @@ class Ieltssci_Speaking_Settings {
 	 * @return array Speaking types configuration.
 	 */
 	public function speaking_types() {
-		// Placeholder for speaking types - to be implemented.
+		$feeds = $this->db->get_api_feeds(
+			array(
+				'limit'   => 500, // High limit to get all feeds.
+				'include' => array( 'essay_types' ), // Include essay types data.
+			)
+		);
+
+		// Group feeds by essay type.
+		$grouped_feeds = array();
+		foreach ( $feeds as $feed ) {
+			if ( empty( $feed['essay_types'] ) ) {
+				continue;
+			}
+
+			foreach ( $feed['essay_types'] as $essay_type_data ) {
+				$essay_type = $essay_type_data['essay_type'];
+
+				if ( ! isset( $grouped_feeds[ $essay_type ] ) ) {
+					$grouped_feeds[ $essay_type ] = array();
+				}
+
+				$grouped_feeds[ $essay_type ][] = array(
+					'id'           => (int) $feed['id'],
+					'feedName'     => $feed['feedback_criteria'],
+					'feedTitle'    => $feed['feed_title'],
+					'feedDesc'     => $feed['feed_desc'],
+					'applyTo'      => $feed['apply_to'],
+					'processOrder' => (int) $essay_type_data['process_order'],
+				);
+			}
+		}
 		return array(
 			array(
 				'groupName'  => 'speaking',
 				'groupTitle' => 'Speaking',
-				'feeds'      => array(),
+				'feeds'      => $grouped_feeds['speaking'] ?? array(),
 			),
 		);
 	}
@@ -295,6 +335,36 @@ class Ieltssci_Speaking_Settings {
 				),
 			),
 			array(
+				'groupName'  => 'vocabulary-suggestions',
+				'groupTitle' => 'Vocabulary Suggestions',
+				'feeds'      => array(
+					$settings_config_instance->create_feed(
+						'vocabulary-suggestions-speaking',
+						'Vocabulary Suggestions',
+						'essay',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'grammar-suggestions',
+				'groupTitle' => 'Grammar Suggestions',
+				'feeds'      => array(
+					$settings_config_instance->create_feed(
+						'grammar-suggestions-speaking',
+						'Grammar Suggestions',
+						'essay',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+				),
+			),
+			array(
 				'groupName'  => 'fluency-coherence',
 				'groupTitle' => 'Fluency & Coherence',
 				'feeds'      => array(
@@ -327,7 +397,7 @@ class Ieltssci_Speaking_Settings {
 						)
 					),
 					$settings_config_instance->create_feed(
-						'word-choice-collocation-style',
+						'word-choice-collocation-style-speaking',
 						'Word choice, Collocation, Style',
 						'transcript',
 						array( 'speaking' ),
@@ -366,7 +436,7 @@ class Ieltssci_Speaking_Settings {
 				'groupTitle' => 'Grammatical Range & Accuracy',
 				'feeds'      => array(
 					$settings_config_instance->create_feed(
-						'range-of-structures',
+						'range-of-structures-speaking',
 						'Range of Structures',
 						'transcript',
 						array( 'speaking' ),
