@@ -288,6 +288,8 @@ class Ieltssci_Writing_Module {
 				'current_page'            => $current_page,
 				// Add sample results data.
 				'sample_results'          => $sample_results,
+				// Check if Nextend Social Login plugin is active.
+				'social_login_active'     => class_exists( 'NextendSocialLogin' ),
 				// New logo data.
 				'site_logo_url'           => $logo_url,
 				'site_logo_dark_url'      => $logo_dark_url,
