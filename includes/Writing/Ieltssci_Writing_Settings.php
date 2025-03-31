@@ -654,8 +654,8 @@ class Ieltssci_Writing_Settings {
 						)
 					),
 					$settings_config_instance->create_feed(
-						'paragraphing Task 2',
-						'Paragraphing',
+						'paragraphing',
+						'Paragraphing Task 2',
 						'essay',
 						array( 'task-2', 'task-2-ocr' ),
 						array(
