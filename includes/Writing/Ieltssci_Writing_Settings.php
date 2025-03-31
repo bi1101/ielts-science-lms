@@ -654,10 +654,21 @@ class Ieltssci_Writing_Settings {
 						)
 					),
 					$settings_config_instance->create_feed(
-						'paragraphing',
+						'paragraphing Task 2',
 						'Paragraphing',
 						'essay',
-						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array( 'task-2', 'task-2-ocr' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'paragraphing-task-1',
+						'Paragraphing Task 1',
+						'essay',
+						array( 'task-1', 'task-1-ocr' ),
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
