@@ -187,6 +187,11 @@ class Ieltssci_Writing_SSE_REST {
 			return $rate_check;
 		}
 
+		// If this is a HEAD request, we've already checked rate limits, so just return success.
+		if ( isset( $_SERVER['REQUEST_METHOD'] ) && 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
+			return new \WP_REST_Response( null, 200 );
+		}
+
 		// Set up SSE headers.
 		$this->set_sse_headers();
 
@@ -240,6 +245,11 @@ class Ieltssci_Writing_SSE_REST {
 		$rate_check   = $rate_limiter->check_rate_limit( 'segment_feedback', $uuid, $feed_id, $segment_order );
 		if ( is_wp_error( $rate_check ) ) {
 			return $rate_check;
+		}
+
+		// If this is a HEAD request, we've already checked rate limits, so just return success.
+		if ( isset( $_SERVER['REQUEST_METHOD'] ) && 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
+			return new \WP_REST_Response( null, 200 );
 		}
 
 		// Set up SSE headers.
