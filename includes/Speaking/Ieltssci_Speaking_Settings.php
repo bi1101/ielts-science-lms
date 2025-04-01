@@ -340,7 +340,7 @@ class Ieltssci_Speaking_Settings {
 				'feeds'      => array(
 					$settings_config_instance->create_feed(
 						'vocabulary-suggestions-speaking',
-						'Vocabulary Suggestions',
+						'Vocabulary Suggestions Speaking',
 						'essay',
 						array( 'speaking' ),
 						array(
@@ -355,7 +355,7 @@ class Ieltssci_Speaking_Settings {
 				'feeds'      => array(
 					$settings_config_instance->create_feed(
 						'grammar-suggestions-speaking',
-						'Grammar Suggestions',
+						'Grammar Suggestions Speaking',
 						'essay',
 						array( 'speaking' ),
 						array(
@@ -387,7 +387,7 @@ class Ieltssci_Speaking_Settings {
 				'feeds'      => array(
 					$settings_config_instance->create_feed(
 						'range-of-vocab-speaking',
-						'Range of Vocab',
+						'Range of Vocab Speaking',
 						'transcript',
 						array( 'speaking' ),
 						array(
@@ -398,7 +398,7 @@ class Ieltssci_Speaking_Settings {
 					),
 					$settings_config_instance->create_feed(
 						'word-choice-collocation-style-speaking',
-						'Word choice, Collocation, Style',
+						'Word choice, Collocation, Style Speaking',
 						'transcript',
 						array( 'speaking' ),
 						array(
@@ -409,7 +409,7 @@ class Ieltssci_Speaking_Settings {
 					),
 					$settings_config_instance->create_feed(
 						'uncommon-vocab-speaking',
-						'Uncommon vocab',
+						'Uncommon vocab Speaking',
 						'transcript',
 						array( 'speaking' ),
 						array(
@@ -420,7 +420,7 @@ class Ieltssci_Speaking_Settings {
 					),
 					$settings_config_instance->create_feed(
 						'paraphrase-speaking',
-						'Paraphrase',
+						'Paraphrase Speaking',
 						'transcript',
 						array( 'speaking' ),
 						array(
@@ -433,11 +433,11 @@ class Ieltssci_Speaking_Settings {
 			),
 			array(
 				'groupName'  => 'grammatical-range-speaking',
-				'groupTitle' => 'Grammatical Range & Accuracy',
+				'groupTitle' => 'Grammatical Range & Accuracy Speaking',
 				'feeds'      => array(
 					$settings_config_instance->create_feed(
 						'range-of-structures-speaking',
-						'Range of Structures',
+						'Range of Structures Speaking',
 						'transcript',
 						array( 'speaking' ),
 						array(
@@ -448,7 +448,7 @@ class Ieltssci_Speaking_Settings {
 					),
 					$settings_config_instance->create_feed(
 						'grammar-accuracy-speaking',
-						'Grammar Accuracy',
+						'Grammar Accuracy Speaking',
 						'transcript',
 						array( 'speaking' ),
 						array(
