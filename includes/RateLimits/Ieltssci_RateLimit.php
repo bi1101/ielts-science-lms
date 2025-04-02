@@ -90,6 +90,9 @@ class Ieltssci_RateLimit {
 			return true;
 		}
 
+		// Extract feedback criteria from feed data.
+		$feedback_criteria = isset( $feed_data['feedback_criteria'] ) ? $feed_data['feedback_criteria'] : 'general';
+
 		// Check if feedback already exists for this feed and essay.
 		if ( isset( $feed_data['apply_to'] ) && ! empty( $uuid ) ) {
 			// Initialize Essay DB.
@@ -202,14 +205,16 @@ class Ieltssci_RateLimit {
 					foreach ( $user_roles as $user_role ) {
 						if ( in_array( $user_role, $rate_limit['roles'], true ) ) {
 							$applies_to_user = true;
+
 							break;
 						}
 					}
 
 					// If no user role matches or user has no roles but 'subscriber' is in the limit roles,
 					// consider the rate limit applicable to logged-out users.
-					if ( ( empty( $user_roles ) || ! $applies_to_user ) && in_array( 'subscriber', $rate_limit['roles'], true ) ) {
+					if ( ( empty( $user_roles ) && ! $applies_to_user ) && in_array( 'subscriber', $rate_limit['roles'], true ) ) {
 						$applies_to_user = true;
+
 					}
 				}
 
@@ -265,8 +270,9 @@ class Ieltssci_RateLimit {
 			if ( 'essay_feedback' === $action ) {
 				// Count essay feedbacks created by this user.
 				$query_args = array(
-					'created_by' => $user_id,
-					'count'      => true,
+					'created_by'        => $user_id,
+					'feedback_criteria' => $feedback_criteria,
+					'count'             => true,
 				);
 
 				// Add date constraints if set.
@@ -289,8 +295,9 @@ class Ieltssci_RateLimit {
 			} elseif ( 'segment_feedback' === $action ) {
 				// Count segment feedbacks created by this user.
 				$query_args = array(
-					'created_by' => $user_id,
-					'count'      => true,
+					'created_by'        => $user_id,
+					'feedback_criteria' => $feedback_criteria,
+					'count'             => true,
 				);
 
 				// Add date constraints if set.
