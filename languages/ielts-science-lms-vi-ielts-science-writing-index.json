@@ -526,6 +526,9 @@
       "Not exact to the question": [
         "Chưa chính xác với đề bài"
       ],
+      "Occasional error in word choice, collocation and informal language": [
+        "Hiếm lỗi chọn từ, collocation và ngôn ngữ thiếu trang trọng"
+      ],
       "Open Key AI": [
         "Open Key AI"
       ],
@@ -777,6 +780,9 @@
       ],
       "Uncommon vocab does not impede comprehension, occasional unnatural usage": [
         "Từ vựng ít phổ biến không cản trở nghĩa câu, hiếm khi sử dụng không tự nhiên"
+      ],
+      "Uncommon vocab does not impede comprehension, no unnatural usage": [
+        "Từ vựng ít phổ biến không cản trở nghĩa câu, không sử dụng không tự nhiên"
       ],
       "Uncommon vocab does not impede comprehension, some unnatural usage": [
         "Từ vựng ít phổ biến không cản trở nghĩa câu, đôi khi sử dụng không tự nhiên"
