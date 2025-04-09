@@ -419,14 +419,18 @@ class Ieltssci_Speaking_Settings {
 						)
 					),
 					$settings_config_instance->create_feed(
-						'paraphrase-speaking',
-						'Paraphrase Speaking',
+						'new-vocab-speaking',
+						'New Vocabulary',
 						'transcript',
 						array( 'speaking' ),
 						array(
-							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
-							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
-							$settings_config_instance->create_step( 'feedback', $common_sections ),
+							$settings_config_instance->create_step(
+								'feedback',
+								array(
+									$settings_config_instance->create_section( 'general-setting', $common_general_fields ),
+									$settings_config_instance->create_section( 'advanced-setting', $common_advanced_fields ),
+								)
+							),
 						)
 					),
 				),
@@ -454,6 +458,21 @@ class Ieltssci_Speaking_Settings {
 						array(
 							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'improve-speech',
+				'groupTitle' => 'Improve Speech',
+				'feeds'      => array(
+					$settings_config_instance->create_feed(
+						'improve-speech',
+						'Improve Speech',
+						'transcript',
+						array( 'speaking' ),
+						array(
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),

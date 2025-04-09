@@ -353,6 +353,15 @@ class Ieltssci_Speaking_Feedback_Processor {
 					$max_tokens,
 					$score_regex
 				);
+				// Send score to frontend.
+				$this->send_message(
+					$this->transform_case( $step_type, 'snake_upper' ),
+					array(
+						'content'     => $result,
+						'raw_content' => $result,
+						'regex_used'  => $score_regex,
+					)
+				);
 			} else {
 				// For other step types, use streaming API call.
 				$result = $this->api_client->make_stream_api_call(
