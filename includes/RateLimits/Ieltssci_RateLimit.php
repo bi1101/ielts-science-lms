@@ -93,33 +93,115 @@ class Ieltssci_RateLimit {
 		// Extract feedback criteria from feed data.
 		$feedback_criteria = isset( $feed_data['feedback_criteria'] ) ? $feed_data['feedback_criteria'] : 'general';
 
-		// Check if feedback already exists for this feed and essay.
+		// Check if feedback already exists for this feed and essay or speech.
 		if ( isset( $feed_data['apply_to'] ) && ! empty( $uuid ) ) {
-			// Initialize Essay DB.
-			$essay_db = new Ieltssci_Essay_DB();
+			// For essay/writing-related actions.
+			if ( in_array( $action, array( 'essay_feedback', 'segment_feedback' ) ) ) {
+				// Initialize Essay DB.
+				$essay_db = new Ieltssci_Essay_DB();
 
-			// Get essay ID from UUID.
-			$essays = $essay_db->get_essays(
-				array(
-					'uuid'     => $uuid,
-					'per_page' => 1,
-					'fields'   => array( 'id' ),
-				)
-			);
+				// Get essay ID from UUID.
+				$essays = $essay_db->get_essays(
+					array(
+						'uuid'     => $uuid,
+						'per_page' => 1,
+						'fields'   => array( 'id' ),
+					)
+				);
 
-			if ( ! is_wp_error( $essays ) && ! empty( $essays ) ) {
-				$essay_id          = $essays[0]['id'];
-				$feedback_criteria = isset( $feed_data['feedback_criteria'] ) ? $feed_data['feedback_criteria'] : 'general';
+				if ( ! is_wp_error( $essays ) && ! empty( $essays ) ) {
+					$essay_id          = $essays[0]['id'];
+					$feedback_criteria = isset( $feed_data['feedback_criteria'] ) ? $feed_data['feedback_criteria'] : 'general';
 
-				// Check for existing feedback based on apply_to.
-				switch ( $feed_data['apply_to'] ) {
-					case 'essay':
-						// Check if essay feedback already exists.
-						$existing_feedback = $essay_db->get_essay_feedbacks(
+					// Check for existing feedback based on apply_to.
+					switch ( $feed_data['apply_to'] ) {
+						case 'essay':
+							// Check if essay feedback already exists.
+							$existing_feedback = $essay_db->get_essay_feedbacks(
+								array(
+									'essay_id'          => $essay_id,
+									'feedback_criteria' => $feedback_criteria,
+									'per_page'          => 1,
+								)
+							);
+
+							if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) ) {
+								// Feedback already exists, no need to check rate limits.
+								return true;
+							}
+							break;
+
+						case 'paragraph':
+							// Check if segments already exist for this essay.
+							$existing_segments = $essay_db->get_segments(
+								array(
+									'essay_id' => $essay_id,
+									'per_page' => 1,
+								)
+							);
+
+							if ( ! is_wp_error( $existing_segments ) && ! empty( $existing_segments ) ) {
+								// Segments already exist, no need to check rate limits.
+								return true;
+							}
+							break;
+
+						case 'introduction':
+						case 'topic-sentence':
+						case 'main-point':
+						case 'conclusion':
+							// Check specific segment feedback if segment_order is provided.
+							if ( null !== $segment_order ) {
+								// First get the segment with the specified order.
+								$segment = $essay_db->get_segments(
+									array(
+										'essay_id' => $essay_id,
+										'order'    => $segment_order,
+										'per_page' => 1,
+									)
+								);
+
+								if ( ! is_wp_error( $segment ) && ! empty( $segment ) ) {
+									// Now check if feedback exists for this segment.
+									$existing_feedback = $essay_db->get_segment_feedbacks(
+										array(
+											'segment_id' => $segment[0]['id'],
+											'feedback_criteria' => $feedback_criteria,
+											'per_page'   => 1,
+										)
+									);
+
+									if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) ) {
+										// Feedback already exists for this segment, no need to check rate limits.
+										return true;
+									}
+								}
+							}
+							break;
+					}
+				}
+			} elseif ( 'speech_feedback' === $action ) { // For speech/speaking-related actions.
+				// Include speech DB class.
+				if ( class_exists( '\IeltsScienceLMS\Speaking\Ieltssci_Speech_DB' ) ) {
+					$speech_db = new \IeltsScienceLMS\Speaking\Ieltssci_Speech_DB();
+
+					// Get speech ID from UUID.
+					$speeches = $speech_db->get_speeches(
+						array(
+							'uuid'     => $uuid,
+							'per_page' => 1,
+						)
+					);
+
+					if ( ! is_wp_error( $speeches ) && ! empty( $speeches ) ) {
+						$speech_id = $speeches[0]['id'];
+
+						// Check if speech feedback already exists.
+						$existing_feedback = $speech_db->get_speech_feedbacks(
 							array(
-								'essay_id'          => $essay_id,
+								'speech_id'         => $speech_id,
 								'feedback_criteria' => $feedback_criteria,
-								'per_page'          => 1,
+								'number'            => 1,
 							)
 						);
 
@@ -127,55 +209,7 @@ class Ieltssci_RateLimit {
 							// Feedback already exists, no need to check rate limits.
 							return true;
 						}
-						break;
-
-					case 'paragraph':
-						// Check if segments already exist for this essay.
-						$existing_segments = $essay_db->get_segments(
-							array(
-								'essay_id' => $essay_id,
-								'per_page' => 1,
-							)
-						);
-
-						if ( ! is_wp_error( $existing_segments ) && ! empty( $existing_segments ) ) {
-							// Segments already exist, no need to check rate limits.
-							return true;
-						}
-						break;
-
-					case 'introduction':
-					case 'topic-sentence':
-					case 'main-point':
-					case 'conclusion':
-						// Check specific segment feedback if segment_order is provided.
-						if ( null !== $segment_order ) {
-							// First get the segment with the specified order.
-							$segment = $essay_db->get_segments(
-								array(
-									'essay_id' => $essay_id,
-									'order'    => $segment_order,
-									'per_page' => 1,
-								)
-							);
-
-							if ( ! is_wp_error( $segment ) && ! empty( $segment ) ) {
-								// Now check if feedback exists for this segment.
-								$existing_feedback = $essay_db->get_segment_feedbacks(
-									array(
-										'segment_id' => $segment[0]['id'],
-										'feedback_criteria' => $feedback_criteria,
-										'per_page'   => 1,
-									)
-								);
-
-								if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) ) {
-									// Feedback already exists for this segment, no need to check rate limits.
-									return true;
-								}
-							}
-						}
-						break;
+					}
 				}
 			}
 		}
@@ -316,6 +350,34 @@ class Ieltssci_RateLimit {
 					'max_allowed' => $max_allowed,
 					'type'        => 'segment_feedback',
 				);
+			} elseif ( 'speech_feedback' === $action ) {
+				// Count speech feedbacks created by this user.
+				if ( class_exists( '\IeltsScienceLMS\Speaking\Ieltssci_Speech_DB' ) ) {
+					$speech_db = new \IeltsScienceLMS\Speaking\Ieltssci_Speech_DB();
+
+					$query_args = array(
+						'created_by'        => $user_id,
+						'feedback_criteria' => $feedback_criteria,
+						'count'             => true,
+					);
+
+					// Add date constraints if set.
+					if ( isset( $date_constraints['date_from'] ) ) {
+						$query_args['date_from'] = $date_constraints['date_from'];
+					}
+					if ( isset( $date_constraints['date_to'] ) ) {
+						$query_args['date_to'] = $date_constraints['date_to'];
+					}
+
+					$usage_count = $speech_db->get_speech_feedbacks( $query_args );
+
+					// Add current usage to the tracking array.
+					$current_usage[ $limit['time_period_type'] ] = array(
+						'count'       => is_wp_error( $usage_count ) ? 0 : $usage_count,
+						'max_allowed' => $max_allowed,
+						'type'        => 'speech_feedback',
+					);
+				}
 			}
 
 			// Check if usage exceeds limit.

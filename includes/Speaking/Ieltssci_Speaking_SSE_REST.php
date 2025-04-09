@@ -13,6 +13,7 @@ namespace IeltsScienceLMS\Speaking;
 
 use WP_REST_Server;
 use WP_REST_Request;
+use IeltsScienceLMS\RateLimits\Ieltssci_RateLimit;
 
 /**
  * Class Ieltssci_Speaking_SSE_REST
@@ -116,6 +117,13 @@ class Ieltssci_Speaking_SSE_REST {
 		$feedback_style = $request->get_param( 'feedback_style' );
 		$guide_score    = $request->get_param( 'guide_score' );
 		$guide_feedback = $request->get_param( 'guide_feedback' );
+
+		// Check rate limits before setting headers.
+		$rate_limiter = new Ieltssci_RateLimit();
+		$rate_check   = $rate_limiter->check_rate_limit( 'speech_feedback', $uuid, $feed_id );
+		if ( is_wp_error( $rate_check ) ) {
+			return $rate_check;
+		}
 
 		// If this is a HEAD request, we've already checked rate limits, so just return success.
 		if ( isset( $_SERVER['REQUEST_METHOD'] ) && 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
