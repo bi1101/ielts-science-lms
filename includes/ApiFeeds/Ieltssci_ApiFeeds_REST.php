@@ -180,13 +180,14 @@ class Ieltssci_ApiFeeds_REST {
 			$criteria = $feed['feedback_criteria'];
 			if ( ! isset( $db_feeds_map[ $criteria ] ) ) {
 				$db_feeds_map[ $criteria ] = array(
-					'id'        => $feed['id'],
-					'feedName'  => $criteria,
-					'feedTitle' => $feed['feed_title'],
-					'feedDesc'  => $feed['feed_desc'],
-					'applyTo'   => $feed['apply_to'],
-					'essayType' => array(),
-					'steps'     => array(),
+					'id'           => $feed['id'],
+					'feedName'     => $criteria,
+					'feedTitle'    => $feed['feed_title'],
+					'feedDesc'     => $feed['feed_desc'],
+					'applyTo'      => $feed['apply_to'],
+					'essayType'    => array(),
+					'dependencies' => array(),
+					'steps'        => array(),
 				);
 
 				// Parse meta for steps data.
@@ -198,11 +199,16 @@ class Ieltssci_ApiFeeds_REST {
 				}
 			}
 
-			// Get essay types from related essay_types data.
+			// Get essay types and their dependencies from related essay_types data.
 			if ( ! empty( $feed['essay_types'] ) ) {
 				foreach ( $feed['essay_types'] as $essay_type ) {
 					if ( ! in_array( $essay_type['essay_type'], $db_feeds_map[ $criteria ]['essayType'], true ) ) {
 						$db_feeds_map[ $criteria ]['essayType'][] = $essay_type['essay_type'];
+
+						// Store dependencies if available.
+						if ( isset( $essay_type['dependencies'] ) && ! empty( $essay_type['dependencies'] ) ) {
+							$db_feeds_map[ $criteria ]['dependencies'][ $essay_type['essay_type'] ] = $essay_type['dependencies'];
+						}
 					}
 				}
 			}
@@ -218,22 +224,24 @@ class Ieltssci_ApiFeeds_REST {
 
 				// Start with config feed structure.
 				$feed = array(
-					'id'        => null,
-					'feedName'  => $feed_name,
-					'feedTitle' => $config_feed['feedTitle'],
-					'feedDesc'  => $config_feed['feedDesc'] ?? null,
-					'applyTo'   => $config_feed['applyTo'],
-					'essayType' => $config_feed['essayType'],
-					'steps'     => array(),
+					'id'           => null,
+					'feedName'     => $feed_name,
+					'feedTitle'    => $config_feed['feedTitle'],
+					'feedDesc'     => $config_feed['feedDesc'] ?? null,
+					'applyTo'      => $config_feed['applyTo'],
+					'essayType'    => $config_feed['essayType'],
+					'dependencies' => array(),
+					'steps'        => array(),
 				);
 
 				// If DB data exists for this feed, merge it.
 				if ( isset( $db_feeds_map[ $feed_name ] ) ) {
-					$db_feed           = $db_feeds_map[ $feed_name ];
-					$feed['id']        = $db_feed['id'];
-					$feed['feedTitle'] = $db_feed['feedTitle'];
-					$feed['feedDesc']  = $db_feed['feedDesc'];
-					$feed['essayType'] = $db_feed['essayType'];
+					$db_feed              = $db_feeds_map[ $feed_name ];
+					$feed['id']           = $db_feed['id'];
+					$feed['feedTitle']    = $db_feed['feedTitle'];
+					$feed['feedDesc']     = $db_feed['feedDesc'];
+					$feed['essayType']    = $db_feed['essayType'];
+					$feed['dependencies'] = $db_feed['dependencies'] ?? array();
 				}
 
 				// Process steps and their fields.
@@ -392,24 +400,26 @@ class Ieltssci_ApiFeeds_REST {
 			return new WP_Error( '400', 'Invalid settings format.' );
 		}
 
-		$this->db->start_transaction();
+				$this->db->start_transaction();
 
 		try {
 			// Get current process orders from DB for comparison.
-			$current_settings = $this->db->get_api_feeds(
+			$current_settings     = $this->db->get_api_feeds(
 				array(
 					'limit'   => 500,
 					'include' => array( 'essay_types' ),
 				)
 			);
-			$current_orders   = array();
+			$current_orders       = array();
+			$current_dependencies = array();
 
-			// Create lookup of current process orders.
+			// Create lookup of current process orders and dependencies.
 			foreach ( $current_settings as $feed ) {
 				if ( ! empty( $feed['essay_types'] ) ) {
 					foreach ( $feed['essay_types'] as $essay_type ) {
-						$key                    = $essay_type['essay_type'] . '-' . $feed['id'];
-						$current_orders[ $key ] = (int) $essay_type['process_order'];
+						$key                          = $essay_type['essay_type'] . '-' . $feed['id'];
+						$current_orders[ $key ]       = (int) $essay_type['process_order'];
+						$current_dependencies[ $key ] = $essay_type['dependencies'] ?? array();
 					}
 				}
 			}
@@ -420,15 +430,22 @@ class Ieltssci_ApiFeeds_REST {
 			// Compare and collect changes.
 			foreach ( $settings as $group ) {
 				foreach ( $group['feeds'] as $feed ) {
-					$key       = $group['groupName'] . '-' . $feed['id'];
-					$new_order = (int) $feed['processOrder'];
+					$key          = $group['groupName'] . '-' . $feed['id'];
+					$new_order    = (int) $feed['processOrder'];
+					$dependencies = $feed['dependencies'] ?? array();
 
-					// Only update if order has changed.
-					if ( ! isset( $current_orders[ $key ] ) || $current_orders[ $key ] !== $new_order ) {
+					// Check if order or dependencies have changed.
+					$order_changed = ! isset( $current_orders[ $key ] ) || $current_orders[ $key ] !== $new_order;
+					$deps_changed  = ! isset( $current_dependencies[ $key ] ) ||
+									json_encode( $current_dependencies[ $key ] ) !== json_encode( $dependencies );
+
+					// Only update if order or dependencies have changed.
+					if ( $order_changed || $deps_changed ) {
 						$updates[] = array(
 							'api_feed_id'   => $feed['id'],
 							'essay_type'    => $group['groupName'],
 							'process_order' => $new_order,
+							'dependencies'  => $dependencies,
 						);
 					}
 				}
@@ -436,10 +453,12 @@ class Ieltssci_ApiFeeds_REST {
 
 			// Apply updates.
 			foreach ( $updates as $update ) {
+				// Update process order and dependencies.
 				$this->db->update_process_order(
 					$update['api_feed_id'],
 					$update['essay_type'],
-					$update['process_order']
+					$update['process_order'],
+					$update['dependencies'] ?? array()
 				);
 			}
 

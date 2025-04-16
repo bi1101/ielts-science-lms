@@ -29,7 +29,7 @@ class Ieltssci_Database_Schema {
 	 *
 	 * @var string
 	 */
-	private $db_version = '0.0.5'; // Updated version number for removing transcript column from speech table.
+	private $db_version = '0.0.6'; // Updated version number for adding dependencies column to api_feed_essay_type table.
 
 	/**
 	 * WordPress database object.
@@ -124,6 +124,7 @@ class Ieltssci_Database_Schema {
             api_feed_id bigint(20) UNSIGNED NOT NULL,
             essay_type varchar(191) NOT NULL,
             process_order int(11) NOT NULL,
+            dependencies longtext DEFAULT NULL COMMENT 'JSON encoded array of API feed IDs that this feed depends on',
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),

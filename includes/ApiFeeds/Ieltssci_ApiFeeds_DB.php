@@ -315,7 +315,7 @@ class Ieltssci_ApiFeeds_DB {
 	public function get_api_feed_essay_types( $feed_id ) {
 
 		$query = $this->wpdb->prepare(
-			"SELECT essay_type, process_order FROM $this->essay_type_table WHERE api_feed_id = %d ORDER BY process_order ASC",
+			"SELECT essay_type, process_order, dependencies FROM $this->essay_type_table WHERE api_feed_id = %d ORDER BY process_order ASC",
 			$feed_id
 		);
 
@@ -327,6 +327,15 @@ class Ieltssci_ApiFeeds_DB {
 				sprintf( 'Error retrieving feed: %s', values: $feed_id ),
 				array( 'error' => $this->wpdb->last_error )
 			);
+		}
+
+		// Convert dependencies from JSON string to array.
+		foreach ( $results as &$result ) {
+			if ( isset( $result['dependencies'] ) && ! empty( $result['dependencies'] ) ) {
+				$result['dependencies'] = json_decode( $result['dependencies'], true );
+			} else {
+				$result['dependencies'] = array();
+			}
 		}
 
 		return $results;
@@ -469,24 +478,36 @@ class Ieltssci_ApiFeeds_DB {
 	 * @param int    $api_feed_id   The API feed ID.
 	 * @param string $essay_type    The essay type.
 	 * @param int    $process_order The new process order.
+	 * @param array  $dependencies  Optional. Array of API feed IDs that this feed depends on. Default empty array.
 	 * @return bool True on success.
 	 * @throws \Exception When database operation fails.
 	 */
-	public function update_process_order( int $api_feed_id, string $essay_type, int $process_order ): bool {
-		$table = $this->essay_type_table;
+	public function update_process_order( int $api_feed_id, string $essay_type, int $process_order, array $dependencies = array() ): bool {
+		$table   = $this->essay_type_table;
+		$data    = array( 'process_order' => $process_order );
+		$formats = array( '%d' );
+
+		// Add dependencies if provided.
+		if ( ! empty( $dependencies ) ) {
+			$data['dependencies'] = wp_json_encode( $dependencies );
+			$formats[]            = '%s';
+		} else {
+			$data['dependencies'] = null;
+			$formats[]            = '%s';
+		}
 
 		$result = $this->wpdb->update(
 			$table,
-			array( 'process_order' => $process_order ),
+			$data,
 			array(
 				'api_feed_id' => $api_feed_id,
 				'essay_type'  => $essay_type,
 			),
-			array( '%d' ),
+			$formats,
 			array( '%d', '%s' )
 		);
 
-		if ( false === $result ) {
+		if ( false === $result && 0 !== $result ) {
 			throw new \Exception( 'Failed to update process order: ' . esc_html( $this->wpdb->last_error ) );
 		}
 

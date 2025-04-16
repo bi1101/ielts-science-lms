@@ -97,6 +97,7 @@ class Ieltssci_Writing_Settings {
 					'feedDesc'     => $feed['feed_desc'],
 					'applyTo'      => $feed['apply_to'],
 					'processOrder' => (int) $essay_type_data['process_order'],
+					'dependencies' => $essay_type_data['dependencies'] ?? array(),
 				);
 			}
 		}
