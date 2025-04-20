@@ -98,6 +98,137 @@ class Ieltssci_Writing_REST {
 				),
 			)
 		);
+
+		// Register route for updating essay feedback.
+		register_rest_route(
+			$this->namespace,
+			"/{$this->base}/feedback",
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'update_essay_feedback' ),
+				'permission_callback' => array( $this, 'update_essay_feedback_permissions_check' ),
+				'args'                => array(
+					'uuid'              => array(
+						'required'          => true,
+						'description'       => 'The UUID of the essay to add/update feedback for.',
+						'type'              => 'string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param ) && ! empty( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'feedback_criteria' => array(
+						'required'          => true,
+						'description'       => 'The criteria this feedback relates to.',
+						'type'              => 'string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param ) && ! empty( $param );
+						},
+						'sanitize_callback' => 'sanitize_key',
+					),
+					'language'          => array(
+						'required'          => true,
+						'description'       => 'The language code for the feedback.',
+						'type'              => 'string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param ) && ! empty( $param );
+						},
+						'sanitize_callback' => 'sanitize_key',
+					),
+					'cot_content'       => array(
+						'required'          => false,
+						'description'       => 'The Chain of Thought content.',
+						'type'              => 'string',
+						'validate_callback' => 'is_string',
+						'sanitize_callback' => 'sanitize_textarea_field',
+					),
+					'score_content'     => array(
+						'required'          => false,
+						'description'       => 'The Score content.',
+						'type'              => 'string',
+						'validate_callback' => 'is_string',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'feedback_content'  => array(
+						'required'          => false,
+						'description'       => 'The main Feedback content.',
+						'type'              => 'string',
+						'validate_callback' => 'is_string',
+						'sanitize_callback' => 'sanitize_textarea_field',
+					),
+				),
+			)
+		);
+
+		// Register route for updating segment feedback.
+		register_rest_route(
+			$this->namespace,
+			"/{$this->base}/segment-feedback",
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'update_segment_feedback' ),
+				'permission_callback' => array( $this, 'update_segment_feedback_permissions_check' ),
+				'args'                => array(
+					'uuid'              => array(
+						'required'          => true,
+						'description'       => 'The UUID of the essay containing the segment.',
+						'type'              => 'string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param ) && ! empty( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'segment_order'     => array(
+						'required'          => true,
+						'description'       => 'The order/index of the segment within the essay.',
+						'type'              => 'integer',
+						'validate_callback' => function ( $param ) {
+							return is_numeric( $param ) && intval( $param ) > 0;
+						},
+						'sanitize_callback' => 'absint',
+					),
+					'feedback_criteria' => array(
+						'required'          => true,
+						'description'       => 'The criteria this feedback relates to.',
+						'type'              => 'string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param ) && ! empty( $param );
+						},
+						'sanitize_callback' => 'sanitize_key',
+					),
+					'language'          => array(
+						'required'          => true,
+						'description'       => 'The language code for the feedback.',
+						'type'              => 'string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param ) && ! empty( $param );
+						},
+						'sanitize_callback' => 'sanitize_key',
+					),
+					'cot_content'       => array(
+						'required'          => false,
+						'description'       => 'The Chain of Thought content.',
+						'type'              => 'string',
+						'validate_callback' => 'is_string',
+						'sanitize_callback' => 'sanitize_textarea_field',
+					),
+					'score_content'     => array(
+						'required'          => false,
+						'description'       => 'The Score content.',
+						'type'              => 'string',
+						'validate_callback' => 'is_string',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'feedback_content'  => array(
+						'required'          => false,
+						'description'       => 'The main Feedback content.',
+						'type'              => 'string',
+						'validate_callback' => 'is_string',
+						'sanitize_callback' => 'sanitize_textarea_field',
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -412,6 +543,30 @@ class Ieltssci_Writing_REST {
 	}
 
 	/**
+	 * Check if user has permission to update essay feedback.
+	 *
+	 * Only checks that the user is logged in. The ownership check happens in the callback.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return bool Whether the user has permission.
+	 */
+	public function update_essay_feedback_permissions_check( WP_REST_Request $request ) {
+		return is_user_logged_in();
+	}
+
+	/**
+	 * Check if user has permission to update segment feedback.
+	 *
+	 * Only checks that the user is logged in. The ownership check happens in the callback.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return bool Whether the user has permission.
+	 */
+	public function update_segment_feedback_permissions_check( WP_REST_Request $request ) {
+		return is_user_logged_in();
+	}
+
+	/**
 	 * Get arguments for the create essay endpoint.
 	 *
 	 * @return array Argument definitions.
@@ -540,5 +695,325 @@ class Ieltssci_Writing_REST {
 		}
 
 		return new WP_REST_Response( $essays[0], 200 );
+	}
+
+	/**
+	 * Update essay feedback endpoint.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response or error.
+	 */
+	public function update_essay_feedback( WP_REST_Request $request ) {
+		// Get parameters.
+		$uuid              = $request->get_param( 'uuid' );
+		$feedback_criteria = $request->get_param( 'feedback_criteria' );
+		$language          = $request->get_param( 'language' );
+		$cot_content       = $request->get_param( 'cot_content' );
+		$score_content     = $request->get_param( 'score_content' );
+		$feedback_content  = $request->get_param( 'feedback_content' );
+
+		// Validate that at least one content field is provided.
+		if ( empty( $cot_content ) && empty( $score_content ) && empty( $feedback_content ) ) {
+			return new WP_Error(
+				'missing_content',
+				__( 'At least one of cot_content, score_content, or feedback_content must be provided.', 'ielts-science-lms' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// Initialize required DB handlers.
+		$essay_db    = new Ieltssci_Essay_DB();
+		$feedback_db = new Ieltssci_Writing_Feedback_DB();
+
+		// Get essay details to verify ownership.
+		$essays = $essay_db->get_essays(
+			array(
+				'uuid'     => $uuid,
+				'per_page' => 1,
+			)
+		);
+
+		// Check if essay exists.
+		if ( is_wp_error( $essays ) ) {
+			return $essays;
+		}
+
+		if ( empty( $essays ) ) {
+			return new WP_Error(
+				'essay_not_found',
+				__( 'Essay not found.', 'ielts-science-lms' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$essay = $essays[0];
+
+		// Verify ownership.
+		if ( get_current_user_id() !== (int) $essay['created_by'] ) {
+			return new WP_Error(
+				'forbidden',
+				__( 'You do not have permission to update feedback for this essay.', 'ielts-science-lms' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		// Set up feed array for feedback database function.
+		$feed = array(
+			'apply_to'          => 'essay',
+			'feedback_criteria' => $feedback_criteria,
+		);
+
+		$success = array();
+		$errors  = array();
+
+		// Process each content type if provided.
+		if ( ! empty( $cot_content ) ) {
+			$result = $feedback_db->save_feedback_to_database(
+				$cot_content,
+				$feed,
+				$uuid,
+				'chain-of-thought',
+				null,
+				$language,
+				'human'
+			);
+
+			if ( is_wp_error( $result ) || false === $result ) {
+				$errors[] = 'cot';
+			} else {
+				$success[] = 'cot';
+			}
+		}
+
+		if ( ! empty( $score_content ) ) {
+			$result = $feedback_db->save_feedback_to_database(
+				$score_content,
+				$feed,
+				$uuid,
+				'scoring',
+				null,
+				$language,
+				'human'
+			);
+
+			if ( is_wp_error( $result ) || false === $result ) {
+				$errors[] = 'score';
+			} else {
+				$success[] = 'score';
+			}
+		}
+
+		if ( ! empty( $feedback_content ) ) {
+			$result = $feedback_db->save_feedback_to_database(
+				$feedback_content,
+				$feed,
+				$uuid,
+				'feedback',
+				null,
+				$language,
+				'human'
+			);
+
+			if ( is_wp_error( $result ) || false === $result ) {
+				$errors[] = 'feedback';
+			} else {
+				$success[] = 'feedback';
+			}
+		}
+
+		// Return appropriate response based on results.
+		if ( empty( $success ) ) {
+			return new WP_Error(
+				'update_failed',
+				__( 'Failed to update any feedback content.', 'ielts-science-lms' ),
+				array(
+					'status' => 500,
+					'detail' => $errors,
+				)
+			);
+		}
+
+		return new WP_REST_Response(
+			array(
+				'status'  => 'success',
+				'message' => __( 'Feedback updated successfully.', 'ielts-science-lms' ),
+				'updated' => $success,
+				'failed'  => $errors,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Update segment feedback endpoint.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response or error.
+	 */
+	public function update_segment_feedback( WP_REST_Request $request ) {
+		// Get parameters.
+		$uuid              = $request->get_param( 'uuid' );
+		$segment_order     = $request->get_param( 'segment_order' );
+		$feedback_criteria = $request->get_param( 'feedback_criteria' );
+		$language          = $request->get_param( 'language' );
+		$cot_content       = $request->get_param( 'cot_content' );
+		$score_content     = $request->get_param( 'score_content' );
+		$feedback_content  = $request->get_param( 'feedback_content' );
+
+		// Validate that at least one content field is provided.
+		if ( empty( $cot_content ) && empty( $score_content ) && empty( $feedback_content ) ) {
+			return new WP_Error(
+				'missing_content',
+				__( 'At least one of cot_content, score_content, or feedback_content must be provided.', 'ielts-science-lms' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// Initialize required DB handlers.
+		$essay_db    = new Ieltssci_Essay_DB();
+		$feedback_db = new Ieltssci_Writing_Feedback_DB();
+
+		// Get essay details to verify ownership.
+		$essays = $essay_db->get_essays(
+			array(
+				'uuid'     => $uuid,
+				'per_page' => 1,
+			)
+		);
+
+		// Check if essay exists.
+		if ( is_wp_error( $essays ) ) {
+			return $essays;
+		}
+
+		if ( empty( $essays ) ) {
+			return new WP_Error(
+				'essay_not_found',
+				__( 'Essay not found.', 'ielts-science-lms' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$essay = $essays[0];
+
+		// Verify ownership.
+		if ( get_current_user_id() !== (int) $essay['created_by'] ) {
+			return new WP_Error(
+				'forbidden',
+				__( 'You do not have permission to update feedback for this essay.', 'ielts-science-lms' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		// Get the specific segment.
+		$segments = $essay_db->get_segments(
+			array(
+				'essay_id' => $essay['id'],
+				'order'    => $segment_order,
+				'number'   => 1,
+			)
+		);
+
+		if ( is_wp_error( $segments ) ) {
+			return $segments;
+		}
+
+		if ( empty( $segments ) ) {
+			return new WP_Error(
+				'segment_not_found',
+				__( 'Segment not found for the given segment order.', 'ielts-science-lms' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$segment = $segments[0];
+
+		// Set up feed array for feedback database function.
+		$feed = array(
+			'apply_to'          => $segment['type'],
+			'feedback_criteria' => $feedback_criteria,
+		);
+
+		$success = array();
+		$errors  = array();
+
+		// Process each content type if provided.
+		if ( ! empty( $cot_content ) ) {
+			$result = $feedback_db->save_feedback_to_database(
+				$cot_content,
+				$feed,
+				$uuid,
+				'chain-of-thought',
+				$segment,
+				$language,
+				'human'
+			);
+
+			if ( is_wp_error( $result ) || false === $result ) {
+				$errors[] = 'cot';
+			} else {
+				$success[] = 'cot';
+			}
+		}
+
+		if ( ! empty( $score_content ) ) {
+			$result = $feedback_db->save_feedback_to_database(
+				$score_content,
+				$feed,
+				$uuid,
+				'scoring',
+				$segment,
+				$language,
+				'human'
+			);
+
+			if ( is_wp_error( $result ) || false === $result ) {
+				$errors[] = 'score';
+			} else {
+				$success[] = 'score';
+			}
+		}
+
+		if ( ! empty( $feedback_content ) ) {
+			$result = $feedback_db->save_feedback_to_database(
+				$feedback_content,
+				$feed,
+				$uuid,
+				'feedback',
+				$segment,
+				$language,
+				'human'
+			);
+
+			if ( is_wp_error( $result ) || false === $result ) {
+				$errors[] = 'feedback';
+			} else {
+				$success[] = 'feedback';
+			}
+		}
+
+		// Return appropriate response based on results.
+		if ( empty( $success ) ) {
+			return new WP_Error(
+				'update_failed',
+				__( 'Failed to update any segment feedback content.', 'ielts-science-lms' ),
+				array(
+					'status' => 500,
+					'detail' => $errors,
+				)
+			);
+		}
+
+		return new WP_REST_Response(
+			array(
+				'status'       => 'success',
+				'message'      => __( 'Segment feedback updated successfully.', 'ielts-science-lms' ),
+				'updated'      => $success,
+				'failed'       => $errors,
+				'segment_id'   => $segment['id'],
+				'segment_type' => $segment['type'],
+			),
+			200
+		);
 	}
 }
