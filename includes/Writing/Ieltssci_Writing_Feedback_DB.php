@@ -96,23 +96,41 @@ class Ieltssci_Writing_Feedback_DB {
 		// Check the appropriate table based on apply_to.
 		switch ( $apply_to ) {
 			case 'essay':
-				// Check if essay feedback already exists for this step.
-				$existing_feedback = $essay_db->get_essay_feedbacks(
-					array(
-						'essay_id'          => $essay_id,
-						'feedback_criteria' => $feedback_criteria,
-						'fields'            => array( $content_field ),
-						'per_page'          => 1,
-					)
-				);
+					// First try to get human feedback if it exists.
+					$human_feedback = $essay_db->get_essay_feedbacks(
+						array(
+							'essay_id'          => $essay_id,
+							'feedback_criteria' => $feedback_criteria,
+							'source'            => 'human',
+							'fields'            => array( $content_field ),
+							'per_page'          => 1,
+						)
+					);
 
-				if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) && ! empty( $existing_feedback[0][ $content_field ] ) ) {
-					$existing_content = $existing_feedback[0][ $content_field ];
+					// If human feedback exists, use it.
+				if ( ! is_wp_error( $human_feedback ) && ! empty( $human_feedback ) && ! empty( $human_feedback[0][ $content_field ] ) ) {
+					$existing_content = $human_feedback[0][ $content_field ];
+				} else {
+					// Otherwise check for AI feedback.
+					$ai_feedback = $essay_db->get_essay_feedbacks(
+						array(
+							'essay_id'          => $essay_id,
+							'feedback_criteria' => $feedback_criteria,
+							'source'            => 'ai',
+							'fields'            => array( $content_field ),
+							'per_page'          => 1,
+						)
+					);
+
+					if ( ! is_wp_error( $ai_feedback ) && ! empty( $ai_feedback ) && ! empty( $ai_feedback[0][ $content_field ] ) ) {
+						$existing_content = $ai_feedback[0][ $content_field ];
+					}
 				}
 				break;
 
 			case 'paragraph':
 				// Check if segments already exist for this essay.
+				// Segment extraction doesn't depend on source, so this remains the same.
 				$existing_segments = $essay_db->get_segments(
 					array(
 						'essay_id' => $essay_id,
@@ -144,17 +162,35 @@ class Ieltssci_Writing_Feedback_DB {
 			case 'conclusion':
 				// Check if segment feedback already exists for this step.
 				if ( null !== $segment && ! empty( $segment['id'] ) ) {
-					$existing_feedback = $essay_db->get_segment_feedbacks(
+					// First try to get human feedback.
+					$human_feedback = $essay_db->get_segment_feedbacks(
 						array(
 							'segment_id'        => $segment['id'],
 							'feedback_criteria' => $feedback_criteria,
+							'source'            => 'human',
 							'fields'            => array( $content_field ),
 							'per_page'          => 1,
 						)
 					);
 
-					if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) && ! empty( $existing_feedback[0][ $content_field ] ) ) {
-						$existing_content = $existing_feedback[0][ $content_field ];
+					// If human feedback exists, use it.
+					if ( ! is_wp_error( $human_feedback ) && ! empty( $human_feedback ) && ! empty( $human_feedback[0][ $content_field ] ) ) {
+						$existing_content = $human_feedback[0][ $content_field ];
+					} else {
+						// Otherwise check for AI feedback.
+						$ai_feedback = $essay_db->get_segment_feedbacks(
+							array(
+								'segment_id'        => $segment['id'],
+								'feedback_criteria' => $feedback_criteria,
+								'source'            => 'ai',
+								'fields'            => array( $content_field ),
+								'per_page'          => 1,
+							)
+						);
+
+						if ( ! is_wp_error( $ai_feedback ) && ! empty( $ai_feedback ) && ! empty( $ai_feedback[0][ $content_field ] ) ) {
+							$existing_content = $ai_feedback[0][ $content_field ];
+						}
 					}
 				}
 				break;
@@ -172,9 +208,10 @@ class Ieltssci_Writing_Feedback_DB {
 	 * @param string $step_type The type of step being processed.
 	 * @param array  $segment Optional. The segment data if processing a specific segment.
 	 * @param string $language The language of the feedback.
+	 * @param string $source The source of the feedback, 'ai' or 'human'.
 	 * @return bool True on success, false on failure.
 	 */
-	public function save_feedback_to_database( $feedback, $feed, $uuid, $step_type, $segment = null, $language = 'en' ) {
+	public function save_feedback_to_database( $feedback, $feed, $uuid, $step_type, $segment = null, $language = 'en', $source = 'ai' ) {
 		// Check if we have a valid apply_to setting.
 		if ( empty( $feed['apply_to'] ) ) {
 			return false;
@@ -188,7 +225,7 @@ class Ieltssci_Writing_Feedback_DB {
 
 			case 'essay':
 				// Save the essay-level feedback.
-				$this->save_essay_feedback( $uuid, $feedback, $feed, $step_type, $language );
+				$this->save_essay_feedback( $uuid, $feedback, $feed, $step_type, $language, $source );
 				break;
 
 			case 'paragraph':
@@ -201,7 +238,7 @@ class Ieltssci_Writing_Feedback_DB {
 			case 'main-point':
 			case 'conclusion':
 				// Save feedback for the specific segment.
-				$this->save_segment_feedback( $uuid, $feedback, $feed, $step_type, $segment, $language );
+				$this->save_segment_feedback( $uuid, $feedback, $feed, $step_type, $segment, $language, $source );
 				break;
 
 			// Add other cases as needed.
@@ -218,9 +255,10 @@ class Ieltssci_Writing_Feedback_DB {
 	 * @param string $step_type  The type of step (chain-of-thought, scoring, feedback).
 	 * @param array  $segment    The segment data object.
 	 * @param string $language   The language of the feedback.
+	 * @param string $source     The source of the feedback, 'ai' or 'human'.
 	 * @return int|WP_Error|bool ID of created/updated feedback, error, or false if skipped.
 	 */
-	private function save_segment_feedback( $uuid, $feedback, $feed, $step_type, $segment, $language = 'en' ) {
+	private function save_segment_feedback( $uuid, $feedback, $feed, $step_type, $segment, $language = 'en', $source = 'ai' ) {
 		// Check if segment is null - if so, return false (nothing to save).
 		if ( empty( $segment ) || empty( $segment['id'] ) ) {
 			return false;
@@ -231,7 +269,6 @@ class Ieltssci_Writing_Feedback_DB {
 
 		// Extract needed feed attributes.
 		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
-		$source            = isset( $feed['source'] ) ? $feed['source'] : 'ai';
 
 		// Map step_type to the appropriate database column.
 		$content_field = '';
@@ -251,11 +288,12 @@ class Ieltssci_Writing_Feedback_DB {
 		// Initialize Essay DB.
 		$essay_db = new Ieltssci_Essay_DB();
 
-		// Check if existing feedback already exists for this segment and criteria.
+		// Check if existing feedback already exists for this segment, criteria, and source.
 		$existing_feedback = $essay_db->get_segment_feedbacks(
 			array(
 				'segment_id'        => $segment_id,
 				'feedback_criteria' => $feedback_criteria,
+				'source'            => $source,
 				'per_page'          => 1,
 			)
 		);
@@ -296,9 +334,10 @@ class Ieltssci_Writing_Feedback_DB {
 	 * @param array  $feed The feed data (containing feedback criteria, etc.).
 	 * @param string $step_type The type of step (chain-of-thought, scoring, feedback).
 	 * @param string $language The language of the feedback.
+	 * @param string $source The source of the feedback, 'ai' or 'human'.
 	 * @return int|WP_Error|bool ID of created feedback, error, or false if skipped.
 	 */
-	private function save_essay_feedback( $uuid, $feedback, $feed, $step_type, $language = 'en' ) {
+	private function save_essay_feedback( $uuid, $feedback, $feed, $step_type, $language = 'en', $source = 'ai' ) {
 		// Initialize Essay DB.
 		$essay_db = new Ieltssci_Essay_DB();
 
@@ -319,7 +358,6 @@ class Ieltssci_Writing_Feedback_DB {
 
 		// Extract needed feed attributes.
 		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
-		$source            = isset( $feed['source'] ) ? $feed['source'] : 'ai';
 
 		// Map step_type to the appropriate database column.
 		$content_field = '';
@@ -336,11 +374,12 @@ class Ieltssci_Writing_Feedback_DB {
 				break;
 		}
 
-		// Check if existing feedback already exists for this essay and criteria.
+		// Check if existing feedback already exists for this essay, criteria, and source.
 		$existing_feedback = $essay_db->get_essay_feedbacks(
 			array(
 				'essay_id'          => $essay_id,
 				'feedback_criteria' => $feedback_criteria,
+				'source'            => $source,
 				'per_page'          => 1,
 			)
 		);
