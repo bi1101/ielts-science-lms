@@ -395,17 +395,9 @@ class Ieltssci_Writing_Feedback_DB {
 
 		// If existing record found.
 		if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) ) {
-			$existing = $existing_feedback[0];
-
-			// Check if the content field for this step_type is empty.
-			if ( empty( $existing[ $content_field ] ) ) {
-				// Update the existing record with new content.
-				$feedback_data['id'] = $existing['id'];
-				return $essay_db->create_update_essay_feedback( $feedback_data );
-			} else {
-				// Skip saving if content already exists.
-				return false;
-			}
+			$existing            = $existing_feedback[0];
+			$feedback_data['id'] = $existing['id'];
+			return $essay_db->create_update_essay_feedback( $feedback_data );
 		} else {
 			// No existing record, create new feedback entry.
 			return $essay_db->create_update_essay_feedback( $feedback_data );
