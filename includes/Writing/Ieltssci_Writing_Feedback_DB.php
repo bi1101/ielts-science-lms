@@ -11,7 +11,6 @@ namespace IeltsScienceLMS\Writing;
 
 use WP_Error;
 use IeltsScienceLMS\Writing\Ieltssci_Segment_Extractor;
-use IeltsScienceLMS\API\Ieltssci_Message_Handler;
 
 /**
  * Class Ieltssci_Writing_Feedback_DB
@@ -29,23 +28,14 @@ class Ieltssci_Writing_Feedback_DB {
 	private $segment_extractor;
 
 	/**
-	 * Message handler for sending progress updates.
-	 *
-	 * @var Ieltssci_Message_Handler
-	 */
-	private $message_handler;
-
-	/**
 	 * Constructor for the feedback database class.
 	 *
 	 * Initializes the segment extractor and sets up message handling capability.
 	 *
-	 * @param Ieltssci_Message_Handler $message_handler Handler for processing messages. Default null.
 	 * @since 1.0.0
 	 */
-	public function __construct( $message_handler ) {
+	public function __construct() {
 		$this->segment_extractor = new Ieltssci_Segment_Extractor();
-		$this->message_handler   = $message_handler;
 	}
 
 
@@ -58,7 +48,7 @@ class Ieltssci_Writing_Feedback_DB {
 	 * @param array  $segment       Optional. The segment data if processing a specific segment.
 	 * @param string $content_field The database field to retrieve.
 	 *
-	 * @return string|null The existing content if found, null otherwise.
+	 * @return array|string|null The existing content if found, an array with segments data if paragraph processing, or null otherwise.
 	 */
 	public function get_existing_step_content( $step_type, $feed, $uuid, $segment = null, $content_field = '' ) {
 		// Get the apply_to value from feed to determine which table to check.
@@ -131,22 +121,20 @@ class Ieltssci_Writing_Feedback_DB {
 
 				// If segments already exist, format them for return.
 				if ( ! is_wp_error( $existing_segments ) && ! empty( $existing_segments ) ) {
-					// Send all segments to the client.
-					$this->message_handler->send_message(
-						'SEGMENTS_DATA',
-						array(
-							'segments' => $existing_segments,
-							'count'    => count( $existing_segments ),
-							'reused'   => true,
-						)
-					);
-					// Format segments into a readable string to return.
+					// Return both the segments data and formatted content.
 					$segments_text = '';
 					foreach ( $existing_segments as $seg ) {
 						$segments_text .= "# {$seg['title']}\n\n{$seg['content']}\n\n---\n\n";
 					}
 
-					$existing_content = trim( $segments_text );
+					return array(
+						'content'       => trim( $segments_text ),
+						'segments_data' => array(
+							'segments' => $existing_segments,
+							'count'    => count( $existing_segments ),
+							'reused'   => true,
+						),
+					);
 				}
 				break;
 

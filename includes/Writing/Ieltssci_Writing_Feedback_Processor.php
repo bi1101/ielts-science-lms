@@ -87,7 +87,7 @@ class Ieltssci_Writing_Feedback_Processor {
 		// Initialize message handler.
 		$this->message_handler = new Ieltssci_Message_Handler( $message_callback );
 
-		$this->feedback_db = new Ieltssci_Writing_Feedback_DB( $this->message_handler ); // Initialize feedback database handler.
+		$this->feedback_db = new Ieltssci_Writing_Feedback_DB(); // Initialize feedback database handler.
 		// Initialize API client with message handler.
 		$this->api_client = new Ieltssci_API_Client( message_handler: $this->message_handler );
 	}
@@ -334,7 +334,45 @@ class Ieltssci_Writing_Feedback_Processor {
 		}
 
 		// Check if this step has already been processed.
-		$existing_content = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $segment, $content_field );
+		$existing_content_result = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $segment, $content_field );
+
+		// Check if we received segments data along with content.
+		if ( is_array( $existing_content_result ) && isset( $existing_content_result['content'] ) && isset( $existing_content_result['segments_data'] ) ) {
+			// Extract the content and segments data.
+			$existing_content = $existing_content_result['content'];
+			$segments_data    = $existing_content_result['segments_data'];
+
+			// Send the segments data message.
+			$this->send_message( 'SEGMENTS_DATA', $segments_data );
+
+			// Send the existing content message.
+			$this->send_message(
+				$this->transform_case( $step_type, 'snake_upper' ),
+				array(
+					'content' => $existing_content,
+					'reused'  => true,
+				)
+			);
+
+			// Send DONE message to indicate completion.
+			$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
+
+			return $existing_content;
+		} elseif ( $existing_content_result ) {
+			// Simple string content, no segments data.
+			$existing_content = $existing_content_result;
+
+			$this->send_message(
+				$this->transform_case( $step_type, 'snake_upper' ),
+				array(
+					'content' => $existing_content,
+					'reused'  => true,
+				)
+			);
+			// Send DONE message to indicate completion.
+			$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
+			return $existing_content;
+		}
 
 		$images = array();
 		if ( $enable_multi_modal && ! empty( $multi_modal_fields ) ) {
@@ -382,20 +420,6 @@ class Ieltssci_Writing_Feedback_Processor {
 
 		// Select prompt based on language parameter.
 		$selected_prompt = 'vi' === strtolower( $language ) ? $vietnamese_prompt : $english_prompt;
-
-		// If existing content is found, send it back without making a new API call.
-		if ( ! empty( $existing_content ) ) {
-			$this->send_message(
-				$this->transform_case( $step_type, 'snake_upper' ),
-				array(
-					'content' => $existing_content,
-					'reused'  => true,
-				)
-			);
-			// Send DONE message to indicate completion.
-			$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
-			return $existing_content;
-		}
 
 		// Pre-process segment-specific variables if segment is provided.
 		if ( null !== $segment ) {
@@ -469,8 +493,8 @@ class Ieltssci_Writing_Feedback_Processor {
 				$this->send_message(
 					$this->transform_case( $step_type, 'snake_upper' ),
 					array(
-						'content'     => $result,
-						'regex_used'  => $score_regex,
+						'content'    => $result,
+						'regex_used' => $score_regex,
 					)
 				);
 			} else {
