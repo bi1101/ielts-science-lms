@@ -296,6 +296,12 @@ class Ieltssci_Writing_Feedback_Processor {
 		$prompt       = 'Hello.';
 		$score_regex  = '/\d+/';
 
+		// Determine if the source should be 'human' based on guide content.
+		$source = 'ai';
+		if ( ! empty( $guide_score ) || ! empty( $guide_feedback ) ) {
+			$source = 'human';
+		}
+
 		$config = array();
 		foreach ( $sections as $section ) {
 			if ( isset( $section['section'] ) && ! empty( $section['section'] ) && isset( $section['fields'] ) ) {
@@ -504,7 +510,7 @@ class Ieltssci_Writing_Feedback_Processor {
 		}
 
 		// Save the results to the database.
-		$this->feedback_db->save_feedback_to_database( $result, $feed, $uuid, $step_type, $segment, $language );
+		$this->feedback_db->save_feedback_to_database( $result, $feed, $uuid, $step_type, $segment, $language, $source );
 
 		// if $feed['apply_to'] is paragraph, query all segments and send them back to the client.
 		if ( 'paragraph' === $feed['apply_to'] ) {
