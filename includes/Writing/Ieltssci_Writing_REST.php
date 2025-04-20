@@ -139,21 +139,27 @@ class Ieltssci_Writing_REST {
 						'required'          => false,
 						'description'       => 'The Chain of Thought content.',
 						'type'              => 'string',
-						'validate_callback' => 'is_string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
 						'sanitize_callback' => 'sanitize_textarea_field',
 					),
 					'score_content'     => array(
 						'required'          => false,
 						'description'       => 'The Score content.',
 						'type'              => 'string',
-						'validate_callback' => 'is_string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
 						'sanitize_callback' => 'sanitize_text_field',
 					),
 					'feedback_content'  => array(
 						'required'          => false,
 						'description'       => 'The main Feedback content.',
 						'type'              => 'string',
-						'validate_callback' => 'is_string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
 						'sanitize_callback' => 'sanitize_textarea_field',
 					),
 				),
