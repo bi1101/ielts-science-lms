@@ -49,13 +49,24 @@ class Ieltssci_Database_Schema {
 	}
 
 	/**
-	 * Creates all required database tables
+	 * Gets the target database version defined in the code.
+	 *
+	 * @return string The target database version.
+	 */
+	public function get_db_version() {
+		return $this->db_version;
+	}
+
+	/**
+	 * Creates all required database tables if they don't exist.
+	 * This should primarily use CREATE TABLE IF NOT EXISTS.
+	 * It does NOT handle updates to existing tables.
 	 *
 	 * @return void|WP_Error Returns WP_Error on failure.
 	 */
 	public function create_tables() {
-		$this->wpdb->query( 'START TRANSACTION' );
-
+		// Note: Removed transaction and version update from here.
+		// Updates are handled by run_updates().
 		try {
 			$this->create_api_feeds_table();
 			$this->create_api_feed_essay_type_table();
@@ -63,23 +74,151 @@ class Ieltssci_Database_Schema {
 			$this->create_api_feed_rate_limit_rule_table();
 			$this->create_role_rate_limit_rule_table();
 			$this->create_api_key_table();
-
-			// Add new tables.
 			$this->create_essays_table();
 			$this->create_segment_table();
 			$this->create_segment_feedback_table();
 			$this->create_essay_feedback_table();
-
-			// Add speech tables.
 			$this->create_speech_table();
 			$this->create_speech_feedback_table();
 
-			update_option( 'ieltssci_db_version', $this->db_version );
-			$this->wpdb->query( 'COMMIT' );
 			return;
 		} catch ( Exception $e ) {
+			// Log the error appropriately.
+			return new WP_Error( 'db_creation_error', $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Runs sequential database updates based on version.
+	 *
+	 * @return void|WP_Error Returns WP_Error on failure.
+	 */
+	public function run_updates() {
+		$current_version = get_option( 'ieltssci_db_version', '0' );
+
+		if ( version_compare( $current_version, $this->db_version, '>=' ) ) {
+			return; // Already up to date.
+		}
+
+		$this->wpdb->query( 'START TRANSACTION' );
+
+		try {
+			// Sequential updates - each one runs only if needed.
+			if ( version_compare( $current_version, '0.0.1', '<' ) ) {
+				$this->update_to_0_0_1();
+			}
+
+			if ( version_compare( $current_version, '0.0.2', '<' ) ) {
+				$this->update_to_0_0_2();
+			}
+
+			if ( version_compare( $current_version, '0.0.3', '<' ) ) {
+				$this->update_to_0_0_3();
+			}
+
+			if ( version_compare( $current_version, '0.0.4', '<' ) ) {
+				$this->update_to_0_0_4();
+			}
+
+			if ( version_compare( $current_version, '0.0.5', '<' ) ) {
+				$this->update_to_0_0_5();
+			}
+
+			if ( version_compare( $current_version, '0.0.6', '<' ) ) {
+				$this->update_to_0_0_6();
+			}
+
+			// All updates successful, update the stored version.
+			update_option( 'ieltssci_db_version', $this->db_version );
+			$this->wpdb->query( 'COMMIT' );
+
+		} catch ( Exception $e ) {
 			$this->wpdb->query( 'ROLLBACK' );
-			return new WP_Error( 'db_error', $e->getMessage() );
+			// Log the error appropriately.
+			return new WP_Error( 'db_update_error', sprintf( 'Error updating database schema: %s', $e->getMessage() ) );
+		}
+	}
+
+	/**
+	 * Update schema to version 0.0.1.
+	 * Initial database setup.
+	 *
+	 * @throws \Exception On SQL error.
+	 */
+	private function update_to_0_0_1() {
+		// Initial setup is handled by create_tables.
+		$this->create_tables();
+	}
+
+	/**
+	 * Update schema to version 0.0.2.
+	 * Contains specific ALTER TABLE or other commands for this version.
+	 *
+	 * @throws \Exception On SQL error.
+	 */
+	private function update_to_0_0_2() {
+		// No specific changes for version 0.0.2.
+	}
+
+	/**
+	 * Update schema to version 0.0.3.
+	 *
+	 * @throws \Exception On SQL error.
+	 */
+	private function update_to_0_0_3() {
+		// No specific changes for version 0.0.3.
+	}
+
+	/**
+	 * Update schema to version 0.0.4.
+	 *
+	 * @throws \Exception On SQL error.
+	 */
+	private function update_to_0_0_4() {
+		// No specific changes for version 0.0.4.
+	}
+
+	/**
+	 * Update schema to version 0.0.5.
+	 *
+	 * @throws \Exception On SQL error.
+	 */
+	private function update_to_0_0_5() {
+		// No specific changes for version 0.0.5.
+	}
+
+	/**
+	 * Update schema to version 0.0.6.
+	 * Adds dependencies column to api_feed_essay_type table.
+	 *
+	 * @throws \Exception On SQL error.
+	 */
+	private function update_to_0_0_6() {
+		$table_name = $this->wpdb->prefix . self::TABLE_PREFIX . 'api_feed_essay_type';
+
+		// Check if the column already exists using INFORMATION_SCHEMA for better compatibility.
+		$column_exists = $this->wpdb->get_var(
+			$this->wpdb->prepare(
+				'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s',
+				DB_NAME,
+				$table_name,
+				'dependencies'
+			)
+		);
+
+		// If column doesn't exist (count is 0), add it.
+		if ( '0' === $column_exists ) {
+			$sql = "ALTER TABLE `$table_name`
+                    ADD COLUMN `dependencies` longtext DEFAULT NULL
+                    COMMENT 'JSON encoded array of API feed IDs that this feed depends on'
+                    AFTER `process_order`;"; // Specify position if desired.
+
+			$this->wpdb->query( $sql );
+
+			if ( ! empty( $this->wpdb->last_error ) ) {
+				// Throw exception to trigger rollback.
+				throw new Exception( 'Error adding dependencies column: ' . esc_html( $this->wpdb->last_error ) );
+			}
 		}
 	}
 

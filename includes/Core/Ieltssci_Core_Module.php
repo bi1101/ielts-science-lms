@@ -9,6 +9,7 @@
 namespace IeltsScienceLMS\Core;
 
 use WP_Post;
+use WP_Error;
 
 /**
  * Core module class handling basic plugin functionality.
@@ -28,14 +29,23 @@ class Ieltssci_Core_Module {
 	 * Initialize the core module.
 	 */
 	public function __construct() {
+		// Instantiate DB Schema early.
+		$this->db_schema = new Ieltssci_Database_Schema();
+
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
 		new \IeltsScienceLMS\Speaking\Ieltssci_Speaking_Module();
 		new \IeltsScienceLMS\Settings\Ieltssci_Settings();
 		new \IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeed_Module();
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit();
 		new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys();
-		$this->db_schema = new Ieltssci_Database_Schema();
 		new Ieltssci_Core_Ajax();
+
+		// Hook for running DB updates.
+		add_action( 'plugins_loaded', array( $this, 'run_database_updates' ), 5 ); // Run early.
+
+		// Hook for displaying database update messages.
+		add_action( 'admin_notices', array( $this, 'display_db_update_messages' ) );
+
 		add_filter( 'theme_page_templates', array( $this, 'add_custom_page_template' ) );
 		add_filter( 'template_include', array( $this, 'load_custom_page_template' ) );
 		add_filter( 'display_post_states', array( $this, 'add_module_page_post_state' ), 10, 2 );
@@ -43,22 +53,141 @@ class Ieltssci_Core_Module {
 	}
 
 	/**
-	 * Kích hoạt mô-đun lõi.
-	 * Hàm này được gọi khi plugin được kích hoạt. Nó thực hiện các kiểm tra cần thiết
-	 * để đảm bảo tương thích với phiên bản WordPress hiện tại.
-	 *
-	 * @return void
+	 * Activate the core module.
+	 * Runs on plugin activation. Ensures tables exist and sets initial DB version if needed.
 	 */
 	public function activate() {
 		$this->check_wp_version();
 
-		if ( $this->db_schema->needs_upgrade() ) {
-			$this->db_schema->create_tables();
+		// Ensure base tables exist. create_tables uses "IF NOT EXISTS".
+		$creation_result = $this->db_schema->create_tables();
+		if ( is_wp_error( $creation_result ) ) {
+			// Log error or display admin notice on next load.
+			error_log( 'IELTS Science LMS Activation Error (create_tables): ' . $creation_result->get_error_message() );
+			// Optionally add a transient to show an admin notice.
+			return;
 		}
-		// Trigger settings table creation.
+
+		// Check if this is the very first activation (no version set).
+		$current_version = get_option( 'ieltssci_db_version', false );
+		if ( false === $current_version ) {
+			// Set the initial version after successful table creation.
+			update_option( 'ieltssci_db_version', $this->db_schema->get_db_version() );
+		} else {
+			// If version exists, run updates immediately on activation as well.
+			// This handles cases where the plugin was deactivated, updated, then reactivated.
+			$this->run_database_updates();
+		}
+
+		// Trigger other activation actions.
 		do_action( 'ieltssci_activate' );
 	}
 
+	/**
+	 * Run database schema updates if needed.
+	 * Hooked into 'plugins_loaded'.
+	 */
+	public function run_database_updates() {
+		if ( $this->db_schema->needs_upgrade() ) {
+			// Check if Action Scheduler is available.
+			if ( function_exists( 'as_schedule_single_action' ) && ! defined( 'WP_INSTALLING' ) ) {
+				// Check if update is already scheduled.
+				$scheduled_actions = as_get_scheduled_actions(
+					array(
+						'hook'   => 'ieltssci_process_db_update',
+						'status' => 'pending',
+					),
+					'ids'
+				);
+
+				if ( empty( $scheduled_actions ) ) {
+					// Schedule update to run in background (30 seconds later to ensure Action Scheduler is fully loaded).
+					as_schedule_single_action( time() + 30, 'ieltssci_process_db_update' );
+
+					// Add admin notice that updates are scheduled.
+					if ( is_admin() && current_user_can( 'manage_options' ) ) {
+						add_action( 'admin_notices', array( $this, 'display_update_scheduled_notice' ) );
+					}
+				}
+
+				// Register the action handler if not already done.
+				if ( ! has_action( 'ieltssci_process_db_update' ) ) {
+					add_action( 'ieltssci_process_db_update', array( $this, 'process_db_update' ) );
+				}
+			} else {
+				// Fallback to direct update if Action Scheduler isn't available.
+				$this->process_db_update();
+			}
+		}
+	}
+
+	/**
+	 * Process database updates - called directly or via action scheduler.
+	 */
+	public function process_db_update() {
+		$update_result = $this->db_schema->run_updates();
+		if ( is_wp_error( $update_result ) ) {
+			// Log the error.
+			error_log( 'IELTS Science LMS Update Error (run_updates): ' . $update_result->get_error_message() );
+
+			// Store the error in an option for displaying to admin later.
+			update_option( 'ieltssci_db_update_error', $update_result->get_error_message(), false );
+		} else {
+			// Store success message.
+			update_option( 'ieltssci_db_update_success', true, false );
+		}
+	}
+
+	/**
+	 * Display notice that database updates are scheduled.
+	 */
+	public function display_update_scheduled_notice() {
+		?>
+		<div class="notice notice-info is-dismissible">
+			<p>
+				<?php esc_html_e( 'IELTS Science LMS is updating your database in the background. This may take a few moments.', 'ielts-science-lms' ); ?>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Display database update messages on admin screens.
+	 * Hooked into admin_notices.
+	 */
+	public function display_db_update_messages() {
+		// Check for error message.
+		$error = get_option( 'ieltssci_db_update_error' );
+		if ( $error ) {
+			?>
+			<div class="notice notice-error is-dismissible">
+				<p>
+					<?php
+					printf(
+						/* translators: %s: Error message */
+						esc_html__( 'IELTS Science LMS Error: Database update failed. %s', 'ielts-science-lms' ),
+						esc_html( $error )
+					);
+					?>
+				</p>
+			</div>
+			<?php
+			// Clear the error after displaying it.
+			delete_option( 'ieltssci_db_update_error' );
+		}
+
+		// Check for success message.
+		$success = get_option( 'ieltssci_db_update_success' );
+		if ( $success ) {
+			?>
+			<div class="notice notice-success is-dismissible">
+				<p><?php esc_html_e( 'IELTS Science LMS: Database updated successfully.', 'ielts-science-lms' ); ?></p>
+			</div>
+			<?php
+			// Clear the success flag after displaying it.
+			delete_option( 'ieltssci_db_update_success' );
+		}
+	}
 
 	/**
 	 * Vô hiệu hóa plugin.
