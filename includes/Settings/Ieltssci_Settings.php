@@ -41,6 +41,7 @@ class Ieltssci_Settings {
 		add_action( 'admin_enqueue_scripts', array( $this, 'register_settings_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_scripts' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_settings_assets' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_entries_assets' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'wp_ajax_ielts_create_page_ajax', array( $this, 'handle_create_page_ajax' ) );
 	}
@@ -69,6 +70,15 @@ class Ieltssci_Settings {
 			'manage_options',
 			'ielts-science-lms-pages',
 			array( $this, 'pages_settings_page' )
+		);
+
+		add_submenu_page(
+			'ielts-science-lms',
+			__( 'Entries', 'ielts-science-lms' ),
+			__( 'Entries', 'ielts-science-lms' ),
+			'manage_options',
+			'ielts-science-lms-entries',
+			array( $this, 'entries_page' )
 		);
 
 		add_submenu_page(
@@ -742,5 +752,175 @@ class Ieltssci_Settings {
 		}
 
 		return $sanitized_input;
+	}
+
+	/**
+	 * Render the entries page with dynamic tabs.
+	 *
+	 * Displays the admin page for viewing and managing entries
+	 * with tabs that can be registered by different modules.
+	 */
+	public function entries_page() {
+		// Get current tab from URL, default to the first available tab.
+		$current_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
+
+		// Get all registered tabs through the filter.
+		$tabs = $this->get_entries_tabs();
+
+		// If no tab is selected, default to the first tab.
+		if ( empty( $current_tab ) && ! empty( $tabs ) ) {
+			$current_tab = array_key_first( $tabs );
+		}
+
+		// Verify nonce for tab switching if it exists.
+		if ( isset( $_GET['_wpnonce'] ) && ! wp_verify_nonce( sanitize_key( wp_unslash( $_GET['_wpnonce'] ) ), 'ielts_entries_tab_nonce' ) ) {
+			wp_die( esc_html__( 'Security check failed.', 'ielts-science-lms' ) );
+		}
+
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'IELTS Science LMS Entries', 'ielts-science-lms' ); ?></h1>
+
+			<?php if ( ! empty( $tabs ) ) : ?>
+				<!-- Tabs navigation -->
+				<h2 class="nav-tab-wrapper">
+					<?php
+					foreach ( $tabs as $tab_id => $tab ) :
+						$active_class = ( $current_tab === $tab_id ) ? 'nav-tab-active' : '';
+						$url          = add_query_arg(
+							array(
+								'page'     => 'ielts-science-lms-entries',
+								'tab'      => $tab_id,
+								'_wpnonce' => wp_create_nonce( 'ielts_entries_tab_nonce' ),
+							),
+							admin_url( 'admin.php' )
+						);
+						?>
+						<a href="<?php echo esc_url( $url ); ?>" class="nav-tab <?php echo esc_attr( $active_class ); ?>">
+							<?php echo esc_html( $tab['title'] ); ?>
+						</a>
+					<?php endforeach; ?>
+				</h2>
+
+				<!-- Tab content -->
+				<div class="tab-content">
+					<?php
+					if ( isset( $tabs[ $current_tab ] ) && is_callable( $tabs[ $current_tab ]['callback'] ) ) {
+						call_user_func( $tabs[ $current_tab ]['callback'] );
+					} else {
+						echo '<div class="notice notice-warning"><p>';
+						esc_html_e( 'No content found for this tab.', 'ielts-science-lms' );
+						echo '</p></div>';
+					}
+					?>
+				</div>
+			<?php else : ?>
+				<div class="notice notice-info">
+					<p><?php esc_html_e( 'No entry tabs have been registered. Modules can register tabs using the "ieltssci_entries_tabs" filter.', 'ielts-science-lms' ); ?></p>
+				</div>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Get all registered entry tabs from modules.
+	 *
+	 * Retrieves tabs registered through the ieltssci_entries_tabs filter.
+	 * Each tab should have a unique ID, title, and callback function.
+	 *
+	 * @return array Array of registered tabs.
+	 */
+	private function get_entries_tabs() {
+		/**
+		 * Filter to register tabs for the entries page.
+		 *
+		 * @param array $tabs Array of tabs. Each tab should have:
+		 *                   - 'title': The tab title (string)
+		 *                   - 'callback': Function to render the tab content (callable)
+		 *                   - 'priority': Optional display priority (int, default: 10)
+		 */
+		$tabs = apply_filters( 'ieltssci_entries_tabs', array() );
+
+		// Sort tabs by priority.
+		uasort(
+			$tabs,
+			function ( $a, $b ) {
+				$a_priority = isset( $a['priority'] ) ? intval( $a['priority'] ) : 10;
+				$b_priority = isset( $b['priority'] ) ? intval( $b['priority'] ) : 10;
+				return $a_priority - $b_priority;
+			}
+		);
+
+		return $tabs;
+	}
+
+	/**
+	 * Enqueue assets for the entries page.
+	 *
+	 * Loads scripts and styles specifically for the entries admin page.
+	 *
+	 * @param string $hook Current admin page hook.
+	 */
+	public function enqueue_entries_assets( $hook ) {
+		if ( 'ielts-science-lms_page_ielts-science-lms-entries' !== $hook ) {
+			return;
+		}
+
+		// Verify nonce for tab switching if it exists.
+		if ( isset( $_GET['_wpnonce'] ) && ! wp_verify_nonce( sanitize_key( wp_unslash( $_GET['_wpnonce'] ) ), 'ielts_entries_tab_nonce' ) ) {
+			wp_die( esc_html__( 'Security check failed.', 'ielts-science-lms' ) );
+		}
+
+		// Get the appropriate script handle for entries.
+		$script_handle  = 'ielts-science-wp-admin-entries';
+		$style_handle   = "{$script_handle}-css";
+		$runtime_handle = 'ielts-science-wp-admin-runtime';
+
+		// Enqueue the runtime script if it's registered.
+		if ( wp_script_is( $runtime_handle, 'registered' ) ) {
+			wp_enqueue_script( $runtime_handle );
+		}
+
+		// Enqueue the entries script if it's registered.
+		if ( wp_script_is( $script_handle, 'registered' ) ) {
+			wp_enqueue_script( $script_handle );
+
+			// Localize script with data for the entries application.
+			wp_localize_script(
+				$script_handle,
+				'ieltssciEntries',
+				array(
+					'apiRoot' => esc_url_raw( rest_url() ),
+					'nonce'   => wp_create_nonce( 'wp_rest' ),
+				)
+			);
+		}
+
+		// Enqueue the style if it's registered.
+		if ( wp_style_is( $style_handle, 'registered' ) ) {
+			wp_enqueue_style( $style_handle );
+		}
+
+		// Add WordPress admin component styles.
+		wp_enqueue_style( 'wp-components' );
+
+		// Add basic styling for the placeholder.
+		?>
+		<style>
+			.ieltssci-placeholder {
+				padding: 40px;
+				background: #f9f9f9;
+				border: 1px solid #e5e5e5;
+				text-align: center;
+				border-radius: 4px;
+				margin-top: 20px;
+			}
+			.ieltssci-placeholder p {
+				font-size: 16px;
+				color: #72777c;
+			}
+		</style>
+		<?php
 	}
 }
