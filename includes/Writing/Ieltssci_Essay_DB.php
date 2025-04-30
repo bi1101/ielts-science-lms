@@ -190,6 +190,8 @@ class Ieltssci_Essay_DB {
 	 *     @type int|array    $created_by   User ID or array of user IDs who created the essays.
 	 *     @type string       $search       Search term to look for in question or content.
 	 *     @type array        $date_query   Query by date parameters (similar to WP_Query).
+	 *     @type array        $include      Additional related data to include in results.
+	 *                                      Accepts array with values: 'creator' to include creator's username.
 	 *     @type string       $orderby      Field to order results by. Default 'id'.
 	 *                                      Accepts 'id', 'uuid', 'essay_type', 'created_at', 'created_by'.
 	 *     @type string       $order        Order direction. Default 'DESC'.
@@ -211,6 +213,7 @@ class Ieltssci_Essay_DB {
 				'created_by'  => null,
 				'search'      => null,
 				'date_query'  => null,
+				'include'     => array(),
 				'orderby'     => 'id',
 				'order'       => 'DESC',
 				'per_page'    => 10,
@@ -218,9 +221,19 @@ class Ieltssci_Essay_DB {
 				'count'       => false,
 			);
 
-			$args           = wp_parse_args( $args, $defaults );
-			$select         = $args['count'] ? 'COUNT(*)' : '*';
-			$from           = $this->essays_table;
+			$args            = wp_parse_args( $args, $defaults );
+			$include_creator = is_array( $args['include'] ) && in_array( 'creator', $args['include'], true );
+
+			$select = $args['count'] ? 'COUNT(*)' : 'e.*';
+			if ( $include_creator && ! $args['count'] ) {
+				$select .= ', u.user_login as creator_username, u.display_name as creator_display_name';
+			}
+
+			$from = $this->essays_table . ' e';
+			if ( $include_creator && ! $args['count'] ) {
+				$from .= ' LEFT JOIN ' . $this->wpdb->users . ' u ON e.created_by = u.ID';
+			}
+
 			$where          = array( '1=1' );
 			$prepare_values = array();
 
@@ -228,10 +241,10 @@ class Ieltssci_Essay_DB {
 			if ( ! is_null( $args['id'] ) ) {
 				if ( is_array( $args['id'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['id'] ), '%d' );
-					$where[]        = 'id IN (' . implode( ',', $placeholders ) . ')';
+					$where[]        = 'e.id IN (' . implode( ',', $placeholders ) . ')';
 					$prepare_values = array_merge( $prepare_values, $args['id'] );
 				} else {
-					$where[]          = 'id = %d';
+					$where[]          = 'e.id = %d';
 					$prepare_values[] = $args['id'];
 				}
 			}
@@ -240,10 +253,10 @@ class Ieltssci_Essay_DB {
 			if ( ! is_null( $args['uuid'] ) ) {
 				if ( is_array( $args['uuid'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['uuid'] ), '%s' );
-					$where[]        = 'uuid IN (' . implode( ',', $placeholders ) . ')';
+					$where[]        = 'e.uuid IN (' . implode( ',', $placeholders ) . ')';
 					$prepare_values = array_merge( $prepare_values, $args['uuid'] );
 				} else {
-					$where[]          = 'uuid = %s';
+					$where[]          = 'e.uuid = %s';
 					$prepare_values[] = $args['uuid'];
 				}
 			}
@@ -252,10 +265,10 @@ class Ieltssci_Essay_DB {
 			if ( ! is_null( $args['original_id'] ) ) {
 				if ( is_array( $args['original_id'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['original_id'] ), '%d' );
-					$where[]        = 'original_id IN (' . implode( ',', $placeholders ) . ')';
+					$where[]        = 'e.original_id IN (' . implode( ',', $placeholders ) . ')';
 					$prepare_values = array_merge( $prepare_values, $args['original_id'] );
 				} else {
-					$where[]          = 'original_id = %d';
+					$where[]          = 'e.original_id = %d';
 					$prepare_values[] = $args['original_id'];
 				}
 			}
@@ -264,10 +277,10 @@ class Ieltssci_Essay_DB {
 			if ( ! is_null( $args['essay_type'] ) ) {
 				if ( is_array( $args['essay_type'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['essay_type'] ), '%s' );
-					$where[]        = 'essay_type IN (' . implode( ',', $placeholders ) . ')';
+					$where[]        = 'e.essay_type IN (' . implode( ',', $placeholders ) . ')';
 					$prepare_values = array_merge( $prepare_values, $args['essay_type'] );
 				} else {
-					$where[]          = 'essay_type = %s';
+					$where[]          = 'e.essay_type = %s';
 					$prepare_values[] = $args['essay_type'];
 				}
 			}
@@ -276,17 +289,17 @@ class Ieltssci_Essay_DB {
 			if ( ! is_null( $args['created_by'] ) ) {
 				if ( is_array( $args['created_by'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['created_by'] ), '%d' );
-					$where[]        = 'created_by IN (' . implode( ',', $placeholders ) . ')';
+					$where[]        = 'e.created_by IN (' . implode( ',', $placeholders ) . ')';
 					$prepare_values = array_merge( $prepare_values, $args['created_by'] );
 				} else {
-					$where[]          = 'created_by = %d';
+					$where[]          = 'e.created_by = %d';
 					$prepare_values[] = $args['created_by'];
 				}
 			}
 
 			// Process search.
 			if ( ! is_null( $args['search'] ) ) {
-				$where[]          = '(question LIKE %s OR essay_content LIKE %s)';
+				$where[]          = '(e.question LIKE %s OR e.essay_content LIKE %s)';
 				$search_term      = '%' . $this->wpdb->esc_like( $args['search'] ) . '%';
 				$prepare_values[] = $search_term;
 				$prepare_values[] = $search_term;
@@ -295,11 +308,11 @@ class Ieltssci_Essay_DB {
 			// Process date query (simplified approach).
 			if ( ! is_null( $args['date_query'] ) && is_array( $args['date_query'] ) ) {
 				if ( ! empty( $args['date_query']['after'] ) ) {
-					$where[]          = 'created_at >= %s';
+					$where[]          = 'e.created_at >= %s';
 					$prepare_values[] = $args['date_query']['after'];
 				}
 				if ( ! empty( $args['date_query']['before'] ) ) {
-					$where[]          = 'created_at <= %s';
+					$where[]          = 'e.created_at <= %s';
 					$prepare_values[] = $args['date_query']['before'];
 				}
 			}
@@ -312,6 +325,9 @@ class Ieltssci_Essay_DB {
 				// Sanitize orderby field.
 				$allowed_orderby = array( 'id', 'uuid', 'essay_type', 'created_at', 'created_by' );
 				$orderby         = in_array( $args['orderby'], $allowed_orderby, true ) ? $args['orderby'] : 'id';
+
+				// Add table prefix for clarity.
+				$orderby = 'e.' . $orderby;
 
 				// Sanitize order direction.
 				$order = strtoupper( $args['order'] ) === 'ASC' ? 'ASC' : 'DESC';

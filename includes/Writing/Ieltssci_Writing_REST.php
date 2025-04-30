@@ -376,6 +376,14 @@ class Ieltssci_Writing_REST {
 				'default'     => 1,
 				'minimum'     => 1,
 			),
+			'include'     => array(
+				'description' => 'Include specific fields in the response',
+				'type'        => 'array',
+				'default'     => array(),
+				'items'       => array(
+					'type' => 'string',
+				),
+			),
 		);
 	}
 
@@ -400,6 +408,7 @@ class Ieltssci_Writing_REST {
 			'order',
 			'per_page',
 			'page',
+			'include',
 		);
 
 		foreach ( $direct_params as $param ) {
@@ -423,6 +432,12 @@ class Ieltssci_Writing_REST {
 			if ( $before ) {
 				$args['date_query']['before'] = $before;
 			}
+		}
+
+		// Handle include parameter.
+		$include = $request->get_param( 'include' );
+		if ( ! empty( $include ) && is_array( $include ) ) {
+			$args['include'] = array_map( 'sanitize_text_field', $include );
 		}
 
 		// Check for all_entries parameter.
