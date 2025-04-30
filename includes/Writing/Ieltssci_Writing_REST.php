@@ -330,6 +330,12 @@ class Ieltssci_Writing_REST {
 					return is_numeric( $param ) && $param > 0;
 				},
 			),
+			'all_entries' => array(
+				'description'       => 'Whether to retrieve all essays regardless of user. Only allowed for managers/administrators.',
+				'type'              => 'boolean',
+				'default'           => false,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
 			'search'      => array(
 				'description'       => 'Search term to look for in question or content',
 				'type'              => 'string',
@@ -419,8 +425,21 @@ class Ieltssci_Writing_REST {
 			}
 		}
 
-		// If no UUID or ID is provided, filter by current user automatically.
-		if ( ! isset( $args['uuid'] ) && ! isset( $args['id'] ) ) {
+		// Check for all_entries parameter.
+		$all_entries = $request->get_param( 'all_entries' );
+
+		// If all_entries is true, check if user has proper permissions.
+		if ( $all_entries ) {
+			// Check if user has manager/administrator capabilities.
+			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'edit_others_posts' ) ) {
+				return new WP_Error(
+					'rest_forbidden',
+					__( 'You do not have permission to view all essays.', 'ielts-science-lms' ),
+					array( 'status' => 403 )
+				);
+			}
+			// If permission check passes, we don't add created_by filter, allowing all essays to be returned.
+		} elseif ( ! isset( $args['uuid'] ) && ! isset( $args['id'] ) ) {
 			$args['created_by'] = get_current_user_id();
 		}
 

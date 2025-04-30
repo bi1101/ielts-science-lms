@@ -114,48 +114,54 @@ class Ieltssci_Speaking_REST {
 	 */
 	public function get_speeches_args() {
 		return array(
-			'id'         => array(
+			'id'          => array(
 				'description' => 'Speech ID or array of IDs',
 				'type'        => array( 'integer', 'array' ),
 			),
-			'uuid'       => array(
+			'uuid'        => array(
 				'description' => 'Speech UUID or array of UUIDs',
 				'type'        => array( 'string', 'array' ),
 			),
-			'created_by' => array(
+			'created_by'  => array(
 				'description' => 'User ID or array of user IDs',
 				'type'        => array( 'integer', 'array' ),
 			),
-			'after'      => array(
+			'all_entries' => array(
+				'description'       => 'Whether to retrieve all speeches regardless of user. Only allowed for managers/administrators.',
+				'type'              => 'boolean',
+				'default'           => false,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'after'       => array(
 				'description' => 'Get speeches after this date',
 				'type'        => 'string',
 				'format'      => 'date-time',
 			),
-			'before'     => array(
+			'before'      => array(
 				'description' => 'Get speeches before this date',
 				'type'        => 'string',
 				'format'      => 'date-time',
 			),
-			'orderby'    => array(
+			'orderby'     => array(
 				'description' => 'Sort by field',
 				'type'        => 'string',
 				'default'     => 'id',
 				'enum'        => array( 'id', 'uuid', 'created_at', 'created_by' ),
 			),
-			'order'      => array(
+			'order'       => array(
 				'description' => 'Sort order',
 				'type'        => 'string',
 				'default'     => 'DESC',
 				'enum'        => array( 'ASC', 'DESC' ),
 			),
-			'per_page'   => array(
+			'per_page'    => array(
 				'description' => 'Items per page',
 				'type'        => 'integer',
 				'default'     => 10,
 				'minimum'     => 1,
 				'maximum'     => 100,
 			),
-			'page'       => array(
+			'page'        => array(
 				'description' => 'Page number',
 				'type'        => 'integer',
 				'default'     => 1,
@@ -207,8 +213,21 @@ class Ieltssci_Speaking_REST {
 			}
 		}
 
-		// If no UUID or ID is provided, filter by current user.
-		if ( ! isset( $args['uuid'] ) && ! isset( $args['id'] ) ) {
+		// Check for all_entries parameter.
+		$all_entries = $request->get_param( 'all_entries' );
+
+		// If all_entries is true, check if user has proper permissions.
+		if ( $all_entries ) {
+			// Check if user has manager/administrator capabilities.
+			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'edit_others_posts' ) ) {
+				return new WP_Error(
+					'rest_forbidden',
+					__( 'You do not have permission to view all speeches.', 'ielts-science-lms' ),
+					array( 'status' => 403 )
+				);
+			}
+			// If no UUID or ID is provided and all_entries is not true, filter by current user automatically.
+		} elseif ( ! isset( $args['uuid'] ) && ! isset( $args['id'] ) ) {
 			$args['created_by'] = get_current_user_id();
 		}
 
