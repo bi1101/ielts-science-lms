@@ -24,6 +24,9 @@ class Ieltssci_Writing_Entries {
 	public function __construct() {
 		// Register the writing tab on the entries page.
 		add_filter( 'ieltssci_entries_tabs', array( $this, 'register_writing_entries_tab' ) );
+
+		// Add hook for enqueueing assets specific to the writing entries tab.
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_entries_assets' ) );
 	}
 
 	/**
@@ -57,6 +60,84 @@ class Ieltssci_Writing_Entries {
 				</div>
 			</div>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Enqueue assets for the writing entries tab.
+	 *
+	 * Loads scripts and styles specifically for the writing entries tab.
+	 *
+	 * @param string $hook Current admin page hook.
+	 */
+	public function enqueue_entries_assets( $hook ) {
+		if ( 'ielts-science-lms_page_ielts-science-lms-entries' !== $hook ) {
+			return;
+		}
+
+		// Get the current tab from URL.
+		$current_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'writing_entries';
+
+		// Only enqueue assets for the writing entries tab.
+		if ( 'writing_entries' !== $current_tab && empty( $current_tab ) ) {
+			return;
+		}
+
+		// Verify nonce for tab switching if it exists.
+		if ( isset( $_GET['_wpnonce'] ) && ! wp_verify_nonce( sanitize_key( wp_unslash( $_GET['_wpnonce'] ) ), 'ielts_entries_tab_nonce' ) ) {
+			wp_die( esc_html__( 'Security check failed.', 'ielts-science-lms' ) );
+		}
+
+		// Get the appropriate script handle for entries.
+		$script_handle  = 'ielts-science-wp-admin-entries';
+		$style_handle   = "{$script_handle}-css";
+		$runtime_handle = 'ielts-science-wp-admin-runtime';
+
+		// Enqueue the runtime script if it's registered.
+		if ( wp_script_is( $runtime_handle, 'registered' ) ) {
+			wp_enqueue_script( $runtime_handle );
+		}
+
+		// Enqueue the entries script if it's registered.
+		if ( wp_script_is( $script_handle, 'registered' ) ) {
+			wp_enqueue_script( $script_handle );
+
+			// Localize script with data for the writing entries application.
+			wp_localize_script(
+				$script_handle,
+				'ieltssciEntries',
+				array(
+					'apiRoot' => esc_url_raw( rest_url() ),
+					'nonce'   => wp_create_nonce( 'wp_rest' ),
+					'module'  => 'writing', // Specify the current module.
+				)
+			);
+		}
+
+		// Enqueue the style if it's registered.
+		if ( wp_style_is( $style_handle, 'registered' ) ) {
+			wp_enqueue_style( $style_handle );
+		}
+
+		// Add WordPress admin component styles.
+		wp_enqueue_style( 'wp-components' );
+
+		// Add basic styling for the placeholder.
+		?>
+		<style>
+			.ieltssci-placeholder {
+				padding: 40px;
+				background: #f9f9f9;
+				border: 1px solid #e5e5e5;
+				text-align: center;
+				border-radius: 4px;
+				margin-top: 20px;
+			}
+			.ieltssci-placeholder p {
+				font-size: 16px;
+				color: #72777c;
+			}
+		</style>
 		<?php
 	}
 }

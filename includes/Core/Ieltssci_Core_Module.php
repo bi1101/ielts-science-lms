@@ -32,13 +32,13 @@ class Ieltssci_Core_Module {
 		// Instantiate DB Schema early.
 		$this->db_schema = new Ieltssci_Database_Schema();
 
-		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
-		new \IeltsScienceLMS\Speaking\Ieltssci_Speaking_Module();
+		new Ieltssci_Core_Ajax();
 		new \IeltsScienceLMS\Settings\Ieltssci_Settings();
 		new \IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeed_Module();
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit();
 		new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys();
-		new Ieltssci_Core_Ajax();
+		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
+		new \IeltsScienceLMS\Speaking\Ieltssci_Speaking_Module();
 
 		// Hook for running DB updates.
 		add_action( 'plugins_loaded', array( $this, 'run_database_updates' ), 5 ); // Run early.
