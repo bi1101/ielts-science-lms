@@ -229,6 +229,14 @@ class Ieltssci_Writing_Settings {
 						'label' => 'gpt-4o',
 						'value' => 'gpt-4o',
 					),
+					array(
+						'label' => 'gemini-2.0-flash',
+						'value' => 'gemini-2.0-flash',
+					),
+					array(
+						'label' => 'gemini-2.0-flash-lite',
+						'value' => 'gemini-2.0-flash-lite',
+					),
 				),
 				'open-ai'     => array(
 					array(
@@ -252,6 +260,10 @@ class Ieltssci_Writing_Settings {
 					array(
 						'label' => 'gemini-2.0-flash',
 						'value' => 'gemini-2.0-flash',
+					),
+					array(
+						'label' => 'gemini-2.0-flash-lite',
+						'value' => 'gemini-2.0-flash-lite',
 					),
 				),
 				'azure'       => array(
