@@ -376,48 +376,121 @@ class Ieltssci_API_Client {
 			// Set stream to non-blocking mode for better responsiveness.
 			stream_set_blocking( $handle, false );
 
+			$line_accumulator = ''; // Buffer for accumulating parts of a line.
+			$done_received    = false; // Flag to stop processing after [DONE] is received.
+
 			// Process the stream.
-			while ( ! feof( $handle ) ) {
-				$line = fgets( $handle );
+			while ( ! feof( $handle ) && ! $done_received ) {
+				$chunk = fgets( $handle ); // Read a chunk from the stream. Can be partial in non-blocking mode.
 
 				// If no data is available yet in non-blocking mode, wait briefly and continue.
-				if ( false === $line && ! feof( $handle ) ) {
+				if ( false === $chunk && ! feof( $handle ) ) {
 					usleep( 10000 ); // Sleep for 10ms to avoid CPU spinning.
 					continue;
 				}
 
-				if ( false === $line && feof( $handle ) ) {
-					// End of stream reached.
-					break;
+				if ( false !== $chunk ) {
+					$line_accumulator .= $chunk; // Append read chunk to the accumulator.
 				}
 
-				// Skip empty lines.
-				if ( '' === $line || "\n" === $line || "\r\n" === $line ) {
-					continue;
-				}
+				// Process complete lines from the accumulator.
+				// An SSE event line typically ends with \n.
+				// We loop here because $line_accumulator might contain multiple complete lines.
+				while ( ( $newline_pos = strpos( $line_accumulator, "\n" ) ) !== false && ! $done_received ) {
+					$line_to_process  = substr( $line_accumulator, 0, $newline_pos + 1 ); // Extract the complete line including newline.
+					$line_accumulator = substr( $line_accumulator, $newline_pos + 1 );    // Remove the processed line from accumulator.
 
-				// Process data lines based on provider format.
-				if ( 0 === strpos( $line, 'data: ' ) ) {
-					$content_chunk = $this->extract_content( $api_provider, $line );
+					$line = trim( $line_to_process ); // Trim whitespace, including \r\n.
 
-					if ( '[DONE]' === $content_chunk ) {
-						break;
+					// Skip empty lines. In SSE, these are event delimiters.
+					if ( '' === $line ) {
+						continue;
 					}
 
-					if ( $content_chunk ) {
-						$full_response .= $content_chunk;
+					// Process data lines based on provider format.
+					if ( 0 === strpos( $line, 'data: ' ) ) {
+						$content_chunk = $this->extract_content( $api_provider, $line ); // $line is now a complete "data: ..." line.
 
-						// Send chunk immediately.
-						$this->message_handler->send_message(
-							$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-							array(
-								'content'   => $content_chunk,
-								'step_type' => $step_type,
-							)
-						);
+						if ( '[DONE]' === $content_chunk ) {
+							$done_received = true; // Set flag to terminate stream processing.
+							// Send [DONE] message to the client if your application expects it!
+							$this->message_handler->send_message(
+								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+								array(
+									'content'   => '[DONE]',
+									'step_type' => $step_type,
+								)
+							);
+							break; // Exit inner loop (processing lines from accumulator).
+						}
+
+						// Check if extract_content returned a JSON decoding error message.
+						if ( $content_chunk && is_string( $content_chunk ) && strpos( $content_chunk, 'JSON decode error' ) === 0 ) {
+							// Handle malformed JSON data. For example, send an error message.
+							$this->message_handler->send_message(
+								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+								array(
+									'content'   => 'Error processing stream data: ' . $content_chunk,
+									'step_type' => $step_type,
+									'is_error'  => true, // Custom flag to indicate an error.
+								)
+							);
+							// Do not append malformed data to $full_response.
+						} elseif ( $content_chunk ) {
+							$full_response .= $content_chunk;
+
+							// Send chunk immediately.
+							$this->message_handler->send_message(
+								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+								array(
+									'content'   => $content_chunk,
+									'step_type' => $step_type,
+								)
+							);
+						}
 					}
+				} // End of inner while loop (processing lines from accumulator).
+
+				// If EOF is reached and we haven't received [DONE], process any remaining data in the accumulator.
+				if ( feof( $handle ) && ! $done_received && ! empty( trim( $line_accumulator ) ) ) {
+					$line = trim( $line_accumulator ); // Process the final, potentially partial, line.
+					if ( 0 === strpos( $line, 'data: ' ) ) {
+						$content_chunk = $this->extract_content( $api_provider, $line );
+
+						if ( '[DONE]' === $content_chunk ) {
+							$done_received = true;
+							$this->message_handler->send_message(
+								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+								array(
+									'content'   => '[DONE]',
+									'step_type' => $step_type,
+								)
+							);
+						} elseif ( $content_chunk && is_string( $content_chunk ) && strpos( $content_chunk, 'JSON decode error' ) === 0 ) {
+							// Handle error for the final fragment.
+							$this->message_handler->send_message(
+								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+								array(
+									'content'   => 'Error processing final stream fragment: ' . $content_chunk,
+									'step_type' => $step_type,
+									'is_error'  => true,
+								)
+							);
+						} elseif ( $content_chunk ) {
+							$full_response .= $content_chunk;
+							$this->message_handler->send_message(
+								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+								array(
+									'content'   => $content_chunk,
+									'step_type' => $step_type,
+								)
+							);
+						}
+					}
+					$line_accumulator = ''; // Clear accumulator.
+					break; // Exit outer loop as stream has ended.
 				}
-			}
+			} // End of outer while ( ! feof( $handle ) && !$done_received ).
 
 			// Ensure we close the stream handle.
 			if ( is_resource( $handle ) ) {
