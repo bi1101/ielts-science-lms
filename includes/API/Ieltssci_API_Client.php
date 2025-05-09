@@ -74,6 +74,9 @@ class Ieltssci_API_Client {
 			case 'home-server-whisperx-api-server':
 				$settings['base_uri'] = 'https://api3.ieltsscience.fun/v1/';
 				break;
+			case 'vllm':
+				$settings['base_uri'] = 'https://llm.ieltsscience.fun/v1/';
+				break;
 			default:
 				// Default to OpenAI.
 				$settings['base_uri'] = 'https://api.openai.com/v1/';
@@ -101,7 +104,7 @@ class Ieltssci_API_Client {
 			)
 		);
 
-		if ( ! $api_key && 'home-server' !== $provider && 'home-server-whisperx-api-server' !== $provider ) {
+		if ( ! $api_key && 'home-server' !== $provider && 'home-server-whisperx-api-server' !== $provider && 'vllm' !== $provider ) {
 			throw new Exception( esc_html( "API key not found for provider: {$provider}" ) );
 		}
 
@@ -133,6 +136,11 @@ class Ieltssci_API_Client {
 					'Accept'       => $accept_header,
 				);
 			case 'home-server-whisperx-api-server':
+				return array(
+					'Content-Type' => 'application/json',
+					'Accept'       => $accept_header,
+				);
+			case 'vllm':
 				return array(
 					'Content-Type' => 'application/json',
 					'Accept'       => $accept_header,

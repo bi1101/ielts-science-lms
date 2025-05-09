@@ -94,6 +94,10 @@ class Ieltssci_Settings_Config {
 					'label' => 'Home Server',
 					'value' => 'home-server',
 				),
+				array(
+					'label' => 'VLLM',
+					'value' => 'vllm',
+				),
 			)
 		);
 	}
