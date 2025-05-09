@@ -705,7 +705,7 @@ class Ieltssci_Writing_REST {
 			'essay_content'   => $request->get_param( 'essay_content' ),
 			'original_id'     => $request->get_param( 'original_id' ),
 			'ocr_image_ids'   => $request->get_param( 'ocr_image_ids' ),
-			'chart_image_ids' => $request->get_param( 'chart_media_ids' ),
+			'chart_image_ids' => $request->get_param( 'chart_image_ids' ),
 			'created_by'      => get_current_user_id(),
 		);
 
