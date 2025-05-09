@@ -130,7 +130,7 @@ class Ieltssci_Writing_Feedback_Processor {
 			$this->process_feed( $feed, $uuid, $segment_order, $language, $feedback_style, $guide_score, $guide_feedback );
 			return null;
 		} catch ( Exception $e ) {
-			return new WP_Error( 500, $e->getMessage() );
+			return new WP_Error( 'feed_processing_error', $e->getMessage(), array( 'status' => 500 ) );
 		}
 	}
 
@@ -282,6 +282,7 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
 	 *
 	 * @return string The processed content.
+	 * @throws Exception When API calls fail or return errors.
 	 */
 	public function process_step( $step, $uuid, $feed, $segment = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
 		// Get settings from the step.
@@ -468,6 +469,21 @@ class Ieltssci_Writing_Feedback_Processor {
 				// Use API client for parallel API calls.
 				$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type );
 
+				// Check if result is a WP_Error.
+				if ( is_wp_error( $result ) ) {
+					$error_message = $result->get_error_message();
+					$this->send_error(
+						$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
+						array(
+							'title'    => 'Parallel API Request Failed',
+							'message'  => $error_message,
+							'ctaTitle' => 'Try Again',
+							'ctaLink'  => '#',
+						)
+					);
+					throw new Exception( esc_html( 'Parallel API request failed: ' . $error_message ) );
+				}
+
 				// Process the result if it's a scoring step.
 				if ( 'scoring' === $step_type ) {
 					$extracted_score = $this->extract_score_from_result( $result, $score_regex );
@@ -495,6 +511,22 @@ class Ieltssci_Writing_Feedback_Processor {
 			} elseif ( 'scoring' === $step_type ) {
 				// For scoring, use API client's score API call.
 				$result = $this->api_client->make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex, $images );
+
+				// Check if result is a WP_Error.
+				if ( is_wp_error( $result ) ) {
+					$error_message = $result->get_error_message();
+					$this->send_error(
+						$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
+						array(
+							'title'    => 'Scoring API Request Failed',
+							'message'  => $error_message,
+							'ctaTitle' => 'Try Again',
+							'ctaLink'  => '#',
+						)
+					);
+					throw new Exception( esc_html( 'Scoring API request failed: ' . $error_message ) );
+				}
+
 				// Send score to frontend.
 				$this->send_message(
 					$this->transform_case( $step_type, 'snake_upper' ),
@@ -506,6 +538,21 @@ class Ieltssci_Writing_Feedback_Processor {
 			} else {
 				// For non-scoring steps, use API client's streaming API call.
 				$result = $this->api_client->make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images );
+
+				// Check if result is a WP_Error.
+				if ( is_wp_error( $result ) ) {
+					$error_message = $result->get_error_message();
+					$this->send_error(
+						$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
+						array(
+							'title'    => 'Streaming API Request Failed',
+							'message'  => $error_message,
+							'ctaTitle' => 'Try Again',
+							'ctaLink'  => '#',
+						)
+					);
+					throw new Exception( esc_html( 'Streaming API request failed: ' . $error_message ) );
+				}
 			}
 		}
 

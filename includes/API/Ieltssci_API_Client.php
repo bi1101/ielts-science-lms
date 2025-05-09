@@ -317,101 +317,140 @@ class Ieltssci_API_Client {
 	 * @param array  $feed The feed data.
 	 * @param string $step_type The type of step being processed.
 	 * @param array  $images Array of base64-encoded images.
-	 * @return string The full accumulated response from the API.
+	 * @return string|WP_Error The full accumulated response from the API or WP_Error on failure.
 	 */
 	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array() ) {
-		// Get client settings.
-		$client_settings = $this->get_client_settings( $api_provider );
+		try {
+			// Get client settings.
+			$client_settings = $this->get_client_settings( $api_provider );
 
-		// Get headers including API key.
-		$headers = $this->get_request_headers( $api_provider, true );
+			// Get headers including API key.
+			$headers = $this->get_request_headers( $api_provider, true );
 
-		// Combine settings and headers.
-		$client_settings['headers'] = $headers;
+			// Combine settings and headers.
+			$client_settings['headers'] = $headers;
 
-		// Decider Function: Determines IF a request should be retried.
-		$decider = function ( $retries, $request, $response, $exception ) {
-			// 1. Limit the maximum number of retries.
-			if ( $retries >= 3 ) {  // Max retries.
-				return false;
+			// Decider Function: Determines IF a request should be retried.
+			$decider = function ( $retries, $request, $response, $exception ) {
+				// 1. Limit the maximum number of retries.
+				if ( $retries >= 3 ) {  // Max retries.
+					return false;
+				}
+
+				return true;
+			};
+
+			// Add handler stack with retry middleware.
+			$stack = HandlerStack::create();
+			$stack->push( Middleware::retry( $decider ) );
+			$client_settings['handler'] = $stack;
+
+			$client = new Client( $client_settings );
+
+			// Prepare request payload based on the API provider.
+			$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, true, $images );
+
+			$endpoint = 'chat/completions';
+
+			$response = $client->request(
+				'POST',
+				$endpoint,
+				array(
+					'json'           => $payload,
+					'stream'         => true,
+					'decode_content' => true,
+				)
+			);
+
+			$full_response = '';
+			$stream        = $response->getBody();
+
+			// Get a PHP stream resource from Guzzle's stream.
+			$handle = $stream->detach();
+
+			// Check if handle is a valid resource.
+			if ( ! is_resource( $handle ) ) {
+				return new WP_Error( 'stream_detach_failed', 'Failed to detach stream resource.' );
 			}
 
-			return true;
-		};
+			// Set stream to non-blocking mode for better responsiveness.
+			stream_set_blocking( $handle, false );
 
-		// Add handler stack with retry middleware.
-		$stack = HandlerStack::create();
-		$stack->push( Middleware::retry( $decider ) );
-		$client_settings['handler'] = $stack;
+			// Process the stream.
+			while ( ! feof( $handle ) ) {
+				$line = fgets( $handle );
 
-		$client = new Client( $client_settings );
+				// If no data is available yet in non-blocking mode, wait briefly and continue.
+				if ( false === $line && ! feof( $handle ) ) {
+					usleep( 10000 ); // Sleep for 10ms to avoid CPU spinning.
+					continue;
+				}
 
-		// Prepare request payload based on the API provider.
-		$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, true, $images );
-
-		$endpoint = 'chat/completions';
-
-		$response = $client->request(
-			'POST',
-			$endpoint,
-			array(
-				'json'           => $payload,
-				'stream'         => true,
-				'decode_content' => true,
-			)
-		);
-
-		$full_response = '';
-		$stream        = $response->getBody();
-
-		// Get a PHP stream resource from Guzzle's stream.
-		$handle = $stream->detach();
-
-		// Set stream to non-blocking mode for better responsiveness.
-		stream_set_blocking( $handle, false );
-
-		// Process the stream.
-		while ( ! feof( $handle ) ) {
-			$line = fgets( $handle );
-
-			// If no data is available yet in non-blocking mode, wait briefly and continue.
-			if ( false === $line ) {
-				usleep( 10000 ); // Sleep for 10ms to avoid CPU spinning.
-				continue;
-			}
-
-			// Skip empty lines.
-			if ( '' === $line ) {
-				continue;
-			}
-
-			// Process data lines based on provider format.
-			if ( 0 === strpos( $line, 'data: ' ) ) {
-				$content_chunk = $this->extract_content( $api_provider, $line );
-
-				if ( '[DONE]' === $content_chunk ) {
+				if ( false === $line && feof( $handle ) ) {
+					// End of stream reached.
 					break;
 				}
 
-				if ( $content_chunk ) {
-					$full_response .= $content_chunk;
+				// Skip empty lines.
+				if ( '' === $line || "\n" === $line || "\r\n" === $line ) {
+					continue;
+				}
 
-					// Send chunk immediately.
-					$this->message_handler->send_message(
-						$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-						array(
-							'content'   => $content_chunk,
-							'step_type' => $step_type,
-						)
-					);
+				// Process data lines based on provider format.
+				if ( 0 === strpos( $line, 'data: ' ) ) {
+					$content_chunk = $this->extract_content( $api_provider, $line );
+
+					if ( '[DONE]' === $content_chunk ) {
+						break;
+					}
+
+					if ( $content_chunk ) {
+						$full_response .= $content_chunk;
+
+						// Send chunk immediately.
+						$this->message_handler->send_message(
+							$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+							array(
+								'content'   => $content_chunk,
+								'step_type' => $step_type,
+							)
+						);
+					}
 				}
 			}
+
+			// Ensure we close the stream handle.
+			if ( is_resource( $handle ) ) {
+				fclose( $handle );
+			}
+
+			return $full_response;
+
+		} catch ( RequestException $e ) {
+			$error_message = $e->getMessage();              if ( $e->hasResponse() ) {
+					$error_message .= ' Response: ' . $e->getResponse()->getBody();
+			}
+
+				$this->message_handler->send_error(
+					'stream_api_error',
+					array(
+						'title'   => 'Streaming API Error',
+						'message' => $error_message,
+					)
+				);
+
+				return new WP_Error( 'stream_api_request_failed', 'Streaming API request failed: ' . $error_message, array( 'status' => $e->getCode() ? $e->getCode() : 500 ) );
+		} catch ( Exception $e ) {
+			$this->message_handler->send_error(
+				'stream_api_error',
+				array(
+					'title'   => 'Streaming API Error',
+					'message' => $e->getMessage(),
+				)
+			);
+
+			return new WP_Error( 'stream_api_general_error', 'An unexpected error occurred during streaming: ' . $e->getMessage(), array( 'status' => $e->getCode() ? $e->getCode() : 500 ) );
 		}
-
-		// Ensure we close the stream handle.
-		fclose( $handle );
-
-		return $full_response;
 	}
 
 	/**
@@ -424,41 +463,41 @@ class Ieltssci_API_Client {
 	 * @param int    $max_tokens The maximum tokens to generate.
 	 * @param string $score_regex Regex pattern to extract score from the response.
 	 * @param array  $images Array of base64-encoded images.
-	 * @return string The extracted score or full response if score extraction fails.
+	 * @return string|WP_Error The extracted score or full response if score extraction fails, or WP_Error on failure.
 	 */
 	public function make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex, $images = array() ) {
-		// Get client settings.
-		$client_settings = $this->get_client_settings( $api_provider );
-
-		// Get headers including API key.
-		$headers = $this->get_request_headers( $api_provider, false );
-
-		// Combine settings and headers.
-		$client_settings['headers'] = $headers;
-
-		// Decider Function: Determines IF a request should be retried.
-		$decider = function ( $retries, $request, $response, $exception ) {
-			// 1. Limit the maximum number of retries.
-			if ( $retries >= 3 ) {  // Max retries.
-				return false;
-			}
-
-			return true;
-		};
-
-		// Add handler stack with retry middleware.
-		$stack = HandlerStack::create();
-		$stack->push( Middleware::retry( $decider ) );
-		$client_settings['handler'] = $stack;
-
-		$client = new Client( $client_settings );
-
-		// Prepare request payload based on the API provider - no streaming.
-		$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, false, $images );
-
-		$endpoint = 'chat/completions';
-
 		try {
+			// Get client settings.
+			$client_settings = $this->get_client_settings( $api_provider );
+
+			// Get headers including API key.
+			$headers = $this->get_request_headers( $api_provider, false );
+
+			// Combine settings and headers.
+			$client_settings['headers'] = $headers;
+
+			// Decider Function: Determines IF a request should be retried.
+			$decider = function ( $retries, $request, $response, $exception ) {
+				// 1. Limit the maximum number of retries.
+				if ( $retries >= 3 ) {  // Max retries.
+					return false;
+				}
+
+				return true;
+			};
+
+			// Add handler stack with retry middleware.
+			$stack = HandlerStack::create();
+			$stack->push( Middleware::retry( $decider ) );
+			$client_settings['handler'] = $stack;
+
+			$client = new Client( $client_settings );
+
+			// Prepare request payload based on the API provider - no streaming.
+			$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, false, $images );
+
+			$endpoint = 'chat/completions';
+
 			$response = $client->request(
 				'POST',
 				$endpoint,
@@ -469,6 +508,16 @@ class Ieltssci_API_Client {
 
 			$response_body = $response->getBody()->getContents();
 			$full_content  = $this->extract_content_from_full_response( $response_body );
+
+			// Check if content extraction failed.
+			if ( null === $full_content ) {
+				return new WP_Error( 'score_api_no_content', 'No content extracted from API response.', array( 'response_body' => $response_body ) );
+			}
+
+			// Check if there was an error parsing the response.
+			if ( is_string( $full_content ) && 0 === strpos( $full_content, 'Error parsing response' ) ) {
+				return new WP_Error( 'score_api_response_parse_error', $full_content );
+			}
 
 			// Extract score from the content using regex.
 			$extracted_score = $this->extract_score_from_result( $full_content, $score_regex );
@@ -486,6 +535,22 @@ class Ieltssci_API_Client {
 			// Return the extracted score.
 			return $extracted_score;
 
+		} catch ( RequestException $e ) {
+			$error_message = $e->getMessage();
+			if ( $e->hasResponse() ) {
+				$error_message .= ' Response: ' . $e->getResponse()->getBody();
+			}
+
+			// Send error message in case of failure.
+			$this->message_handler->send_error(
+				'score_error',
+				array(
+					'title'   => 'Scoring Error',
+					'message' => $error_message,
+				)
+			);
+
+			return new WP_Error( 'score_api_request_failed', 'Scoring API request failed: ' . $error_message, array( 'status' => $e->getCode() ? $e->getCode() : 500 ) );
 		} catch ( Exception $e ) {
 			// Send error message in case of failure.
 			$this->message_handler->send_error(
@@ -495,7 +560,8 @@ class Ieltssci_API_Client {
 					'message' => $e->getMessage(),
 				)
 			);
-			return 'Error: ' . $e->getMessage();
+
+			return new WP_Error( 'score_api_general_error', 'An unexpected error occurred during scoring: ' . $e->getMessage(), array( 'status' => $e->getCode() ? $e->getCode() : 500 ) );
 		}
 	}
 
@@ -533,166 +599,215 @@ class Ieltssci_API_Client {
 	 * @param int    $max_tokens The maximum tokens to generate.
 	 * @param array  $feed The feed data.
 	 * @param string $step_type The type of step being processed.
-	 * @return string The concatenated responses from all API calls.
+	 * @return string|WP_Error The concatenated responses from all API calls or WP_Error on failure.
 	 */
 	public function make_parallel_api_calls( $api_provider, $model, $prompts, $temperature, $max_tokens, $feed, $step_type ) {
-		// Get client settings.
-		$client_settings = $this->get_client_settings( $api_provider );
+		try {
+			// Get client settings.
+			$client_settings = $this->get_client_settings( $api_provider );
 
-		// Decider Function: Determines IF a request should be retried.
-		$decider = function ( $retries, $request, $response, $exception ) {
-			// 1. Limit the maximum number of retries.
-			if ( $retries >= 3 ) {  // Max retries.
-				return false;
-			}
+			// Decider Function: Determines IF a request should be retried.
+			$decider = function ( $retries, $request, $response, $exception ) {
+				// 1. Limit the maximum number of retries.
+				if ( $retries >= 3 ) {  // Max retries.
+					return false;
+				}
 
-			return true;
-		};
+				return true;
+			};
 
-		// Add handler stack with retry middleware.
-		$stack = HandlerStack::create();
-		$stack->push( Middleware::retry( $decider ) );
-		$client_settings['handler'] = $stack;
+			// Add handler stack with retry middleware.
+			$stack = HandlerStack::create();
+			$stack->push( Middleware::retry( $decider ) );
+			$client_settings['handler'] = $stack;
 
-		$client = new Client( $client_settings );
+			$client = new Client( $client_settings );
 
-		// Track results and errors.
-		$responses_by_index = array();
-		$errors_by_index    = array();
-		$processed_count    = 0;
-		$total_prompts      = count( $prompts );
+			// Track results and errors.
+			$responses_by_index = array();
+			$errors_by_index    = array();
+			$processed_count    = 0;
+			$total_prompts      = count( $prompts );
 
-		// Generate request objects.
-		$requests = function ( $prompts ) use ( $api_provider, $model, $temperature, $max_tokens ) {
-			foreach ( $prompts as $index => $prompt ) {
-				// Prepare request payload for this prompt.
-				$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, false );
+			// Generate request objects.
+			$requests = function ( $prompts ) use ( $api_provider, $model, $temperature, $max_tokens ) {
+				foreach ( $prompts as $index => $prompt ) {
+					try {
+						// Prepare request payload for this prompt.
+						$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, false );
 
-				// Get headers including API key.
-				$headers = $this->get_request_headers( $api_provider, false );
+						// Get headers including API key.
+						$headers = $this->get_request_headers( $api_provider, false );
 
-				// Yield request with index metadata.
-				yield $index => new Request(
-					'POST',
-					'chat/completions',
-					$headers,
-					wp_json_encode( $payload )
-				);
-			}
-		};
+						// Yield request with index metadata.
+						yield $index => new Request(
+							'POST',
+							'chat/completions',
+							$headers,
+							wp_json_encode( $payload )
+						);
+					} catch ( Exception $e ) {
+						// Track errors that occur during request creation.
+						$errors_by_index[ $index ] = $e->getMessage();
+					}
+				}
+			};
 
-		// Set up the request pool.
-		$pool = new Pool(
-			$client,
-			$requests( $prompts ),
-			array(
-				'concurrency' => 5, // Process 5 requests at a time.
-				'fulfilled'   => function ( $response, $index ) use ( &$responses_by_index, &$processed_count, $total_prompts, $step_type ) {
-					// Process successful response.
-					$body    = $response->getBody()->getContents();
-					$content = $this->extract_content_from_full_response( $body );
+			// Set up the request pool.
+			$pool = new Pool(
+				$client,
+				$requests( $prompts ),
+				array(
+					'concurrency' => 5, // Process 5 requests at a time.
+					'fulfilled'   => function ( $response, $index ) use ( &$responses_by_index, &$processed_count, $total_prompts, $step_type ) {
+						// Process successful response.
+						$body    = $response->getBody()->getContents();
+						$content = $this->extract_content_from_full_response( $body );
 
-					if ( $content ) {
-						// Store response by index to maintain order.
-						$responses_by_index[ $index ] = $content;
+						if ( $content ) {
+							// Store response by index to maintain order.
+							$responses_by_index[ $index ] = $content;
 
-						// Update progress.
+							// Update progress.
+							$processed_count++;
+							$progress = round( ( $processed_count / $total_prompts ) * 100 );
+
+							// Send progress update.
+							$this->message_handler->send_message(
+								'parallel_progress',
+								array(
+									'index'     => $index,
+									'total'     => $total_prompts,
+									'processed' => $processed_count,
+									'progress'  => $progress,
+								)
+							);
+
+							// Send content chunk.
+							$this->message_handler->send_message(
+								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+								array(
+									'index'   => $index,
+									'content' => $content,
+								)
+							);
+						} else {
+							// Content extraction failed.
+							$errors_by_index[ $index ] = 'Failed to extract content from API response.';
+							$processed_count++;
+						}
+					},
+					'rejected'    => function ( $reason, $index ) use ( &$errors_by_index, &$processed_count, $total_prompts ) {
+						// Handle failed request.
+						$error_message = $reason instanceof RequestException
+						? ( $reason->hasResponse() ? $reason->getResponse()->getBody()->getContents() : $reason->getMessage() )
+						: 'Unknown error';
+
+						$errors_by_index[ $index ] = $error_message;
+
+						// Update progress even for errors.
 						$processed_count++;
 						$progress = round( ( $processed_count / $total_prompts ) * 100 );
 
-						// Send progress update.
-						$this->message_handler->send_message(
-							'parallel_progress',
+						// Send error message.
+						$this->message_handler->send_error(
+							'parallel_error',
 							array(
-								'index'     => $index,
-								'total'     => $total_prompts,
-								'processed' => $processed_count,
-								'progress'  => $progress,
+								'index'    => $index,
+								'title'    => 'API Request Failed',
+								'message'  => $error_message,
+								'progress' => $progress,
 							)
 						);
+					},
+				)
+			);
 
-						// Send content chunk.
-						$this->message_handler->send_message(
-							$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-							array(
-								'index'   => $index,
-								'content' => $content,
-							)
-						);
-					}
-				},
-				'rejected'    => function ( $reason, $index ) use ( &$errors_by_index, &$processed_count, $total_prompts ) {
-					// Handle failed request.
-					$error_message = $reason instanceof RequestException
-					? ( $reason->hasResponse() ? $reason->getResponse()->getBody()->getContents() : $reason->getMessage() )
-					: 'Unknown error';
+			// Execute all requests and wait for completion.
+			$promise = $pool->promise();
+			$promise->wait();
 
-					$errors_by_index[ $index ] = $error_message;
-
-					// Update progress even for errors.
-					$processed_count++;
-					$progress = round( ( $processed_count / $total_prompts ) * 100 );
-
-					// Send error message.
-					$this->message_handler->send_error(
-						'parallel_error',
-						array(
-							'index'    => $index,
-							'title'    => 'API Request Failed',
-							'message'  => $error_message,
-							'progress' => $progress,
-						)
-					);
-				},
-			)
-		);
-
-		// Execute all requests and wait for completion.
-		$promise = $pool->promise();
-		$promise->wait();
-
-		// Final processing of results.
-		$full_response = '';
-		if ( ! empty( $responses_by_index ) ) {
-			// Sort responses by index to maintain original order.
-			ksort( $responses_by_index );
-
-			// Build the combined response.
-			foreach ( $responses_by_index as $index => $response ) {
-				$full_response .= $response;
-
-				// Add separator if not the last response.
-				if ( $index < count( $prompts ) - 1 ) {
-					$full_response .= "\n\n---\n\n";
+			// Check if all requests failed.
+			if ( empty( $responses_by_index ) && ! empty( $errors_by_index ) ) {
+				$error_messages = array();
+				foreach ( $errors_by_index as $index => $error ) {
+					$error_messages[] = "Prompt #{$index}: {$error}";
 				}
-			}
-		}
 
-		// Add error messages for any failed requests.
-		if ( ! empty( $errors_by_index ) ) {
-			foreach ( $errors_by_index as $index => $error ) {
-				if ( ! isset( $responses_by_index[ $index ] ) ) {
-					$error_text = "Error processing prompt #{$index}: {$error}";
-					if ( $full_response ) {
-						$full_response .= "\n\n---\n\n{$error_text}";
-					} else {
-						$full_response = $error_text;
+				// Send final error message.
+				$this->message_handler->send_error(
+					'parallel_complete_error',
+					array(
+						'title'   => 'All Parallel Requests Failed',
+						'message' => 'All API requests failed. Check individual errors for details.',
+					)
+				);
+
+				return new WP_Error( 'parallel_all_failed', 'All parallel API requests failed: ' . implode( '; ', $error_messages ) );
+			}
+
+			// Check if some requests failed.
+			if ( ! empty( $errors_by_index ) ) {
+				// If we still have some successful responses, include a warning in the response.
+				$warning_messages = array();
+				foreach ( $errors_by_index as $index => $error ) {
+					$warning_messages[] = "Warning: Prompt #{$index} failed: {$error}";
+				}
+
+				// Log this warning in the message handler but continue processing.
+				$this->message_handler->send_message(
+					'parallel_warning',
+					array(
+						'title'     => 'Some Parallel Requests Failed',
+						'message'   => 'Some API requests failed, but others succeeded.',
+						'failures'  => count( $errors_by_index ),
+						'successes' => count( $responses_by_index ),
+					)
+				);
+			}
+
+			// Final processing of results.
+			$full_response = '';
+			if ( ! empty( $responses_by_index ) ) {
+				// Sort responses by index to maintain original order.
+				ksort( $responses_by_index );
+
+				// Build the combined response.
+				foreach ( $responses_by_index as $index => $response ) {
+					$full_response .= $response;
+
+					// Add separator if not the last response.
+					if ( $index < count( $prompts ) - 1 ) {
+						$full_response .= "\n\n---\n\n";
 					}
 				}
 			}
+
+			// Final completion message.
+			$this->message_handler->send_message(
+				'parallel_complete',
+				array(
+					'total_prompts' => $total_prompts,
+					'successful'    => count( $responses_by_index ),
+					'failed'        => count( $errors_by_index ),
+					'status'        => empty( $errors_by_index ) ? 'success' : 'partial_success',
+				)
+			);
+
+			return $full_response;
+
+		} catch ( Exception $e ) {
+			// Send error message for overall process failure.
+			$this->message_handler->send_error(
+				'parallel_execution_error',
+				array(
+					'title'   => 'Parallel Processing Error',
+					'message' => 'A critical error occurred during parallel request execution: ' . $e->getMessage(),
+				)
+			);
+
+			return new WP_Error( 'parallel_api_execution_error', 'Parallel API execution failed: ' . $e->getMessage(), array( 'status' => 500 ) );
 		}
-
-		// Final completion message.
-		$this->message_handler->send_message(
-			'parallel_complete',
-			array(
-				'total_prompts' => $total_prompts,
-				'successful'    => count( $responses_by_index ),
-				'failed'        => count( $errors_by_index ),
-			)
-		);
-
-		return $full_response;
 	}
 
 	/**
