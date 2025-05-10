@@ -267,7 +267,7 @@ class Ieltssci_ApiFeeds_REST {
 											if ( $db_section['section'] === $section['section'] ) {
 												foreach ( $db_section['fields'] as $db_field ) {
 													if ( $db_field['id'] === $field['id'] ) {
-														$value = $db_field['value'];
+														$value = $db_field['value'] ?? null;
 														break;
 													}
 												}
