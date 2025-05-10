@@ -280,7 +280,7 @@ class Ieltssci_ApiFeeds_REST {
 							// Use DB value if exists, otherwise use default from config.
 							$processed_section['fields'][] = array(
 								'id'    => $field['id'],
-								'value' => $value ?? $field['default'],
+								'value' => $value ?? $field['default'] ?? null,
 							);
 						}
 
