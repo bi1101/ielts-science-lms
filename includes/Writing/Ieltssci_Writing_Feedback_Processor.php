@@ -326,6 +326,11 @@ class Ieltssci_Writing_Feedback_Processor {
 		$enable_multi_modal = isset( $config['general-setting']['enableMultiModal'] ) ? $config['general-setting']['enableMultiModal'] : false;
 		$multi_modal_fields = isset( $config['general-setting']['multiModalField'] ) ? $config['general-setting']['multiModalField'] : array();
 
+		// Extract guided parameters from advanced settings.
+		$guided_choice = isset( $config['advanced-setting']['guided_choice'] ) ? $config['advanced-setting']['guided_choice'] : null;
+		$guided_regex  = isset( $config['advanced-setting']['guided_regex'] ) ? $config['advanced-setting']['guided_regex'] : null;
+		$guided_json   = isset( $config['advanced-setting']['guided_json'] ) ? $config['advanced-setting']['guided_json'] : null;
+
 		// Map step_type to the appropriate database column.
 		switch ( $step_type ) {
 			case 'chain-of-thought':
@@ -467,7 +472,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				$result = $guide_score; // Skip API call and use the guide_score directly as the result.
 			} else {
 				// Use API client for parallel API calls.
-				$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type );
+				$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $guided_json ); // Pass guided parameters.
 
 				// Check if result is a WP_Error.
 				if ( is_wp_error( $result ) ) {
@@ -510,7 +515,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				$result = $guide_score; // Skip API call and use the guide_score directly as the result.
 			} elseif ( 'scoring' === $step_type ) {
 				// For scoring, use API client's score API call.
-				$result = $this->api_client->make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex, $images );
+				$result = $this->api_client->make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex, $images, $guided_choice, $guided_regex, $guided_json ); // Pass guided parameters.
 
 				// Check if result is a WP_Error.
 				if ( is_wp_error( $result ) ) {
@@ -537,7 +542,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				);
 			} else {
 				// For non-scoring steps, use API client's streaming API call.
-				$result = $this->api_client->make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images );
+				$result = $this->api_client->make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images, $guided_choice, $guided_regex, $guided_json ); // Pass guided parameters.
 
 				// Check if result is a WP_Error.
 				if ( is_wp_error( $result ) ) {
