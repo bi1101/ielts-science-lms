@@ -38,7 +38,7 @@ class Ieltssci_RateLimit {
 	/**
 	 * Check rate limit for an action
 	 *
-	 * Uses the feed ID to get feed data and checks the rate limit based on action and user
+	 * Uses the feed ID to get feed data and checks the rate limit based on action and the user who created the essay/speech.
 	 *
 	 * @param string $action       The action being rate limited (e.g., 'essay_feedback').
 	 * @param string $uuid         The UUID of the essay or speech.
@@ -48,16 +48,9 @@ class Ieltssci_RateLimit {
 	 * @return WP_Error|true Returns a 429 Too Many Requests error if the rate limit is exceeded, or true if the rate limit is not exceeded.
 	 */
 	public function check_rate_limit( $action, $uuid, $feed_id, $segment_order = null ) {
-		$user_id    = get_current_user_id();
-		$user_roles = array();
-
-		if ( $user_id ) {
-			// Get user object and roles.
-			$user = get_userdata( $user_id );
-			if ( $user ) {
-				$user_roles = $user->roles;
-			}
-		}
+		$current_user_id = get_current_user_id();
+		$creator_id      = null;
+		$user_roles      = array();
 
 		// Get the feed data using the feed_id.
 		$api_feeds_db = new Ieltssci_ApiFeeds_DB();
@@ -80,6 +73,67 @@ class Ieltssci_RateLimit {
 		// If no feed data or no rate limits, allow the action.
 		if ( ! $feed_data || empty( $feed_data['rate_limits'] ) ) {
 			return true;
+		}
+
+		// Get the creator of the essay/speech.
+		if ( ! empty( $uuid ) ) {
+			if ( in_array( $action, array( 'essay_feedback', 'segment_feedback' ) ) ) {
+				// Initialize Essay DB.
+				$essay_db = new Ieltssci_Essay_DB();
+
+				// Get essay data from UUID, including creator ID.
+				$essays = $essay_db->get_essays(
+					array(
+						'uuid'     => $uuid,
+						'per_page' => 1,
+						'fields'   => array( 'id', 'created_by' ),
+					)
+				);
+
+				if ( ! is_wp_error( $essays ) && ! empty( $essays ) ) {
+					$creator_id = $essays[0]['created_by'];
+				}
+			} elseif ( 'speech_feedback' === $action ) {
+				// Include speech DB class.
+				if ( class_exists( '\IeltsScienceLMS\Speaking\Ieltssci_Speech_DB' ) ) {
+					$speech_db = new \IeltsScienceLMS\Speaking\Ieltssci_Speech_DB();
+
+					// Get speech data from UUID, including creator ID.
+					$speeches = $speech_db->get_speeches(
+						array(
+							'uuid'     => $uuid,
+							'per_page' => 1,
+							'fields'   => array( 'id', 'created_by' ),
+						)
+					);
+
+					if ( ! is_wp_error( $speeches ) && ! empty( $speeches ) ) {
+						$creator_id = $speeches[0]['created_by'];
+					}
+				}
+			}
+
+			// If we found a creator ID, get their user roles.
+			if ( $creator_id ) {
+				$creator = get_userdata( $creator_id );
+				if ( $creator ) {
+					$user_roles = $creator->roles;
+				}
+			} else {
+				// If creator ID not found, default to current user.
+				$creator_id = $current_user_id;
+				$creator    = get_userdata( $creator_id );
+				if ( $creator ) {
+					$user_roles = $creator->roles;
+				}
+			}
+		} else {
+			// If no UUID provided, default to current user.
+			$creator_id = $current_user_id;
+			$creator    = get_userdata( $creator_id );
+			if ( $creator ) {
+				$user_roles = $creator->roles;
+			}
 		}
 
 		// Extract feedback criteria from feed data.
@@ -207,7 +261,7 @@ class Ieltssci_RateLimit {
 		}
 
 		// If use is logged out, return 401 error.
-		if ( empty( $user_id ) ) {
+		if ( empty( $current_user_id ) ) {
 			return new WP_Error(
 				'unauthorized',
 				'You must be logged in to use this feature.',
@@ -219,7 +273,7 @@ class Ieltssci_RateLimit {
 			);
 		}
 
-		// Get applicable rate limits for the current user.
+		// Get applicable rate limits for the creator of the content.
 		$applicable_limits = array();
 
 		if ( isset( $feed_data['rate_limits'] ) && is_array( $feed_data['rate_limits'] ) ) {
@@ -294,9 +348,9 @@ class Ieltssci_RateLimit {
 			$usage_count = 0;
 
 			if ( 'essay_feedback' === $action ) {
-				// Count essay feedbacks created by this user.
+				// Count essay feedbacks created by the content creator.
 				$query_args = array(
-					'created_by'        => $user_id,
+					'created_by'        => $creator_id,
 					'feedback_criteria' => $feedback_criteria,
 					'count'             => true,
 				);
@@ -319,9 +373,9 @@ class Ieltssci_RateLimit {
 				);
 
 			} elseif ( 'segment_feedback' === $action ) {
-				// Count segment feedbacks created by this user.
+				// Count segment feedbacks created by the content creator.
 				$query_args = array(
-					'created_by'        => $user_id,
+					'created_by'        => $creator_id,
 					'feedback_criteria' => $feedback_criteria,
 					'count'             => true,
 				);
@@ -343,12 +397,12 @@ class Ieltssci_RateLimit {
 					'type'        => 'segment_feedback',
 				);
 			} elseif ( 'speech_feedback' === $action ) {
-				// Count speech feedbacks created by this user.
+				// Count speech feedbacks created by the content creator.
 				if ( class_exists( '\IeltsScienceLMS\Speaking\Ieltssci_Speech_DB' ) ) {
 					$speech_db = new \IeltsScienceLMS\Speaking\Ieltssci_Speech_DB();
 
 					$query_args = array(
-						'created_by'        => $user_id,
+						'created_by'        => $creator_id,
 						'feedback_criteria' => $feedback_criteria,
 						'count'             => true,
 					);
