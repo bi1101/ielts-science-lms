@@ -41,7 +41,7 @@ class Ieltssci_RateLimit {
 	 * Uses the feed ID to get feed data and checks the rate limit based on action and user
 	 *
 	 * @param string $action       The action being rate limited (e.g., 'essay_feedback').
-	 * @param string $uuid         The user's UUID.
+	 * @param string $uuid         The UUID of the essay or speech.
 	 * @param number $feed_id      Feed ID for specific limits.
 	 * @param int    $segment_order Optional. The segment order to check.
 	 *
@@ -56,14 +56,6 @@ class Ieltssci_RateLimit {
 			$user = get_userdata( $user_id );
 			if ( $user ) {
 				$user_roles = $user->roles;
-			}
-		}
-
-		// Check for specific roles that bypass rate limits.
-		$bypass_roles = array( 'administrator', 'editor' ); // Add any roles that should bypass limits.
-		foreach ( $bypass_roles as $role ) {
-			if ( in_array( $role, $user_roles ) ) {
-				return true;
 			}
 		}
 
