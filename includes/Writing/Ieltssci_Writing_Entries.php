@@ -102,6 +102,33 @@ class Ieltssci_Writing_Entries {
 		if ( wp_script_is( $script_handle, 'registered' ) ) {
 			wp_enqueue_script( $script_handle );
 
+			// Get module pages data from Writing Module class.
+			$writing_module    = new Ieltssci_Writing_Module();
+			$module_pages_data = $writing_module->provide_module_pages_data( array() );
+
+			// Extract writing module pages from the module data.
+			$writing_module_pages = array();
+			if ( isset( $module_pages_data['writing_module']['pages'] ) ) {
+				$writing_module_pages = $module_pages_data['writing_module']['pages'];
+			}
+
+			// Get the saved page settings from WordPress options.
+			$ielts_pages = get_option( 'ielts_science_lms_pages', array() );
+
+			// Prepare page data for JavaScript localization.
+			$page_data_for_js = array();
+			foreach ( $writing_module_pages as $page_key => $page_label ) {
+				if ( isset( $ielts_pages[ $page_key ] ) ) {
+					$page_id = $ielts_pages[ $page_key ];
+					// Check if this page is set as the front page - ensure consistent types for comparison.
+					$front_page_id = get_option( 'page_on_front' );
+					$is_front_page = ( (int) $page_id === (int) $front_page_id );
+					// Use empty string for homepage URI to match root route.
+					$uri                           = $is_front_page ? '' : get_page_uri( $page_id );
+					$page_data_for_js[ $page_key ] = $uri;
+				}
+			}
+
 			// Localize script with data for the writing entries application.
 			wp_localize_script(
 				$script_handle,
@@ -110,6 +137,7 @@ class Ieltssci_Writing_Entries {
 					'apiRoot' => esc_url_raw( rest_url() ),
 					'nonce'   => wp_create_nonce( 'wp_rest' ),
 					'module'  => 'writing', // Specify the current module.
+					'pages'   => $page_data_for_js, // Add module pages data.
 				)
 			);
 		}
