@@ -372,6 +372,16 @@ class Ieltssci_Essay_DB {
 					} else {
 						$essay['chart_image_ids'] = array();
 					}
+
+					// Convert created_at from GMT to site's timezone.
+					if ( isset( $essay['created_at'] ) ) {
+						$essay['created_at'] = get_date_from_gmt( $essay['created_at'] );
+					}
+
+					// Convert updated_at from GMT to site's timezone if it exists.
+					if ( isset( $essay['updated_at'] ) ) {
+						$essay['updated_at'] = get_date_from_gmt( $essay['updated_at'] );
+					}
 				}
 
 				return $results;
@@ -861,6 +871,20 @@ class Ieltssci_Essay_DB {
 				if ( null === $results && $this->wpdb->last_error ) {
 					throw new \Exception( $this->wpdb->last_error );
 				}
+
+				// Process datetime fields for each result.
+				foreach ( $results as &$feedback ) {
+					// Convert created_at from GMT to site's timezone.
+					if ( isset( $feedback['created_at'] ) ) {
+						$feedback['created_at'] = get_date_from_gmt( $feedback['created_at'] );
+					}
+
+					// Convert updated_at from GMT to site's timezone if it exists.
+					if ( isset( $feedback['updated_at'] ) ) {
+						$feedback['updated_at'] = get_date_from_gmt( $feedback['updated_at'] );
+					}
+				}
+
 				return $results;
 			}
 		} catch ( \Exception $e ) {
@@ -1117,6 +1141,20 @@ class Ieltssci_Essay_DB {
 				if ( null === $results && $this->wpdb->last_error ) {
 					throw new \Exception( $this->wpdb->last_error );
 				}
+
+				// Process datetime fields for each result.
+				foreach ( $results as &$feedback ) {
+					// Convert created_at from GMT to site's timezone.
+					if ( isset( $feedback['created_at'] ) ) {
+						$feedback['created_at'] = get_date_from_gmt( $feedback['created_at'] );
+					}
+
+					// Convert updated_at from GMT to site's timezone if it exists.
+					if ( isset( $feedback['updated_at'] ) ) {
+						$feedback['updated_at'] = get_date_from_gmt( $feedback['updated_at'] );
+					}
+				}
+
 				return $results;
 			}
 		} catch ( \Exception $e ) {
