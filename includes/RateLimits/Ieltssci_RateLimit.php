@@ -75,7 +75,8 @@ class Ieltssci_RateLimit {
 			return true;
 		}
 
-		// Get the creator of the essay/speech.
+		// Get the creator of the essay/speech and store relevant IDs.
+		$essay_id = null;
 		if ( ! empty( $uuid ) ) {
 			if ( in_array( $action, array( 'essay_feedback', 'segment_feedback' ) ) ) {
 				// Initialize Essay DB.
@@ -92,6 +93,7 @@ class Ieltssci_RateLimit {
 
 				if ( ! is_wp_error( $essays ) && ! empty( $essays ) ) {
 					$creator_id = $essays[0]['created_by'];
+					$essay_id   = $essays[0]['id']; // Store essay ID for later use.
 				}
 			} elseif ( 'speech_feedback' === $action ) {
 				// Include speech DB class.
@@ -315,23 +317,9 @@ class Ieltssci_RateLimit {
 			return true;
 		}
 
-		// Initialize Essay DB for usage counting.
-		$essay_db = new Ieltssci_Essay_DB();
-
-		// Get essay ID from UUID for usage tracking.
-		$essay_id = null;
-		if ( ! empty( $uuid ) ) {
-			$essays = $essay_db->get_essays(
-				array(
-					'uuid'     => $uuid,
-					'per_page' => 1,
-					'fields'   => array( 'id' ),
-				)
-			);
-
-			if ( ! is_wp_error( $essays ) && ! empty( $essays ) ) {
-				$essay_id = $essays[0]['id'];
-			}
+		// Initialize Essay DB for usage counting if not already initialized.
+		if ( ! isset( $essay_db ) ) {
+			$essay_db = new Ieltssci_Essay_DB();
 		}
 
 		// Track usage and check limits.
