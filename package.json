@@ -1,0 +1,36 @@
+{
+    "name": "ielts-science-lms",
+    "version": "0.1.5",
+    "description": "IELTS Science Learning Management System.",
+    "author": "IELTS Science",
+    "license": "Proprietary",
+    "files": [
+        "ielts-science-lms.php",
+        "includes/",
+        "languages/",
+        "vendor/",
+        "languages/",
+        "admin/settings/build/",
+        "admin/settings/*.php",
+        "public/speaking/build/",
+        "public/speaking/*.php",
+        "public/writing/build/",
+        "public/writing/*.php"
+    ],
+    "scripts": {
+        "submodules:update": "git submodule update --remote --merge",
+        "submodule:admin-settings:install": "cd admin/settings && npm ci",
+        "submodule:admin-settings:build": "cd admin/settings && npm run build",
+        "submodule:public-speaking:install": "cd public/speaking && npm ci",
+        "submodule:public-speaking:build": "cd public/speaking && npm run build",
+        "submodule:public-writing:install": "cd public/writing && npm ci",
+        "submodule:public-writing:build": "cd public/writing && npm run build",
+        "build:submodules": "npm run submodule:admin-settings:install && npm run submodule:admin-settings:build && npm run submodule:public-speaking:install && npm run submodule:public-speaking:build && npm run submodule:public-writing:install && npm run submodule:public-writing:build",
+        "build": "npm run build:submodules",
+        "package": "npm run submodules:update && npm run build && wp-scripts plugin-zip",
+        "plugin-zip": "wp-scripts plugin-zip"
+    },
+    "devDependencies": {
+        "@wordpress/scripts": "^30.16.0"
+    }
+}
