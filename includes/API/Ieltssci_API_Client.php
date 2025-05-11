@@ -450,7 +450,7 @@ class Ieltssci_API_Client {
 						}
 
 						// Check if extract_content returned a JSON decoding error message.
-						if ( $content_chunk && is_string( $content_chunk ) && strpos( $content_chunk, 'JSON decode error' ) === 0 ) {
+						if ( $content_chunk && is_string( $content_chunk ) && 0 === strpos( $content_chunk, 'JSON decode error' ) ) {
 							// Handle malformed JSON data. For example, send an error message.
 							$this->message_handler->send_message(
 								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
@@ -461,7 +461,7 @@ class Ieltssci_API_Client {
 								)
 							);
 							// Do not append malformed data to $full_response.
-						} elseif ( $content_chunk ) {
+						} elseif ( ! is_null( $content_chunk ) && '' !== $content_chunk ) { // Check for non-null and non-empty string to include "0" as valid content.
 							$full_response .= $content_chunk;
 
 							// Send chunk immediately.
@@ -491,7 +491,7 @@ class Ieltssci_API_Client {
 									'step_type' => $step_type,
 								)
 							);
-						} elseif ( $content_chunk && is_string( $content_chunk ) && strpos( $content_chunk, 'JSON decode error' ) === 0 ) {
+						} elseif ( $content_chunk && is_string( $content_chunk ) && 0 === strpos( $content_chunk, 'JSON decode error' ) ) {
 							// Handle error for the final fragment.
 							$this->message_handler->send_message(
 								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
@@ -501,7 +501,7 @@ class Ieltssci_API_Client {
 									'is_error'  => true,
 								)
 							);
-						} elseif ( $content_chunk ) {
+						} elseif ( ! is_null( $content_chunk ) && '' !== $content_chunk ) { // Check for non-null and non-empty string to include "0" as valid content.
 							$full_response .= $content_chunk;
 							$this->message_handler->send_message(
 								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
