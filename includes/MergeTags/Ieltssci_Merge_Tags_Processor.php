@@ -663,4 +663,66 @@ class Ieltssci_Merge_Tags_Processor {
 		// Return indexed array (not associative).
 		return array_values( $paragraphs );
 	}
+
+	/**
+	 * Process rate limit message tags
+	 *
+	 * Replaces merge tags in rate limit messages using the standardized format {prefix|parameter|suffix}.
+	 * Supports rate limit specific parameters: "usage_count", "max_allowed", "remaining", and "percentage".
+	 *
+	 * @param string $message     The message template containing merge tags.
+	 * @param int    $usage_count The current usage count.
+	 * @param int    $max_allowed The maximum allowed usage.
+	 * @return string The processed message with merge tags replaced.
+	 */
+	public function process_rate_limit_message_tags( $message, $usage_count, $max_allowed ) {
+		if ( empty( $message ) ) {
+			return '';
+		}
+
+		// Regex to find merge tags in format {prefix|parameters|suffix}.
+		$regex = '/\{(?\'prefix\'.*?)\|(?\'parameters\'.*?)\|(?\'suffix\'.*?)\}/ms';
+
+		// Find all merge tags in the message.
+		preg_match_all( $regex, $message, $matches, PREG_SET_ORDER, 0 );
+
+		// Process each merge tag.
+		foreach ( $matches as $match ) {
+			$full_tag   = $match[0];
+			$prefix     = $match['prefix'];
+			$parameters = $match['parameters'];
+			$suffix     = $match['suffix'];
+
+			// Determine content based on parameter.
+			$content = '';
+
+			switch ( trim( $parameters ) ) {
+				case 'usage_count':
+					$content = $usage_count;
+					break;
+				case 'max_allowed':
+					$content = $max_allowed;
+					break;
+				case 'remaining':
+					// Calculate remaining usage.
+					$content = max( 0, $max_allowed - $usage_count );
+					break;
+				case 'percentage':
+					// Calculate usage as percentage.
+					$content = ( $max_allowed > 0 ) ? round( ( $usage_count / $max_allowed ) * 100 ) : 100;
+					break;
+				default:
+					// Unknown parameter, keep tag as is.
+					continue 2; // Skip to next iteration of outer loop.
+			}
+
+			// Create replacement with prefix and suffix.
+			$replacement = "{$prefix}{$content}{$suffix}";
+
+			// Replace in message.
+			$message = str_replace( $full_tag, $replacement, $message );
+		}
+
+		return $message;
+	}
 }

@@ -607,15 +607,52 @@ class Ieltssci_RateLimit {
 
 		// If usage exceeded, return error with details.
 		if ( $usage_exceeded && $exceeded_limit ) {
+			// Get current usage count and max allowed.
+			$current_count = isset( $current_usage[ $exceeded_limit['time_period_type'] ] ) ?
+				$current_usage[ $exceeded_limit['time_period_type'] ]['count'] : 0;
+			$max_allowed   = isset( $exceeded_limit['rate_limit'] ) ? (int) $exceeded_limit['rate_limit'] : 0;
+
+			// Process merge tags in the error messages.
+			$merge_tags_processor = new \IeltsScienceLMS\MergeTags\Ieltssci_Merge_Tags_Processor();
+
+			// Process message components.
+			$title = isset( $exceeded_limit['message']['title'] ) ?
+				$merge_tags_processor->process_rate_limit_message_tags(
+					$exceeded_limit['message']['title'],
+					$current_count,
+					$max_allowed
+				) : 'Too Many Requests';
+
+			$message = isset( $exceeded_limit['message']['message'] ) ?
+				$merge_tags_processor->process_rate_limit_message_tags(
+					$exceeded_limit['message']['message'],
+					$current_count,
+					$max_allowed
+				) : 'You have reached the limit for this feature. Please try again later.';
+
+			$cta_title = isset( $exceeded_limit['message']['ctaTitle'] ) ?
+				$merge_tags_processor->process_rate_limit_message_tags(
+					$exceeded_limit['message']['ctaTitle'],
+					$current_count,
+					$max_allowed
+				) : '';
+
+			$cta_link = isset( $exceeded_limit['message']['ctaLink'] ) ?
+				$merge_tags_processor->process_rate_limit_message_tags(
+					$exceeded_limit['message']['ctaLink'],
+					$current_count,
+					$max_allowed
+				) : '';
+
 			return new WP_Error(
 				'rate_limit_exceeded',
-				$exceeded_limit['message']['message'] ?? 'You have reached the limit for this feature. Please try again later.',
+				$message,
 				array(
 					'status'        => 429,
-					'title'         => $exceeded_limit['message']['title'] ?? 'Too Many Requests',
-					'message'       => $exceeded_limit['message']['message'] ?? 'You have reached the limit for this feature. Please try again later.',
-					'cta_title'     => $exceeded_limit['message']['ctaTitle'] ?? '',
-					'cta_link'      => $exceeded_limit['message']['ctaLink'] ?? '',
+					'title'         => $title,
+					'message'       => $message,
+					'cta_title'     => $cta_title,
+					'cta_link'      => $cta_link,
 					'limit_info'    => $exceeded_limit,
 					'current_usage' => $current_usage,
 				)
