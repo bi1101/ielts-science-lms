@@ -88,41 +88,7 @@ class Ieltssci_RateLimit {
 		}
 
 		// Get applicable rate limits for the creator of the content.
-		$applicable_limits = array();
-
-		if ( isset( $feed_data['rate_limits'] ) && is_array( $feed_data['rate_limits'] ) ) {
-			foreach ( $feed_data['rate_limits'] as $rate_limit ) {
-
-				// Check if any of the user's roles are in the rate limit roles.
-				$applies_to_user = false;
-				if ( isset( $rate_limit['roles'] ) && is_array( $rate_limit['roles'] ) ) {
-					foreach ( $user_roles as $user_role ) {
-						if ( in_array( $user_role, $rate_limit['roles'], true ) ) {
-							$applies_to_user = true;
-
-							break;
-						}
-					}
-
-					// If no user role matches or user has no roles but 'subscriber' is in the limit roles,
-					// consider the rate limit applicable to logged-out users.
-					if ( ( empty( $user_roles ) && ! $applies_to_user ) && in_array( 'subscriber', $rate_limit['roles'], true ) ) {
-						$applies_to_user = true;
-
-					}
-				}
-
-				if ( $applies_to_user ) {
-					// Add the relevant rate limit information.
-					$applicable_limits[] = array(
-						'rate_limit'       => $rate_limit['rate_limit'],
-						'time_period_type' => $rate_limit['time_period_type'],
-						'limit_rule'       => $rate_limit['limit_rule'],
-						'message'          => $rate_limit['message'],
-					);
-				}
-			}
-		}
+		$applicable_limits = $this->filter_applicable_rate_limits( $feed_data['rate_limits'], $user_roles );
 
 		// If no applicable rate limits found, allow the action.
 		if ( empty( $applicable_limits ) ) {
@@ -570,5 +536,54 @@ class Ieltssci_RateLimit {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Filter rate limits to find those applicable to the user.
+	 *
+	 * Determines which rate limits apply to the current user based on their roles.
+	 *
+	 * @param array $rate_limits All available rate limits from the feed data.
+	 * @param array $user_roles  The user's roles.
+	 *
+	 * @return array Array of applicable rate limits.
+	 */
+	private function filter_applicable_rate_limits( $rate_limits, $user_roles ) {
+		$applicable_limits = array();
+
+		if ( ! is_array( $rate_limits ) ) {
+			return $applicable_limits;
+		}
+
+		foreach ( $rate_limits as $rate_limit ) {
+			// Check if any of the user's roles are in the rate limit roles.
+			$applies_to_user = false;
+			if ( isset( $rate_limit['roles'] ) && is_array( $rate_limit['roles'] ) ) {
+				foreach ( $user_roles as $user_role ) {
+					if ( in_array( $user_role, $rate_limit['roles'], true ) ) {
+						$applies_to_user = true;
+						break;
+					}
+				}
+
+				// If no user role matches or user has no roles but 'subscriber' is in the limit roles,
+				// consider the rate limit applicable to logged-out users.
+				if ( ( empty( $user_roles ) && ! $applies_to_user ) && in_array( 'subscriber', $rate_limit['roles'], true ) ) {
+					$applies_to_user = true;
+				}
+			}
+
+			if ( $applies_to_user ) {
+				// Add the relevant rate limit information.
+				$applicable_limits[] = array(
+					'rate_limit'       => $rate_limit['rate_limit'],
+					'time_period_type' => $rate_limit['time_period_type'],
+					'limit_rule'       => $rate_limit['limit_rule'],
+					'message'          => $rate_limit['message'],
+				);
+			}
+		}
+
+		return $applicable_limits;
 	}
 }
