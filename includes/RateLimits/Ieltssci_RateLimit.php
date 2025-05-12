@@ -75,68 +75,11 @@ class Ieltssci_RateLimit {
 			return true;
 		}
 
-		// Get the creator of the essay/speech and store relevant IDs.
-		$essay_id = null;
-		if ( ! empty( $uuid ) ) {
-			if ( in_array( $action, array( 'essay_feedback', 'segment_feedback' ) ) ) {
-				// Initialize Essay DB.
-				$essay_db = new Ieltssci_Essay_DB();
-
-				// Get essay data from UUID, including creator ID.
-				$essays = $essay_db->get_essays(
-					array(
-						'uuid'     => $uuid,
-						'per_page' => 1,
-						'fields'   => array( 'id', 'created_by' ),
-					)
-				);
-
-				if ( ! is_wp_error( $essays ) && ! empty( $essays ) ) {
-					$creator_id = $essays[0]['created_by'];
-					$essay_id   = $essays[0]['id']; // Store essay ID for later use.
-				}
-			} elseif ( 'speech_feedback' === $action ) {
-				// Include speech DB class.
-				if ( class_exists( '\IeltsScienceLMS\Speaking\Ieltssci_Speech_DB' ) ) {
-					$speech_db = new \IeltsScienceLMS\Speaking\Ieltssci_Speech_DB();
-
-					// Get speech data from UUID, including creator ID.
-					$speeches = $speech_db->get_speeches(
-						array(
-							'uuid'     => $uuid,
-							'per_page' => 1,
-							'fields'   => array( 'id', 'created_by' ),
-						)
-					);
-
-					if ( ! is_wp_error( $speeches ) && ! empty( $speeches ) ) {
-						$creator_id = $speeches[0]['created_by'];
-					}
-				}
-			}
-
-			// If we found a creator ID, get their user roles.
-			if ( $creator_id ) {
-				$creator = get_userdata( $creator_id );
-				if ( $creator ) {
-					$user_roles = $creator->roles;
-				}
-			} else {
-				// If creator ID not found, default to current user.
-				$creator_id = $current_user_id;
-				$creator    = get_userdata( $creator_id );
-				if ( $creator ) {
-					$user_roles = $creator->roles;
-				}
-			}
-		} else {
-			// If no UUID provided, default to current user.
-			$creator_id = $current_user_id;
-			$creator    = get_userdata( $creator_id );
-			if ( $creator ) {
-				$user_roles = $creator->roles;
-			}
-		}
+		// Get the details of the essay/speech and store relevant IDs.
+		$content_details = $this->get_content_details( $action, $uuid, $current_user_id );
+		$creator_id      = $content_details['creator_id'];
+		$user_roles      = $content_details['user_roles'];
+		$content_id      = $content_details['content_id'];
 
 		// Extract feedback criteria from feed data.
 		$feedback_criteria = isset( $feed_data['feedback_criteria'] ) ? $feed_data['feedback_criteria'] : 'general';
@@ -148,17 +91,7 @@ class Ieltssci_RateLimit {
 				// Initialize Essay DB.
 				$essay_db = new Ieltssci_Essay_DB();
 
-				// Get essay ID from UUID.
-				$essays = $essay_db->get_essays(
-					array(
-						'uuid'     => $uuid,
-						'per_page' => 1,
-						'fields'   => array( 'id' ),
-					)
-				);
-
-				if ( ! is_wp_error( $essays ) && ! empty( $essays ) ) {
-					$essay_id          = $essays[0]['id'];
+				if ( $content_id ) {
 					$feedback_criteria = isset( $feed_data['feedback_criteria'] ) ? $feed_data['feedback_criteria'] : 'general';
 
 					// Check for existing feedback based on apply_to.
@@ -167,7 +100,7 @@ class Ieltssci_RateLimit {
 							// Check if essay feedback already exists.
 							$existing_feedback = $essay_db->get_essay_feedbacks(
 								array(
-									'essay_id'          => $essay_id,
+									'essay_id'          => $content_id,
 									'feedback_criteria' => $feedback_criteria,
 									'per_page'          => 1,
 								)
@@ -183,7 +116,7 @@ class Ieltssci_RateLimit {
 							// Check if segments already exist for this essay.
 							$existing_segments = $essay_db->get_segments(
 								array(
-									'essay_id' => $essay_id,
+									'essay_id' => $content_id,
 									'per_page' => 1,
 								)
 							);
@@ -203,7 +136,7 @@ class Ieltssci_RateLimit {
 								// First get the segment with the specified order.
 								$segment = $essay_db->get_segments(
 									array(
-										'essay_id' => $essay_id,
+										'essay_id' => $content_id,
 										'order'    => $segment_order,
 										'per_page' => 1,
 									)
@@ -233,21 +166,12 @@ class Ieltssci_RateLimit {
 				if ( class_exists( '\IeltsScienceLMS\Speaking\Ieltssci_Speech_DB' ) ) {
 					$speech_db = new \IeltsScienceLMS\Speaking\Ieltssci_Speech_DB();
 
-					// Get speech ID from UUID.
-					$speeches = $speech_db->get_speeches(
-						array(
-							'uuid'     => $uuid,
-							'per_page' => 1,
-						)
-					);
-
-					if ( ! is_wp_error( $speeches ) && ! empty( $speeches ) ) {
-						$speech_id = $speeches[0]['id'];
+					if ( $content_id ) {
 
 						// Check if speech feedback already exists.
 						$existing_feedback = $speech_db->get_speech_feedbacks(
 							array(
-								'speech_id'         => $speech_id,
+								'speech_id'         => $content_id,
 								'feedback_criteria' => $feedback_criteria,
 								'number'            => 1,
 							)
@@ -441,6 +365,92 @@ class Ieltssci_RateLimit {
 
 		// If we reach here, none of the rate limits were exceeded.
 		return true;
+	}
+
+	/**
+	 * Get content details for an essay/speech based on UUID
+	 *
+	 * Determines the creator ID, user roles, and content ID for the given action and UUID.
+	 * Falls back to current user if content creator cannot be determined.
+	 *
+	 * @param string $action         The action being rate limited.
+	 * @param string $uuid           The UUID of the essay/speech.
+	 * @param int    $current_user_id The current user ID.
+	 *
+	 * @return array Array containing creator_id, user_roles, and content_id.
+	 */
+	private function get_content_details( $action, $uuid, $current_user_id ) {
+		$creator_id = null;
+		$user_roles = array();
+		$content_id = null;
+
+		if ( ! empty( $uuid ) ) {
+			if ( in_array( $action, array( 'essay_feedback', 'segment_feedback' ) ) ) {
+				// Initialize Essay DB.
+				$essay_db = new Ieltssci_Essay_DB();
+
+				// Get essay data from UUID, including creator ID.
+				$essays = $essay_db->get_essays(
+					array(
+						'uuid'     => $uuid,
+						'per_page' => 1,
+						'fields'   => array( 'id', 'created_by' ),
+					)
+				);
+
+				if ( ! is_wp_error( $essays ) && ! empty( $essays ) ) {
+					$creator_id = $essays[0]['created_by'];
+					$content_id = $essays[0]['id']; // Store essay ID for later use.
+				}
+			} elseif ( 'speech_feedback' === $action ) {
+				// Include speech DB class.
+				if ( class_exists( '\IeltsScienceLMS\Speaking\Ieltssci_Speech_DB' ) ) {
+					$speech_db = new \IeltsScienceLMS\Speaking\Ieltssci_Speech_DB();
+
+					// Get speech data from UUID, including creator ID.
+					$speeches = $speech_db->get_speeches(
+						array(
+							'uuid'     => $uuid,
+							'per_page' => 1,
+							'fields'   => array( 'id', 'created_by' ),
+						)
+					);
+
+					if ( ! is_wp_error( $speeches ) && ! empty( $speeches ) ) {
+						$creator_id = $speeches[0]['created_by'];
+						$content_id = $speeches[0]['id'];
+					}
+				}
+			}
+
+			// If we found a creator ID, get their user roles.
+			if ( $creator_id ) {
+				$creator = get_userdata( $creator_id );
+				if ( $creator ) {
+					$user_roles = $creator->roles;
+				}
+			} else {
+				// If creator ID not found, default to current user.
+				$creator_id = $current_user_id;
+				$creator    = get_userdata( $creator_id );
+				if ( $creator ) {
+					$user_roles = $creator->roles;
+				}
+			}
+		} else {
+			// If no UUID provided, default to current user.
+			$creator_id = $current_user_id;
+			$creator    = get_userdata( $creator_id );
+			if ( $creator ) {
+				$user_roles = $creator->roles;
+			}
+		}
+
+		return array(
+			'creator_id' => $creator_id,
+			'user_roles' => $user_roles,
+			'content_id' => $content_id,
+		);
 	}
 
 	/**
