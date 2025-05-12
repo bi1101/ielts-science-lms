@@ -53,22 +53,7 @@ class Ieltssci_RateLimit {
 		$user_roles      = array();
 
 		// Get the feed data using the feed_id.
-		$api_feeds_db = new Ieltssci_ApiFeeds_DB();
-		$feed_data    = null;
-
-		if ( $feed_id ) {
-			$feeds = $api_feeds_db->get_api_feeds(
-				array(
-					'feed_id' => $feed_id,
-					'include' => array( 'rate_limits' ),
-					'limit'   => 1,
-				)
-			);
-
-			if ( ! is_wp_error( $feeds ) && ! empty( $feeds ) ) {
-				$feed_data = $feeds[0];
-			}
-		}
+		$feed_data = $this->get_feed_data( $feed_id );
 
 		// If no feed data or no rate limits, allow the action.
 		if ( ! $feed_data || empty( $feed_data['rate_limits'] ) ) {
@@ -537,5 +522,33 @@ class Ieltssci_RateLimit {
 		}
 
 		return $constraints;
+	}
+
+	/**
+	 * Get feed data by feed ID.
+	 *
+	 * @param int $feed_id Feed ID for specific limits.
+	 *
+	 * @return array|null Feed data array or null if not found.
+	 */
+	private function get_feed_data( $feed_id ) {
+		if ( empty( $feed_id ) ) {
+			return null;
+		}
+
+		$api_feeds_db = new Ieltssci_ApiFeeds_DB();
+		$feeds        = $api_feeds_db->get_api_feeds(
+			array(
+				'feed_id' => $feed_id,
+				'include' => array( 'rate_limits' ),
+				'limit'   => 1,
+			)
+		);
+
+		if ( ! is_wp_error( $feeds ) && ! empty( $feeds ) ) {
+			return $feeds[0];
+		}
+
+		return null;
 	}
 }
