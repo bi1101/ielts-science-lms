@@ -69,6 +69,22 @@ class Ieltssci_RateLimit {
 		// Extract feedback criteria from feed data.
 		$feedback_criteria = isset( $feed_data['feedback_criteria'] ) ? $feed_data['feedback_criteria'] : 'general';
 
+		// If this is a segment_feedback action, check if the essay already has segment feedback by this creator and criteria.
+		// If so, allow the action as the essay's "slot" in the rate limit is already consumed.
+		if ( 'segment_feedback' === $action && $content_id && $creator_id ) {
+			$essay_db               = new Ieltssci_Essay_DB();
+			$has_existing_for_essay = $essay_db->has_any_segment_feedback_for_essay(
+				array(
+					'essay_id'          => $content_id,
+					'created_by'        => $creator_id,
+					'feedback_criteria' => $feedback_criteria,
+				)
+			);
+			if ( true === $has_existing_for_essay ) {
+				return true; // Already counted, allow further segment feedbacks for this essay.
+			}
+		}
+
 		// Check if feedback already exists for this feed and essay or speech.
 		if ( $this->has_existing_feedback( $action, $uuid, $content_id, $feed_data, $segment_order, $feedback_criteria ) ) {
 			return true;
@@ -528,11 +544,11 @@ class Ieltssci_RateLimit {
 				);
 
 			} elseif ( 'segment_feedback' === $action ) {
-				// Count segment feedbacks created by the content creator.
+				// Count distinct essays with segment feedbacks created by the content creator.
 				$query_args = array(
 					'created_by'        => $creator_id,
 					'feedback_criteria' => $feedback_criteria,
-					'count'             => true,
+					// 'count' is implicit in the new method.
 				);
 
 				// Add date constraints if set.
@@ -543,7 +559,7 @@ class Ieltssci_RateLimit {
 					$query_args['date_to'] = $date_constraints['date_to'];
 				}
 
-				$usage_count = $essay_db->get_segment_feedbacks( $query_args );
+				$usage_count = $essay_db->count_distinct_essays_with_segment_feedback( $query_args );
 
 				// Add current usage to the tracking array.
 				$current_usage[ $limit['time_period_type'] ] = array(
