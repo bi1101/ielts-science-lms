@@ -142,8 +142,9 @@ class Ieltssci_API_Client {
 				);
 			case 'vllm':
 				return array(
-					'Content-Type' => 'application/json',
-					'Accept'       => $accept_header,
+					'Content-Type'  => 'application/json',
+					'Accept'        => $accept_header,
+					'Authorization' => $api_key ? 'Bearer ' . $api_key['meta']['api-key'] : '',
 				);
 
 			default:

@@ -74,6 +74,11 @@ class Ieltssci_ApiKeys_Settings {
 				'multiKey' => true,
 				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your Open AI API key.' ) ),
 			),
+			'vllm'           => array(
+				'label'    => __( 'VLLM', 'ielts-science-lms' ),
+				'multiKey' => true,
+				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your VLLM API key.' ) ),
+			),
 			'azure'          => array(
 				'label'    => __( 'Azure', 'ielts-science-lms' ),
 				'multiKey' => false,
