@@ -1163,6 +1163,121 @@ class Ieltssci_Essay_DB {
 	}
 
 	/**
+	 * Check if an essay has any segment feedback by a specific creator for a specific criteria.
+	 *
+	 * @param array $args {
+	 *     Required. Arguments to check for existing segment feedback.
+	 *     @type int    $essay_id          Essay ID.
+	 *     @type int    $created_by        User ID of the feedback creator.
+	 *     @type string $feedback_criteria Feedback criteria.
+	 * }
+	 * @return bool|WP_Error True if feedback exists, false otherwise, or WP_Error on failure.
+	 * @throws \Exception If there is a database error.
+	 */
+	public function has_any_segment_feedback_for_essay( $args = array() ) {
+		if ( empty( $args['essay_id'] ) || empty( $args['created_by'] ) || empty( $args['feedback_criteria'] ) ) {
+			return new WP_Error( 'missing_required_args', 'Missing required arguments: essay_id, created_by, or feedback_criteria.', array( 'status' => 400 ) );
+		}
+
+		try {
+			$sql = $this->wpdb->prepare(
+				"SELECT COUNT(sf.id)
+				 FROM {$this->segment_feedback_table} sf
+				 JOIN {$this->segment_table} s ON sf.segment_id = s.id
+				 WHERE s.essay_id = %d
+				   AND sf.created_by = %d
+				   AND sf.feedback_criteria = %s",
+				absint( $args['essay_id'] ),
+				absint( $args['created_by'] ),
+				sanitize_text_field( $args['feedback_criteria'] )
+			);
+
+			$count = $this->wpdb->get_var( $sql );
+
+			if ( is_null( $count ) ) {
+				// This indicates a potential DB error during get_var, though prepare should catch SQL errors.
+				return new WP_Error( 'database_error', 'Failed to count existing segment feedback for essay.', array( 'status' => 500 ) );
+			}
+
+			return (int) $count > 0;
+
+		} catch ( \Exception $e ) {
+			return new WP_Error( 'database_error', 'Failed to check for segment feedback: ' . $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Count distinct essays that have segment feedback based on specified criteria.
+	 *
+	 * @param array $args {
+	 *     Optional. Arguments to count distinct essays with segment feedback.
+	 *     @type int    $created_by        User ID of the feedback creator.
+	 *     @type string $feedback_criteria Feedback criteria.
+	 *     @type string $date_from         Start date for feedback creation (Y-m-d H:i:s).
+	 *     @type string $date_to           End date for feedback creation (Y-m-d H:i:s).
+	 * }
+	 * @return int|WP_Error Count of distinct essays or WP_Error on failure.
+	 * @throws \Exception If there is a database error.
+	 */
+	public function count_distinct_essays_with_segment_feedback( $args = array() ) {
+		try {
+			$defaults = array(
+				'created_by'        => null,
+				'feedback_criteria' => null,
+				'date_from'         => null,
+				'date_to'           => null,
+			);
+			$args     = wp_parse_args( $args, $defaults );
+
+			$where          = array( '1=1' );
+			$prepare_values = array();
+
+			if ( ! is_null( $args['created_by'] ) ) {
+				$where[]          = 'sf.created_by = %d';
+				$prepare_values[] = absint( $args['created_by'] );
+			}
+
+			if ( ! is_null( $args['feedback_criteria'] ) ) {
+				$where[]          = 'sf.feedback_criteria = %s';
+				$prepare_values[] = sanitize_text_field( $args['feedback_criteria'] );
+			}
+
+			if ( ! is_null( $args['date_from'] ) ) {
+				$where[]          = 'sf.created_at >= %s';
+				$prepare_values[] = $args['date_from'];
+			}
+
+			if ( ! is_null( $args['date_to'] ) ) {
+				$where[]          = 'sf.created_at <= %s';
+				$prepare_values[] = $args['date_to'];
+			}
+
+			$sql = "SELECT COUNT(DISTINCT s.essay_id)
+					FROM {$this->segment_feedback_table} sf
+					JOIN {$this->segment_table} s ON sf.segment_id = s.id
+					WHERE " . implode( ' AND ', $where );
+
+			if ( ! empty( $prepare_values ) ) {
+				$prepared_sql = $this->wpdb->prepare( $sql, $prepare_values );
+			} else {
+				$prepared_sql = $sql;
+			}
+
+			$count = $this->wpdb->get_var( $prepared_sql );
+
+			if ( is_null( $count ) ) {
+				// This indicates a potential DB error during get_var.
+				return new WP_Error( 'database_error', 'Failed to count distinct essays with segment feedback.', array( 'status' => 500 ) );
+			}
+
+			return (int) $count;
+
+		} catch ( \Exception $e ) {
+			return new WP_Error( 'database_error', 'Failed to count distinct essays with segment feedback: ' . $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
 	 * Create or update an essay feedback.
 	 *
 	 * @param array $feedback_data {
