@@ -95,126 +95,12 @@ class Ieltssci_RateLimit {
 			return true;
 		}
 
-		// Initialize Essay DB for usage counting if not already initialized.
-		if ( ! isset( $essay_db ) ) {
-			$essay_db = new Ieltssci_Essay_DB();
-		}
+		// Verify usage against applicable rate limits.
+		$usage_verification = $this->verify_usage_against_limits( $action, $creator_id, $feedback_criteria, $applicable_limits );
 
-		// Track usage and check limits.
-		$usage_exceeded = false;
-		$exceeded_limit = null; // The limit rule that was exceeded.
-		$current_usage  = array();
-
-		foreach ( $applicable_limits as $limit ) {
-			// Get date constraints based on time period type.
-			$date_constraints = $this->get_date_constraints( $limit['time_period_type'], $limit['limit_rule'] );
-			$max_allowed      = isset( $limit['rate_limit'] ) ? (int) $limit['rate_limit'] : 0;
-
-			// Count usage based on action type.
-			$usage_count = 0;
-
-			if ( 'essay_feedback' === $action ) {
-				// Count essay feedbacks created by the content creator.
-				$query_args = array(
-					'created_by'        => $creator_id,
-					'feedback_criteria' => $feedback_criteria,
-					'count'             => true,
-				);
-
-				// Add date constraints if set.
-				if ( isset( $date_constraints['date_from'] ) ) {
-					$query_args['date_from'] = $date_constraints['date_from'];
-				}
-				if ( isset( $date_constraints['date_to'] ) ) {
-					$query_args['date_to'] = $date_constraints['date_to'];
-				}
-
-				$usage_count = $essay_db->get_essay_feedbacks( $query_args );
-
-				// Add current usage to the tracking array.
-				$current_usage[ $limit['time_period_type'] ] = array(
-					'count'       => is_wp_error( $usage_count ) ? 0 : $usage_count,
-					'max_allowed' => $max_allowed,
-					'type'        => 'essay_feedback',
-				);
-
-			} elseif ( 'segment_feedback' === $action ) {
-				// Count segment feedbacks created by the content creator.
-				$query_args = array(
-					'created_by'        => $creator_id,
-					'feedback_criteria' => $feedback_criteria,
-					'count'             => true,
-				);
-
-				// Add date constraints if set.
-				if ( isset( $date_constraints['date_from'] ) ) {
-					$query_args['date_from'] = $date_constraints['date_from'];
-				}
-				if ( isset( $date_constraints['date_to'] ) ) {
-					$query_args['date_to'] = $date_constraints['date_to'];
-				}
-
-				$usage_count = $essay_db->get_segment_feedbacks( $query_args );
-
-				// Add current usage to the tracking array.
-				$current_usage[ $limit['time_period_type'] ] = array(
-					'count'       => is_wp_error( $usage_count ) ? 0 : $usage_count,
-					'max_allowed' => $max_allowed,
-					'type'        => 'segment_feedback',
-				);
-			} elseif ( 'speech_feedback' === $action ) {
-				// Count speech feedbacks created by the content creator.
-				if ( class_exists( '\IeltsScienceLMS\Speaking\Ieltssci_Speech_DB' ) ) {
-					$speech_db = new \IeltsScienceLMS\Speaking\Ieltssci_Speech_DB();
-
-					$query_args = array(
-						'created_by'        => $creator_id,
-						'feedback_criteria' => $feedback_criteria,
-						'count'             => true,
-					);
-
-					// Add date constraints if set.
-					if ( isset( $date_constraints['date_from'] ) ) {
-						$query_args['date_from'] = $date_constraints['date_from'];
-					}
-					if ( isset( $date_constraints['date_to'] ) ) {
-						$query_args['date_to'] = $date_constraints['date_to'];
-					}
-
-					$usage_count = $speech_db->get_speech_feedbacks( $query_args );
-
-					// Add current usage to the tracking array.
-					$current_usage[ $limit['time_period_type'] ] = array(
-						'count'       => is_wp_error( $usage_count ) ? 0 : $usage_count,
-						'max_allowed' => $max_allowed,
-						'type'        => 'speech_feedback',
-					);
-				}
-			}
-
-			// Check if usage exceeds limit.
-			if ( ! is_wp_error( $usage_count ) && $max_allowed > 0 && $usage_count >= $max_allowed ) {
-				$usage_exceeded = true;
-				$exceeded_limit = $limit;
-				break;
-			}
-		}
-
-		// If usage exceeded, return error with details.
-		if ( $usage_exceeded && $exceeded_limit ) {
-			return new WP_Error(
-				'rate_limit_exceeded',
-				$exceeded_limit['message']['message'] ?? 'You have reached the limit for this feature. Please try again later.',
-				array(
-					'status'        => 429,
-					'title'         => $exceeded_limit['message']['title'] ?? 'Too Many Requests',
-					'message'       => $exceeded_limit['message']['message'] ?? 'You have reached the limit for this feature. Please try again later.',
-					'cta_title'     => $exceeded_limit['message']['ctaTitle'] ?? '',
-					'cta_link'      => $exceeded_limit['message']['ctaLink'] ?? '',
-					'limit_info'    => $exceeded_limit,
-					'current_usage' => $current_usage,
-				)
-			);
+		// If usage verification returns an error, return the error.
+		if ( is_wp_error( $usage_verification ) ) {
+			return $usage_verification;
 		}
 
 		// If we reach here, none of the rate limits were exceeded.
@@ -585,5 +471,142 @@ class Ieltssci_RateLimit {
 		}
 
 		return $applicable_limits;
+	}
+
+	/**
+	 * Verify the usage against applicable rate limits.
+	 *
+	 * Checks if the current usage exceeds any of the applicable rate limits and returns the result.
+	 *
+	 * @param string $action           The action being rate limited.
+	 * @param int    $creator_id       The ID of the content creator.
+	 * @param string $feedback_criteria The feedback criteria being used.
+	 * @param array  $applicable_limits The applicable rate limits to check against.
+	 *
+	 * @return WP_Error|true True if no limits exceeded, or WP_Error if a limit is exceeded.
+	 */
+	private function verify_usage_against_limits( $action, $creator_id, $feedback_criteria, $applicable_limits ) {
+		// Initialize Essay DB for usage counting.
+		$essay_db = new Ieltssci_Essay_DB();
+
+		// Track usage and check limits.
+		$usage_exceeded = false;
+		$exceeded_limit = null; // The limit rule that was exceeded.
+		$current_usage  = array();
+
+		foreach ( $applicable_limits as $limit ) {
+			// Get date constraints based on time period type.
+			$date_constraints = $this->get_date_constraints( $limit['time_period_type'], $limit['limit_rule'] );
+			$max_allowed      = isset( $limit['rate_limit'] ) ? (int) $limit['rate_limit'] : 0;
+
+			// Count usage based on action type.
+			$usage_count = 0;
+
+			if ( 'essay_feedback' === $action ) {
+				// Count essay feedbacks created by the content creator.
+				$query_args = array(
+					'created_by'        => $creator_id,
+					'feedback_criteria' => $feedback_criteria,
+					'count'             => true,
+				);
+
+				// Add date constraints if set.
+				if ( isset( $date_constraints['date_from'] ) ) {
+					$query_args['date_from'] = $date_constraints['date_from'];
+				}
+				if ( isset( $date_constraints['date_to'] ) ) {
+					$query_args['date_to'] = $date_constraints['date_to'];
+				}
+
+				$usage_count = $essay_db->get_essay_feedbacks( $query_args );
+
+				// Add current usage to the tracking array.
+				$current_usage[ $limit['time_period_type'] ] = array(
+					'count'       => is_wp_error( $usage_count ) ? 0 : $usage_count,
+					'max_allowed' => $max_allowed,
+					'type'        => 'essay_feedback',
+				);
+
+			} elseif ( 'segment_feedback' === $action ) {
+				// Count segment feedbacks created by the content creator.
+				$query_args = array(
+					'created_by'        => $creator_id,
+					'feedback_criteria' => $feedback_criteria,
+					'count'             => true,
+				);
+
+				// Add date constraints if set.
+				if ( isset( $date_constraints['date_from'] ) ) {
+					$query_args['date_from'] = $date_constraints['date_from'];
+				}
+				if ( isset( $date_constraints['date_to'] ) ) {
+					$query_args['date_to'] = $date_constraints['date_to'];
+				}
+
+				$usage_count = $essay_db->get_segment_feedbacks( $query_args );
+
+				// Add current usage to the tracking array.
+				$current_usage[ $limit['time_period_type'] ] = array(
+					'count'       => is_wp_error( $usage_count ) ? 0 : $usage_count,
+					'max_allowed' => $max_allowed,
+					'type'        => 'segment_feedback',
+				);
+			} elseif ( 'speech_feedback' === $action ) {
+				// Count speech feedbacks created by the content creator.
+				if ( class_exists( '\IeltsScienceLMS\Speaking\Ieltssci_Speech_DB' ) ) {
+					$speech_db = new \IeltsScienceLMS\Speaking\Ieltssci_Speech_DB();
+
+					$query_args = array(
+						'created_by'        => $creator_id,
+						'feedback_criteria' => $feedback_criteria,
+						'count'             => true,
+					);
+
+					// Add date constraints if set.
+					if ( isset( $date_constraints['date_from'] ) ) {
+						$query_args['date_from'] = $date_constraints['date_from'];
+					}
+					if ( isset( $date_constraints['date_to'] ) ) {
+						$query_args['date_to'] = $date_constraints['date_to'];
+					}
+
+					$usage_count = $speech_db->get_speech_feedbacks( $query_args );
+
+					// Add current usage to the tracking array.
+					$current_usage[ $limit['time_period_type'] ] = array(
+						'count'       => is_wp_error( $usage_count ) ? 0 : $usage_count,
+						'max_allowed' => $max_allowed,
+						'type'        => 'speech_feedback',
+					);
+				}
+			}
+
+			// Check if usage exceeds limit.
+			if ( ! is_wp_error( $usage_count ) && $max_allowed > 0 && $usage_count >= $max_allowed ) {
+				$usage_exceeded = true;
+				$exceeded_limit = $limit;
+				break;
+			}
+		}
+
+		// If usage exceeded, return error with details.
+		if ( $usage_exceeded && $exceeded_limit ) {
+			return new WP_Error(
+				'rate_limit_exceeded',
+				$exceeded_limit['message']['message'] ?? 'You have reached the limit for this feature. Please try again later.',
+				array(
+					'status'        => 429,
+					'title'         => $exceeded_limit['message']['title'] ?? 'Too Many Requests',
+					'message'       => $exceeded_limit['message']['message'] ?? 'You have reached the limit for this feature. Please try again later.',
+					'cta_title'     => $exceeded_limit['message']['ctaTitle'] ?? '',
+					'cta_link'      => $exceeded_limit['message']['ctaLink'] ?? '',
+					'limit_info'    => $exceeded_limit,
+					'current_usage' => $current_usage,
+				)
+			);
+		}
+
+		// If we reach here, none of the rate limits were exceeded.
+		return true;
 	}
 }
