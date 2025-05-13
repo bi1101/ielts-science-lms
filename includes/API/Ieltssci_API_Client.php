@@ -282,7 +282,7 @@ class Ieltssci_API_Client {
 	 *
 	 * @param string $provider API provider name.
 	 * @param string $line Line from response.
-	 * @return string|null Content or null if no content.
+	 * @return array|string|null Array containing content and reasoning_content, [DONE] string, or null if no content.
 	 */
 	private function extract_content( $provider, $line ) {
 		$data = substr( $line, 6 ); // Remove "data: " prefix.
@@ -292,30 +292,71 @@ class Ieltssci_API_Client {
 			return '[DONE]';
 		}
 
+		// Initialize result structure for content and reasoning.
+		$result = array(
+			'content'           => null,
+			'reasoning_content' => null,
+		);
+
+		// Process data based on provider.
 		switch ( $provider ) {
 			case 'google':
 				$chunk = json_decode( $data, true );
-				if ( JSON_ERROR_NONE === json_last_error() &&
-					isset( $chunk['choices'][0]['delta']['content'] ) ) {
-					return $chunk['choices'][0]['delta']['content'];
+				if ( JSON_ERROR_NONE === json_last_error() && isset( $chunk['choices'][0]['delta'] ) ) {
+					$delta = $chunk['choices'][0]['delta'];
+
+					// Extract content if available.
+					if ( isset( $delta['content'] ) ) {
+						$result['content'] = $delta['content'];
+					}
+
+					// Extract reasoning_content if available.
+					if ( isset( $delta['reasoning_content'] ) ) {
+						$result['reasoning_content'] = $delta['reasoning_content'];
+					}
 				}
 				break;
 
 			case 'openai':
 			case 'open-key-ai':
 				$chunk = json_decode( $data, true );
-				if ( JSON_ERROR_NONE === json_last_error() &&
-					isset( $chunk['choices'][0]['delta']['content'] ) ) {
-					return $chunk['choices'][0]['delta']['content'];
+				if ( JSON_ERROR_NONE === json_last_error() && isset( $chunk['choices'][0]['delta'] ) ) {
+					$delta = $chunk['choices'][0]['delta'];
+
+					// Extract content if available.
+					if ( isset( $delta['content'] ) ) {
+						$result['content'] = $delta['content'];
+					}
+
+					// Extract reasoning_content if available.
+					if ( isset( $delta['reasoning_content'] ) ) {
+						$result['reasoning_content'] = $delta['reasoning_content'];
+					}
 				}
 				break;
 
 			default:
+				// Default handler for all other providers.
 				$chunk = json_decode( $data, true );
-				if ( JSON_ERROR_NONE === json_last_error() &&
-					isset( $chunk['choices'][0]['delta']['content'] ) ) {
-					return $chunk['choices'][0]['delta']['content'];
+				if ( JSON_ERROR_NONE === json_last_error() && isset( $chunk['choices'][0]['delta'] ) ) {
+					$delta = $chunk['choices'][0]['delta'];
+
+					// Extract content if available.
+					if ( isset( $delta['content'] ) ) {
+						$result['content'] = $delta['content'];
+					}
+
+					// Extract reasoning_content if available.
+					if ( isset( $delta['reasoning_content'] ) ) {
+						$result['reasoning_content'] = $delta['reasoning_content'];
+					}
 				}
+				break;
+		}
+
+		// Return the result if either content or reasoning_content is present.
+		if ( ! is_null( $result['content'] ) || ! is_null( $result['reasoning_content'] ) ) {
+			return $result;
 		}
 
 		return null;
@@ -424,15 +465,19 @@ class Ieltssci_API_Client {
 								'is_error'  => true,
 							)
 						);
-					} elseif ( ! is_null( $content_chunk ) && '' !== $content_chunk ) {
-						$full_response .= $content_chunk;
-						$this->message_handler->send_message(
-							$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-							array(
-								'content'   => $content_chunk,
-								'step_type' => $step_type,
-							)
-						);
+					} elseif ( ! is_null( $content_chunk ) && is_array( $content_chunk ) ) {
+						// Only process the normal content part for now
+						if ( isset( $content_chunk['content'] ) && ! is_null( $content_chunk['content'] ) ) {
+							$full_response .= $content_chunk['content'];
+							$this->message_handler->send_message(
+								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+								array(
+									'content'   => $content_chunk['content'],
+									'step_type' => $step_type,
+								)
+							);
+						}
+						// Ignore reasoning_content for now
 					}
 				}
 			}
@@ -460,15 +505,19 @@ class Ieltssci_API_Client {
 								'is_error'  => true,
 							)
 						);
-					} elseif ( ! is_null( $content_chunk ) && '' !== $content_chunk ) {
-						$full_response .= $content_chunk;
-						$this->message_handler->send_message(
-							$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-							array(
-								'content'   => $content_chunk,
-								'step_type' => $step_type,
-							)
-						);
+					} elseif ( ! is_null( $content_chunk ) && is_array( $content_chunk ) ) {
+						// Only process the normal content part for now
+						if ( isset( $content_chunk['content'] ) && ! is_null( $content_chunk['content'] ) ) {
+							$full_response .= $content_chunk['content'];
+							$this->message_handler->send_message(
+								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+								array(
+									'content'   => $content_chunk['content'],
+									'step_type' => $step_type,
+								)
+							);
+						}
+						// Ignore reasoning_content for now
 					}
 				}
 				$line_accumulator = '';
