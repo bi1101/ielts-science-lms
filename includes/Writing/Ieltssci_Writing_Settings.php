@@ -285,6 +285,7 @@ class Ieltssci_Writing_Settings {
 		$common_general_fields = array(
 			$settings_config_instance->create_api_provider_field(),
 			$settings_config_instance->create_model_picker_field( 'apiProvider', $default_model_options ),
+			$settings_config_instance->create_field( 'enable_thinking', 'toggle', 'Enable Thinking', 'Enable the thinking process for this model. Only apply to vllm & slm endpoints & reasoning models', false ),
 			$settings_config_instance->create_prompt_field( 'englishPrompt', 'English Prompt', 'Message sent to the model {|parameter_name|}', $writing_merge_tags ),
 			$settings_config_instance->create_prompt_field( 'vietnamesePrompt', 'Vietnamese Prompt', 'Message sent to the model {|parameter_name|}', $writing_merge_tags ),
 		);
