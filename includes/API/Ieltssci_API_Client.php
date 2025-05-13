@@ -456,17 +456,8 @@ class Ieltssci_API_Client {
 						break;
 					}
 
-					if ( $content_chunk && is_string( $content_chunk ) && 0 === strpos( $content_chunk, 'JSON decode error' ) ) {
-						$this->message_handler->send_message(
-							$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-							array(
-								'content'   => 'Error processing stream data: ' . $content_chunk,
-								'step_type' => $step_type,
-								'is_error'  => true,
-							)
-						);
-					} elseif ( ! is_null( $content_chunk ) && is_array( $content_chunk ) ) {
-						// Only process the normal content part for now
+					if ( ! is_null( $content_chunk ) && is_array( $content_chunk ) ) {
+						// Only process the normal content part for now.
 						if ( isset( $content_chunk['content'] ) && ! is_null( $content_chunk['content'] ) ) {
 							$full_response .= $content_chunk['content'];
 							$this->message_handler->send_message(
@@ -477,7 +468,7 @@ class Ieltssci_API_Client {
 								)
 							);
 						}
-						// Ignore reasoning_content for now
+						// Ignore reasoning_content for now.
 					}
 				}
 			}
@@ -496,17 +487,10 @@ class Ieltssci_API_Client {
 								'step_type' => $step_type,
 							)
 						);
-					} elseif ( $content_chunk && is_string( $content_chunk ) && 0 === strpos( $content_chunk, 'JSON decode error' ) ) {
-						$this->message_handler->send_message(
-							$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-							array(
-								'content'   => 'Error processing final stream fragment: ' . $content_chunk,
-								'step_type' => $step_type,
-								'is_error'  => true,
-							)
-						);
-					} elseif ( ! is_null( $content_chunk ) && is_array( $content_chunk ) ) {
-						// Only process the normal content part for now
+					}
+
+					if ( ! is_null( $content_chunk ) && is_array( $content_chunk ) ) {
+						// Only process the normal content part for now.
 						if ( isset( $content_chunk['content'] ) && ! is_null( $content_chunk['content'] ) ) {
 							$full_response .= $content_chunk['content'];
 							$this->message_handler->send_message(
@@ -517,7 +501,7 @@ class Ieltssci_API_Client {
 								)
 							);
 						}
-						// Ignore reasoning_content for now
+						// Ignore reasoning_content for now.
 					}
 				}
 				$line_accumulator = '';
