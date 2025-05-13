@@ -24,7 +24,7 @@ class Ieltssci_Settings_Config {
 	 * Generates a field configuration.
 	 *
 	 * @param string $id           Field ID.
-	 * @param string $type         Field type (e.g., 'radio', 'text', 'textarea', 'number', 'modelPicker').
+	 * @param string $type         Field type (e.g., 'radio', 'text', 'textarea', 'number', 'modelPicker', 'toggle').
 	 * @param string $label        Field label.
 	 * @param string $help         (Optional) Help text.
 	 * @param mixed  $default_value (Optional) Default value.
