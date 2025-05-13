@@ -227,9 +227,9 @@ class Ieltssci_API_Client {
 		$base_payload = array(
 			'model'       => $model,
 			'messages'    => array( $message_content ),
-			'temperature' => $temperature,
-			'max_tokens'  => $max_tokens,
-			'stream'      => $stream,
+			'temperature' => (float) $temperature,
+			'max_tokens'  => (int) $max_tokens,
+			'stream'      => (bool) $stream,
 		);
 
 		// Add guided generation parameters if available, with priority: JSON > Regex > Choice.
