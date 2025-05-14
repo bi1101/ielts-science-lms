@@ -468,7 +468,17 @@ class Ieltssci_API_Client {
 								)
 							);
 						}
-						// Ignore reasoning_content for now.
+
+						// Send reasoning_content as a COT event if available.
+						if ( isset( $content_chunk['reasoning_content'] ) && ! is_null( $content_chunk['reasoning_content'] ) ) {
+							$this->message_handler->send_message(
+								$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
+								array(
+									'reasoning_content' => $content_chunk['reasoning_content'],
+									'step_type'         => $step_type,
+								)
+							);
+						}
 					}
 				}
 			}
@@ -501,7 +511,17 @@ class Ieltssci_API_Client {
 								)
 							);
 						}
-						// Ignore reasoning_content for now.
+
+						// Send reasoning_content as a COT event if available.
+						if ( isset( $content_chunk['reasoning_content'] ) && ! is_null( $content_chunk['reasoning_content'] ) ) {
+							$this->message_handler->send_message(
+								$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
+								array(
+									'reasoning_content' => $content_chunk['reasoning_content'],
+									'step_type'         => $step_type,
+								)
+							);
+						}
 					}
 				}
 				$line_accumulator = '';
