@@ -394,7 +394,7 @@ class Ieltssci_API_Client {
 	 * @param resource $handle Stream resource.
 	 * @param string   $api_provider API provider name.
 	 * @param string   $step_type Step type for message handling.
-	 * @return string Accumulated full response.
+	 * @return array Array containing 'content' and 'reasoning_content' keys.
 	 */
 	private function process_stream( $handle, $api_provider, $step_type ) {
 		// Set stream to non-blocking mode for better responsiveness.
@@ -410,7 +410,7 @@ class Ieltssci_API_Client {
 	 * @param resource $handle Stream resource.
 	 * @param string   $api_provider API provider name.
 	 * @param string   $step_type Step type for message handling.
-	 * @return string Accumulated full response.
+	 * @return array Array containing 'content' and 'reasoning_content' keys.
 	 */
 	private function process_stream_loop( $handle, $api_provider, $step_type ) {
 		// Buffer for accumulating parts of a line.
@@ -419,6 +419,8 @@ class Ieltssci_API_Client {
 		$done_received = false;
 		// Accumulated full response.
 		$full_response = '';
+		// Accumulated reasoning content.
+		$reasoning_response = '';
 		// Flag to track if chain-of-thought is active.
 		$cot_active = false;
 		// Flag to determine if we should stream content to client.
@@ -498,6 +500,9 @@ class Ieltssci_API_Client {
 
 						// Send reasoning_content as a COT event if available.
 						if ( isset( $content_chunk['reasoning_content'] ) && ! is_null( $content_chunk['reasoning_content'] ) && '' !== $content_chunk['reasoning_content'] ) {
+							// Accumulate reasoning content in addition to sending it.
+							$reasoning_response .= $content_chunk['reasoning_content'];
+
 							$this->message_handler->send_message(
 								$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
 								array(
@@ -562,6 +567,9 @@ class Ieltssci_API_Client {
 
 						// Send reasoning_content as a COT event if available.
 						if ( isset( $content_chunk['reasoning_content'] ) && ! is_null( $content_chunk['reasoning_content'] ) && '' !== $content_chunk['reasoning_content'] ) {
+							// Accumulate reasoning content in addition to sending it.
+							$reasoning_response .= $content_chunk['reasoning_content'];
+
 							$this->message_handler->send_message(
 								$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
 								array(
@@ -594,7 +602,11 @@ class Ieltssci_API_Client {
 			fclose( $handle );
 		}
 
-		return $full_response;
+		// Return both the full response and reasoning response.
+		return array(
+			'content'           => $full_response,
+			'reasoning_content' => $reasoning_response,
+		);
 	}
 
 
@@ -614,7 +626,7 @@ class Ieltssci_API_Client {
 	 * @param string $guided_json Guided JSON parameter.
 	 * @param bool   $enable_thinking Whether to enable reasoning for vllm/slm.
 	 * @param string $score_regex Optional. Regex pattern to extract score from the response when step_type is 'scoring'.
-	 * @return string|WP_Error The full accumulated response from the API or WP_Error on failure. For scoring, returns the extracted score.
+	 * @return array|WP_Error Array containing 'content' and 'reasoning_content' from the API, or WP_Error on failure. For scoring steps, returns an array with 'content' (score) and 'reasoning_content'.
 	 */
 	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $score_regex = null ) {
 		try {
@@ -669,30 +681,39 @@ class Ieltssci_API_Client {
 				return new WP_Error( 'stream_detach_failed', 'Failed to detach stream resource.' );
 			}
 
-			$full_response = $this->process_stream( $handle, $api_provider, $step_type );           // If this is a scoring step and we have a score_regex, extract the score from the full response.
+			$full_response = $this->process_stream( $handle, $api_provider, $step_type );
+			// If this is a scoring step and we have a score_regex, extract the score from the full response.
 			if ( 'scoring' === $step_type && ! empty( $score_regex ) ) {
 				// Extract score from the content using regex.
-				$extracted_score = $this->extract_score_from_result( $full_response, $score_regex );
+				$extracted_score = $this->extract_score_from_result( $full_response['content'], $score_regex );
+
+				// Create a result structure with score, content, and reasoning_content.
+				$result = array(
+					'content'           => $extracted_score,
+					'reasoning_content' => $full_response['reasoning_content'],
+				);
 
 				// Send both raw content and extracted score to frontend.
 				$this->message_handler->send_message(
 					$this->message_handler->transform_case( $step_type, 'snake_upper' ),
 					array(
-						'content'     => $extracted_score,
-						'raw_content' => $full_response,
-						'regex_used'  => $score_regex,
+						'content'           => $extracted_score,
+						'raw_content'       => $full_response['content'],
+						'reasoning_content' => $full_response['reasoning_content'],
+						'regex_used'        => $score_regex,
 					)
 				);
 
-				// Return the extracted score instead of the full response.
-				return $extracted_score;
+				// Return the result array with content, and reasoning_content.
+				return $result;
 			}
 
 			return $full_response;
 
 		} catch ( RequestException $e ) {
-			$error_message = $e->getMessage();              if ( $e->hasResponse() ) {
-					$error_message .= ' Response: ' . $e->getResponse()->getBody();
+			$error_message = $e->getMessage();
+			if ( $e->hasResponse() ) {
+				$error_message .= ' Response: ' . $e->getResponse()->getBody();
 			}
 
 				$this->message_handler->send_error(

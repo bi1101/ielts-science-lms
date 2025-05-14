@@ -550,8 +550,25 @@ class Ieltssci_Writing_Feedback_Processor {
 			}
 		}
 
+		// Check if the result is a string or an array.
+		if ( is_array( $result ) ) {
+			// If it's an array, we'll use the first element as the result.
+			$result = $result['content'] ?? $result[0] ?? '';
+		}
+
+		// Enforce $result to be a string.
+		$result = (string) $result;
+
 		// Save the results to the database.
-		$this->feedback_db->save_feedback_to_database( $result, $feed, $uuid, $step_type, $segment, $language, $source );
+		$this->feedback_db->save_feedback_to_database(
+			$result,
+			$feed,
+			$uuid,
+			$step_type,
+			$segment,
+			$language,
+			$source
+		);
 
 		// if $feed['apply_to'] is paragraph, query all segments and send them back to the client.
 		if ( 'paragraph' === $feed['apply_to'] ) {
