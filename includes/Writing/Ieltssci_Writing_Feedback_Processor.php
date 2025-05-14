@@ -514,36 +514,24 @@ class Ieltssci_Writing_Feedback_Processor {
 			// If this is a scoring step and we have guide_score provided, use it directly without API call.
 			if ( 'scoring' === $step_type && ! empty( $guide_score ) ) {
 				$result = $guide_score; // Skip API call and use the guide_score directly as the result.
-			} elseif ( 'scoring' === $step_type ) {
-				// For scoring, use API client's score API call.
-				$result = $this->api_client->make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex, $images, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
-
-				// Check if result is a WP_Error.
-				if ( is_wp_error( $result ) ) {
-					$error_message = $result->get_error_message();
-					$this->send_error(
-						$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
-						array(
-							'title'    => 'Scoring API Request Failed',
-							'message'  => $error_message,
-							'ctaTitle' => 'Try Again',
-							'ctaLink'  => '#',
-						)
-					);
-					throw new Exception( esc_html( 'Scoring API request failed: ' . $error_message ) );
-				}
-
-				// Send score to frontend.
-				$this->send_message(
-					$this->transform_case( $step_type, 'snake_upper' ),
-					array(
-						'content'    => $result,
-						'regex_used' => $score_regex,
-					)
-				);
 			} else {
-				// For non-scoring steps, use API client's streaming API call.
-				$result = $this->api_client->make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
+				// Use API client's streaming API call for all step types.
+				// When step_type is 'scoring', the score will be extracted from the response.
+				$result = $this->api_client->make_stream_api_call(
+					$api_provider,
+					$model,
+					$prompt,
+					$temperature,
+					$max_tokens,
+					$feed,
+					$step_type,
+					$images,
+					$guided_choice,
+					$guided_regex,
+					$guided_json,
+					$enable_thinking,
+					'scoring' === $step_type ? $score_regex : null
+				);
 
 				// Check if result is a WP_Error.
 				if ( is_wp_error( $result ) ) {
@@ -551,13 +539,13 @@ class Ieltssci_Writing_Feedback_Processor {
 					$this->send_error(
 						$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
 						array(
-							'title'    => 'Streaming API Request Failed',
+							'title'    => 'API Request Failed',
 							'message'  => $error_message,
 							'ctaTitle' => 'Try Again',
 							'ctaLink'  => '#',
 						)
 					);
-					throw new Exception( esc_html( 'Streaming API request failed: ' . $error_message ) );
+					throw new Exception( esc_html( 'API request failed: ' . $error_message ) );
 				}
 			}
 		}

@@ -421,6 +421,8 @@ class Ieltssci_API_Client {
 		$full_response = '';
 		// Flag to track if chain-of-thought is active.
 		$cot_active = false;
+		// Flag to determine if we should stream content to client.
+		$is_scoring_step = 'scoring' === $step_type;
 
 		// Loop until done.
 		while ( ! feof( $handle ) && ! $done_received ) {
@@ -480,13 +482,18 @@ class Ieltssci_API_Client {
 						// Only process the normal content part for now.
 						if ( isset( $content_chunk['content'] ) && ! is_null( $content_chunk['content'] ) && '' !== $content_chunk['content'] ) {
 							$full_response .= $content_chunk['content'];
-							$this->message_handler->send_message(
-								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-								array(
-									'content'   => $content_chunk['content'],
-									'step_type' => $step_type,
-								)
-							);
+
+							// For scoring steps, don't send content to client until the end.
+							// Only accumulate it in $full_response.
+							if ( ! $is_scoring_step ) {
+								$this->message_handler->send_message(
+									$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+									array(
+										'content'   => $content_chunk['content'],
+										'step_type' => $step_type,
+									)
+								);
+							}
 						}
 
 						// Send reasoning_content as a COT event if available.
@@ -539,13 +546,18 @@ class Ieltssci_API_Client {
 						// Only process the normal content part for now.
 						if ( isset( $content_chunk['content'] ) && ! is_null( $content_chunk['content'] ) && '' !== $content_chunk['content'] ) {
 							$full_response .= $content_chunk['content'];
-							$this->message_handler->send_message(
-								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-								array(
-									'content'   => $content_chunk['content'],
-									'step_type' => $step_type,
-								)
-							);
+
+							// For scoring steps, don't send content to client until the end.
+							// Only accumulate it in $full_response.
+							if ( ! $is_scoring_step ) {
+								$this->message_handler->send_message(
+									$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+									array(
+										'content'   => $content_chunk['content'],
+										'step_type' => $step_type,
+									)
+								);
+							}
 						}
 
 						// Send reasoning_content as a COT event if available.
@@ -601,9 +613,10 @@ class Ieltssci_API_Client {
 	 * @param string $guided_regex Guided regex parameter.
 	 * @param string $guided_json Guided JSON parameter.
 	 * @param bool   $enable_thinking Whether to enable reasoning for vllm/slm.
-	 * @return string|WP_Error The full accumulated response from the API or WP_Error on failure.
+	 * @param string $score_regex Optional. Regex pattern to extract score from the response when step_type is 'scoring'.
+	 * @return string|WP_Error The full accumulated response from the API or WP_Error on failure. For scoring, returns the extracted score.
 	 */
-	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false ) {
+	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $score_regex = null ) {
 		try {
 			// Get client settings.
 			$client_settings = $this->get_client_settings( $api_provider );
@@ -656,7 +669,24 @@ class Ieltssci_API_Client {
 				return new WP_Error( 'stream_detach_failed', 'Failed to detach stream resource.' );
 			}
 
-			$full_response = $this->process_stream( $handle, $api_provider, $step_type );
+			$full_response = $this->process_stream( $handle, $api_provider, $step_type );           // If this is a scoring step and we have a score_regex, extract the score from the full response.
+			if ( 'scoring' === $step_type && ! empty( $score_regex ) ) {
+				// Extract score from the content using regex.
+				$extracted_score = $this->extract_score_from_result( $full_response, $score_regex );
+
+				// Send both raw content and extracted score to frontend.
+				$this->message_handler->send_message(
+					$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+					array(
+						'content'     => $extracted_score,
+						'raw_content' => $full_response,
+						'regex_used'  => $score_regex,
+					)
+				);
+
+				// Return the extracted score instead of the full response.
+				return $extracted_score;
+			}
 
 			return $full_response;
 
@@ -684,122 +714,6 @@ class Ieltssci_API_Client {
 			);
 
 			return new WP_Error( 'stream_api_general_error', 'An unexpected error occurred during streaming: ' . $e->getMessage(), array( 'status' => $e->getCode() ? $e->getCode() : 500 ) );
-		}
-	}
-
-	/**
-	 * Make a non-streaming API call specifically for scoring
-	 *
-	 * @param string $api_provider The API provider to use.
-	 * @param string $model The model name.
-	 * @param string $prompt The prompt to send.
-	 * @param float  $temperature The temperature setting.
-	 * @param int    $max_tokens The maximum tokens to generate.
-	 * @param string $score_regex Regex pattern to extract score from the response.
-	 * @param array  $images Array of base64-encoded images.
-	 * @param string $guided_choice Guided choice parameter.
-	 * @param string $guided_regex Guided regex parameter.
-	 * @param string $guided_json Guided JSON parameter.
-	 * @param bool   $enable_thinking Whether to enable reasoning for vllm/slm.
-	 * @return string|WP_Error The extracted score or full response if score extraction fails, or WP_Error on failure.
-	 */
-	public function make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false ) {
-		try {
-			// Get client settings.
-			$client_settings = $this->get_client_settings( $api_provider );
-
-			// Get headers including API key.
-			$headers = $this->get_request_headers( $api_provider, false );
-
-			// Combine settings and headers.
-			$client_settings['headers'] = $headers;
-
-			// Decider Function: Determines IF a request should be retried.
-			$decider = function ( $retries, $request, $response, $exception ) {
-				// 1. Limit the maximum number of retries.
-				if ( $retries >= 3 ) {  // Max retries.
-					return false;
-				}
-
-				return true;
-			};
-
-			// Add handler stack with retry middleware.
-			$stack = HandlerStack::create();
-			$stack->push( Middleware::retry( $decider ) );
-			$client_settings['handler'] = $stack;
-
-			$client = new Client( $client_settings );
-
-			// Prepare request payload based on the API provider - no streaming.
-			$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, false, $images, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
-
-			$endpoint = 'chat/completions';
-
-			$response = $client->request(
-				'POST',
-				$endpoint,
-				array(
-					'json' => $payload,
-				)
-			);
-
-			$response_body = $response->getBody()->getContents();
-			$full_content  = $this->extract_content_from_full_response( $response_body );
-
-			// Check if content extraction failed.
-			if ( null === $full_content ) {
-				return new WP_Error( 'score_api_no_content', 'No content extracted from API response.', array( 'response_body' => $response_body ) );
-			}
-
-			// Check if there was an error parsing the response.
-			if ( is_string( $full_content ) && 0 === strpos( $full_content, 'Error parsing response' ) ) {
-				return new WP_Error( 'score_api_response_parse_error', $full_content );
-			}
-
-			// Extract score from the content using regex.
-			$extracted_score = $this->extract_score_from_result( $full_content, $score_regex );
-
-			// Send both raw content and extracted score to frontend.
-			$this->message_handler->send_message(
-				'SCORE_RESULT',
-				array(
-					'raw_content' => $full_content,
-					'score'       => $extracted_score,
-					'regex_used'  => $score_regex,
-				)
-			);
-
-			// Return the extracted score.
-			return $extracted_score;
-
-		} catch ( RequestException $e ) {
-			$error_message = $e->getMessage();
-			if ( $e->hasResponse() ) {
-				$error_message .= ' Response: ' . $e->getResponse()->getBody();
-			}
-
-			// Send error message in case of failure.
-			$this->message_handler->send_error(
-				'score_error',
-				array(
-					'title'   => 'Scoring Error',
-					'message' => $error_message,
-				)
-			);
-
-			return new WP_Error( 'score_api_request_failed', 'Scoring API request failed: ' . $error_message, array( 'status' => $e->getCode() ? $e->getCode() : 500 ) );
-		} catch ( Exception $e ) {
-			// Send error message in case of failure.
-			$this->message_handler->send_error(
-				'score_error',
-				array(
-					'title'   => 'Scoring Error',
-					'message' => $e->getMessage(),
-				)
-			);
-
-			return new WP_Error( 'score_api_general_error', 'An unexpected error occurred during scoring: ' . $e->getMessage(), array( 'status' => $e->getCode() ? $e->getCode() : 500 ) );
 		}
 	}
 
