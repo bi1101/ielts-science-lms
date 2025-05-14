@@ -419,6 +419,8 @@ class Ieltssci_API_Client {
 		$done_received = false;
 		// Accumulated full response.
 		$full_response = '';
+		// Flag to track if chain-of-thought is active.
+		$cot_active = false;
 
 		// Loop until done.
 		while ( ! feof( $handle ) && ! $done_received ) {
@@ -443,6 +445,23 @@ class Ieltssci_API_Client {
 
 				if ( 0 === strpos( $line, 'data: ' ) ) {
 					$content_chunk = $this->extract_content( $api_provider, $line );
+
+					// Check if COT was active and has now ended.
+					// This happens if $cot_active is true AND (
+					// 1. The current chunk is an array but does NOT contain 'reasoning_content' OR
+					// 2. The current chunk is the main '[DONE]' signal.
+					// ).
+					if ( $cot_active &&
+						( ( is_array( $content_chunk ) && ! isset( $content_chunk['reasoning_content'] ) ) || '[DONE]' === $content_chunk ) ) {
+						$this->message_handler->send_message(
+							$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
+							array(
+								'content'   => '[DONE]',
+								'step_type' => $step_type,
+							)
+						);
+						$cot_active = false;
+					}
 
 					if ( '[DONE]' === $content_chunk ) {
 						$done_received = true;
@@ -478,6 +497,7 @@ class Ieltssci_API_Client {
 									'step_type'         => $step_type,
 								)
 							);
+							$cot_active = true; // Mark COT as active.
 						}
 					}
 				}
@@ -488,6 +508,20 @@ class Ieltssci_API_Client {
 				$line = trim( $line_accumulator );
 				if ( 0 === strpos( $line, 'data: ' ) ) {
 					$content_chunk = $this->extract_content( $api_provider, $line );
+
+					// Check if COT was active and has now ended.
+					if ( $cot_active &&
+						( ( is_array( $content_chunk ) && ! isset( $content_chunk['reasoning_content'] ) ) || '[DONE]' === $content_chunk ) ) {
+						$this->message_handler->send_message(
+							$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
+							array(
+								'content'   => '[DONE]',
+								'step_type' => $step_type,
+							)
+						);
+						$cot_active = false;
+					}
+
 					if ( '[DONE]' === $content_chunk ) {
 						$done_received = true;
 						$this->message_handler->send_message(
@@ -521,12 +555,25 @@ class Ieltssci_API_Client {
 									'step_type'         => $step_type,
 								)
 							);
+							$cot_active = true; // Mark COT as active.
 						}
 					}
 				}
 				$line_accumulator = '';
 				break;
 			}
+		}
+
+		// If COT was active when the stream ended, send a final COT [DONE].
+		if ( $cot_active ) {
+			$this->message_handler->send_message(
+				$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
+				array(
+					'content'   => '[DONE]',
+					'step_type' => $step_type,
+				)
+			);
+			// $cot_active = false; // Optionally reset, though loop is ending.
 		}
 
 		if ( is_resource( $handle ) ) {
