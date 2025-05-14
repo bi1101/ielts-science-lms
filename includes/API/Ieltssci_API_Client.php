@@ -460,6 +460,7 @@ class Ieltssci_API_Client {
 								'step_type' => $step_type,
 							)
 						);
+						$this->message_handler->send_done( $this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ) );
 						$cot_active = false;
 					}
 
@@ -519,6 +520,7 @@ class Ieltssci_API_Client {
 								'step_type' => $step_type,
 							)
 						);
+						$this->message_handler->send_done( $this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ) );
 						$cot_active = false;
 					}
 
@@ -573,7 +575,7 @@ class Ieltssci_API_Client {
 					'step_type' => $step_type,
 				)
 			);
-			// $cot_active = false; // Optionally reset, though loop is ending.
+			$this->message_handler->send_done( $this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ) );
 		}
 
 		if ( is_resource( $handle ) ) {
