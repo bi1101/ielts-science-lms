@@ -212,6 +212,36 @@ class Ieltssci_Writing_Feedback_Processor {
 			$steps   = isset( $feed['meta'] ) ? json_decode( $feed['meta'], true )['steps'] : array();
 			$results = array();
 
+			// Check if we have existing chain-of-thought content without an explicit chain-of-thought step.
+			$has_cot_step = false;
+			foreach ( $steps as $step ) {
+				if ( isset( $step['step'] ) && 'chain-of-thought' === $step['step'] ) {
+					$has_cot_step = true;
+					break;
+				}
+			}
+
+			// If no chain-of-thought step exists, check if we have stored chain-of-thought content.
+			if ( ! $has_cot_step ) {
+				// Try to get existing chain-of-thought content.
+				$existing_cot = $this->feedback_db->get_existing_step_content( 'chain-of-thought', $feed, $uuid, $segment, 'cot_content' );
+
+				if ( $existing_cot ) {
+					// Stream the existing chain-of-thought content to the client.
+					$this->send_message(
+						'CHAIN_OF_THOUGHT',
+						array(
+							'content' => $existing_cot,
+							'reused'  => true,
+						)
+					);
+
+					// Send DONE message to indicate completion of chain-of-thought.
+					$this->send_done( 'CHAIN_OF_THOUGHT' );
+				}
+			}
+
+			// Process the normal steps.
 			foreach ( $steps as $step ) {
 				$result    = $this->process_step( $step, $uuid, $feed, $segment, $language, $feedback_style, $guide_score, $guide_feedback );
 				$results[] = $result;
