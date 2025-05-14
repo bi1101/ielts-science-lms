@@ -478,7 +478,7 @@ class Ieltssci_API_Client {
 
 					if ( ! is_null( $content_chunk ) && is_array( $content_chunk ) ) {
 						// Only process the normal content part for now.
-						if ( isset( $content_chunk['content'] ) && ! is_null( $content_chunk['content'] ) ) {
+						if ( isset( $content_chunk['content'] ) && ! is_null( $content_chunk['content'] ) && '' !== $content_chunk['content'] ) {
 							$full_response .= $content_chunk['content'];
 							$this->message_handler->send_message(
 								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
@@ -490,12 +490,12 @@ class Ieltssci_API_Client {
 						}
 
 						// Send reasoning_content as a COT event if available.
-						if ( isset( $content_chunk['reasoning_content'] ) && ! is_null( $content_chunk['reasoning_content'] ) ) {
+						if ( isset( $content_chunk['reasoning_content'] ) && ! is_null( $content_chunk['reasoning_content'] ) && '' !== $content_chunk['reasoning_content'] ) {
 							$this->message_handler->send_message(
 								$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
 								array(
-									'reasoning_content' => $content_chunk['reasoning_content'],
-									'step_type'         => $step_type,
+									'content'   => $content_chunk['reasoning_content'],
+									'step_type' => $step_type,
 								)
 							);
 							$cot_active = true; // Mark COT as active.
@@ -537,7 +537,7 @@ class Ieltssci_API_Client {
 
 					if ( ! is_null( $content_chunk ) && is_array( $content_chunk ) ) {
 						// Only process the normal content part for now.
-						if ( isset( $content_chunk['content'] ) && ! is_null( $content_chunk['content'] ) ) {
+						if ( isset( $content_chunk['content'] ) && ! is_null( $content_chunk['content'] ) && '' !== $content_chunk['content'] ) {
 							$full_response .= $content_chunk['content'];
 							$this->message_handler->send_message(
 								$this->message_handler->transform_case( $step_type, 'snake_upper' ),
@@ -549,12 +549,12 @@ class Ieltssci_API_Client {
 						}
 
 						// Send reasoning_content as a COT event if available.
-						if ( isset( $content_chunk['reasoning_content'] ) && ! is_null( $content_chunk['reasoning_content'] ) ) {
+						if ( isset( $content_chunk['reasoning_content'] ) && ! is_null( $content_chunk['reasoning_content'] ) && '' !== $content_chunk['reasoning_content'] ) {
 							$this->message_handler->send_message(
 								$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
 								array(
-									'reasoning_content' => $content_chunk['reasoning_content'],
-									'step_type'         => $step_type,
+									'content'   => $content_chunk['reasoning_content'],
+									'step_type' => $step_type,
 								)
 							);
 							$cot_active = true; // Mark COT as active.
