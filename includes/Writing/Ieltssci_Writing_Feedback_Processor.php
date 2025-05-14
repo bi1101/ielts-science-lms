@@ -550,25 +550,53 @@ class Ieltssci_Writing_Feedback_Processor {
 			}
 		}
 
-		// Check if the result is a string or an array.
+		// Process result based on type.
 		if ( is_array( $result ) ) {
-			// If it's an array, we'll use the first element as the result.
-			$result = $result['content'] ?? $result[0] ?? '';
+			$main_content      = $result['content'] ?? $result[0] ?? '';
+			$reasoning_content = $result['reasoning_content'] ?? null;
+
+			// Save the main content to the database based on step_type.
+			$this->feedback_db->save_feedback_to_database(
+				$main_content,
+				$feed,
+				$uuid,
+				$step_type,
+				$segment,
+				$language,
+				$source
+			);
+
+			// Save the reasoning content as chain-of-thought if available.
+			if ( ! empty( $reasoning_content ) ) {
+				// Save reasoning content to cot_content regardless of step_type.
+				$this->feedback_db->save_feedback_to_database(
+					$reasoning_content,
+					$feed,
+					$uuid,
+					'chain-of-thought', // Force step_type to chain-of-thought.
+					$segment,
+					$language,
+					$source
+				);
+			}
+
+			// Set result to main content for return value.
+			$result = $main_content;
+		} else {
+			// Enforce $result to be a string.
+			$result = (string) $result;
+
+			// Save the string result to the database.
+			$this->feedback_db->save_feedback_to_database(
+				$result,
+				$feed,
+				$uuid,
+				$step_type,
+				$segment,
+				$language,
+				$source
+			);
 		}
-
-		// Enforce $result to be a string.
-		$result = (string) $result;
-
-		// Save the results to the database.
-		$this->feedback_db->save_feedback_to_database(
-			$result,
-			$feed,
-			$uuid,
-			$step_type,
-			$segment,
-			$language,
-			$source
-		);
 
 		// if $feed['apply_to'] is paragraph, query all segments and send them back to the client.
 		if ( 'paragraph' === $feed['apply_to'] ) {
