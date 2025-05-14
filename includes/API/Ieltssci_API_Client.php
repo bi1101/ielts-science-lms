@@ -180,11 +180,11 @@ class Ieltssci_API_Client {
 	 * @param string $guided_choice Guided choice parameter.
 	 * @param string $guided_regex Guided regex parameter.
 	 * @param string $guided_json Guided JSON parameter.
-	 * @param bool   $enable_reasoning Whether to enable reasoning for vllm/slm.
+	 * @param bool   $enable_thinking Whether to enable reasoning for vllm/slm.
 	 * @return array Request payload.
 	 * @throws Exception When API key is not found for the provider.
 	 */
-	private function get_request_payload( $provider, $model, $prompt, $temperature, $max_tokens, $stream = true, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_reasoning = false ) {
+	private function get_request_payload( $provider, $model, $prompt, $temperature, $max_tokens, $stream = true, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false ) {
 		if ( 'home-server' === $provider ) {
 			// Get API key for huggingface when using home-server.
 			$api_keys_db = new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_DB();
@@ -262,10 +262,10 @@ class Ieltssci_API_Client {
 			}
 		}
 
-		// Add enable_reasoning parameter to chat_template_kwargs for vllm and slm endpoints.
+		// Add enable_thinking parameter to chat_template_kwargs for vllm and slm endpoints.
 		if ( 'vllm' === $provider || 'slm' === $provider ) {
 			$base_payload['chat_template_kwargs'] = array(
-				'enable_thinking' => $enable_reasoning,
+				'enable_thinking' => $enable_thinking,
 			);
 		}
 
@@ -531,10 +531,10 @@ class Ieltssci_API_Client {
 	 * @param string $guided_choice Guided choice parameter.
 	 * @param string $guided_regex Guided regex parameter.
 	 * @param string $guided_json Guided JSON parameter.
-	 * @param bool   $enable_reasoning Whether to enable reasoning for vllm/slm.
+	 * @param bool   $enable_thinking Whether to enable reasoning for vllm/slm.
 	 * @return string|WP_Error The full accumulated response from the API or WP_Error on failure.
 	 */
-	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_reasoning = false ) {
+	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false ) {
 		try {
 			// Get client settings.
 			$client_settings = $this->get_client_settings( $api_provider );
@@ -563,7 +563,7 @@ class Ieltssci_API_Client {
 			$client = new Client( $client_settings );
 
 			// Prepare request payload based on the API provider.
-			$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, true, $images, $guided_choice, $guided_regex, $guided_json, $enable_reasoning );
+			$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, true, $images, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
 
 			$endpoint = 'chat/completions';
 
@@ -631,10 +631,10 @@ class Ieltssci_API_Client {
 	 * @param string $guided_choice Guided choice parameter.
 	 * @param string $guided_regex Guided regex parameter.
 	 * @param string $guided_json Guided JSON parameter.
-	 * @param bool   $enable_reasoning Whether to enable reasoning for vllm/slm.
+	 * @param bool   $enable_thinking Whether to enable reasoning for vllm/slm.
 	 * @return string|WP_Error The extracted score or full response if score extraction fails, or WP_Error on failure.
 	 */
-	public function make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_reasoning = false ) {
+	public function make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false ) {
 		try {
 			// Get client settings.
 			$client_settings = $this->get_client_settings( $api_provider );
@@ -663,7 +663,7 @@ class Ieltssci_API_Client {
 			$client = new Client( $client_settings );
 
 			// Prepare request payload based on the API provider - no streaming.
-			$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, false, $images, $guided_choice, $guided_regex, $guided_json, $enable_reasoning );
+			$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, false, $images, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
 
 			$endpoint = 'chat/completions';
 
@@ -771,10 +771,10 @@ class Ieltssci_API_Client {
 	 * @param string $guided_choice Guided choice parameter.
 	 * @param string $guided_regex Guided regex parameter.
 	 * @param string $guided_json Guided JSON parameter.
-	 * @param bool   $enable_reasoning Whether to enable reasoning for vllm/slm.
+	 * @param bool   $enable_thinking Whether to enable reasoning for vllm/slm.
 	 * @return string|WP_Error The concatenated responses from all API calls or WP_Error on failure.
 	 */
-	public function make_parallel_api_calls( $api_provider, $model, $prompts, $temperature, $max_tokens, $feed, $step_type, $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_reasoning = false ) {
+	public function make_parallel_api_calls( $api_provider, $model, $prompts, $temperature, $max_tokens, $feed, $step_type, $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false ) {
 		try {
 			// Get client settings.
 			$client_settings = $this->get_client_settings( $api_provider );
@@ -803,11 +803,11 @@ class Ieltssci_API_Client {
 			$total_prompts      = count( $prompts );
 
 			// Generate request objects.
-			$requests = function ( $prompts ) use ( $api_provider, $model, $temperature, $max_tokens, $guided_choice, $guided_regex, $guided_json, $enable_reasoning ) {
+			$requests = function ( $prompts ) use ( $api_provider, $model, $temperature, $max_tokens, $guided_choice, $guided_regex, $guided_json, $enable_thinking ) {
 				foreach ( $prompts as $index => $prompt ) {
 					try {
 						// Prepare request payload for this prompt.
-						$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, false, array(), $guided_choice, $guided_regex, $guided_json, $enable_reasoning );
+						$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, false, array(), $guided_choice, $guided_regex, $guided_json, $enable_thinking );
 
 						// Get headers including API key.
 						$headers = $this->get_request_headers( $api_provider, false );

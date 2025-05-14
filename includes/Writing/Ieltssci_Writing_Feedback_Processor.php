@@ -325,7 +325,7 @@ class Ieltssci_Writing_Feedback_Processor {
 		$max_tokens         = $config['advanced-setting']['maxToken'];
 		$enable_multi_modal = isset( $config['general-setting']['enableMultiModal'] ) ? $config['general-setting']['enableMultiModal'] : false;
 		$multi_modal_fields = isset( $config['general-setting']['multiModalField'] ) ? $config['general-setting']['multiModalField'] : array();
-		$enable_reasoning   = isset( $config['general-setting']['enable_reasoning'] ) ? $config['general-setting']['enable_reasoning'] : false;
+		$enable_thinking    = isset( $config['general-setting']['enable_thinking'] ) ? $config['general-setting']['enable_thinking'] : false;
 
 		// Extract guided parameters from advanced settings.
 		$guided_choice = isset( $config['advanced-setting']['guided_choice'] ) ? $config['advanced-setting']['guided_choice'] : null;
@@ -473,7 +473,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				$result = $guide_score; // Skip API call and use the guide_score directly as the result.
 			} else {
 				// Use API client for parallel API calls.
-				$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $guided_json, $enable_reasoning );
+				$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
 
 				// Check if result is a WP_Error.
 				if ( is_wp_error( $result ) ) {
@@ -516,7 +516,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				$result = $guide_score; // Skip API call and use the guide_score directly as the result.
 			} elseif ( 'scoring' === $step_type ) {
 				// For scoring, use API client's score API call.
-				$result = $this->api_client->make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex, $images, $guided_choice, $guided_regex, $guided_json, $enable_reasoning );
+				$result = $this->api_client->make_score_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $score_regex, $images, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
 
 				// Check if result is a WP_Error.
 				if ( is_wp_error( $result ) ) {
@@ -543,7 +543,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				);
 			} else {
 				// For non-scoring steps, use API client's streaming API call.
-				$result = $this->api_client->make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images, $guided_choice, $guided_regex, $guided_json, $enable_reasoning );
+				$result = $this->api_client->make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
 
 				// Check if result is a WP_Error.
 				if ( is_wp_error( $result ) ) {
