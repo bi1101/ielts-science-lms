@@ -65,7 +65,7 @@ class Ieltssci_API_Client {
 				$settings['base_uri'] = 'https://api.openai.com/v1/';
 				break;
 			case 'open-key-ai':
-				$settings['base_uri'] = 'https://api.hakai.shop/v1/';
+				$settings['base_uri'] = 'https://two.keyai.shop/v1/';
 				break;
 
 			case 'home-server':
