@@ -408,7 +408,7 @@ class Ieltssci_Writing_Feedback_DB {
 	 * Save segmenting results to the database
 	 *
 	 * @param string $uuid The UUID of the essay.
-	 * @param string $feedback The feedback content.
+	 * @param string $feedback The feedback content as JSON string.
 	 * @param array  $feed The feed data.
 	 * @param string $step_type The type of step being processed.
 	 */
@@ -437,12 +437,12 @@ class Ieltssci_Writing_Feedback_DB {
 		$essay_id = $essays[0]['id'];
 
 		// First, check if segments already exist for this essay.
-			$existing_segments = $essay_db->get_segments(
-				array(
-					'essay_id' => $essay_id,
-					'per_page' => 1,
-				)
-			);
+		$existing_segments = $essay_db->get_segments(
+			array(
+				'essay_id' => $essay_id,
+				'per_page' => 1,
+			)
+		);
 
 		// If segments already exist, don't process.
 		if ( ! is_wp_error( $existing_segments ) && ! empty( $existing_segments ) ) {
@@ -450,48 +450,62 @@ class Ieltssci_Writing_Feedback_DB {
 			return;
 		}
 
-		// Split the feedback using the separator that was added during concatenation.
-		$separator      = "\n\n---\n\n";
-		$feedback_items = array_map( 'trim', explode( $separator, $feedback ) );
+		// Parse the JSON feedback.
+		$segments_data = json_decode( $feedback, true );
 
-		// Regex to extract paragraph content from each feedback item.
-		$paragraph_regex = '/#*\s*Paragraph\s*-\s*(?\'paragraph_title\'.+)\s*(?\'paragraph_content\'[\S\s]+)/m';
+		// Check if valid JSON was provided.
+		if ( null === $segments_data || ! is_array( $segments_data ) ) {
+			// Invalid JSON format, log error or handle accordingly.
+			return;
+		}
 
 		// Arrays to store different segment types and track ordering.
 		$all_segments  = array();
 		$segment_order = 0;
 
-		// Process each feedback item.
-		foreach ( $feedback_items as $item ) {
-			if ( empty( $item ) ) {
-				continue;
+		// Process each segment from the JSON data.
+		foreach ( $segments_data as $item ) {
+			// Validate required fields exist.
+			if ( empty( $item['text'] ) || empty( $item['type'] ) ) {
+				continue; // Skip invalid entries.
 			}
 
-			// Extract paragraph information.
-			if ( preg_match( $paragraph_regex, $item, $matches ) ) {
-				$paragraph_content = trim( $matches['paragraph_content'] );
+			++$segment_order;
 
-				// Extract the segments from this paragraph content.
-				$segments = $this->segment_extractor->extract_segments( $paragraph_content );
+			// Map the JSON 'type' to database segment type.
+			$segment_type = strtolower( str_replace( ' ', '-', $item['type'] ) );
 
-				foreach ( $segments as $segment ) {
-					if ( empty( $segment['title'] ) || empty( $segment['content'] ) ) {
-						continue;
-					}
-
-					++$segment_order;
-
-					$segment_type = $this->segment_extractor->determine_segment_type( $segment['title'] );
-
-					// Add to the collection with appropriate metadata.
-					$all_segments[] = array(
-						'title'   => $segment['title'],
-						'content' => $segment['content'],
-						'type'    => $segment_type,
-						'order'   => $segment_order,
-					);
-				}
+			// Handle the special case where 'Intro' should map to 'introduction'.
+			if ( 'intro' === $segment_type ) {
+				$segment_type = 'introduction';
 			}
+
+			// Create title based on segment type.
+			$title = '';
+			switch ( $segment_type ) {
+				case 'introduction':
+					$title = 'Introduction';
+					break;
+				case 'topic-sentence':
+					$title = 'Topic Sentence';
+					break;
+				case 'main-point':
+					$title = 'Main Point ' . $segment_order;
+					break;
+				case 'conclusion':
+					$title = 'Conclusion';
+					break;
+				default:
+					$title = ucfirst( $segment_type );
+			}
+
+			// Add to the collection with appropriate metadata.
+			$all_segments[] = array(
+				'title'   => $title,
+				'content' => $item['text'],
+				'type'    => $segment_type,
+				'order'   => $segment_order,
+			);
 		}
 
 		// Save the segments to the database.
