@@ -499,29 +499,43 @@ class Ieltssci_Writing_Feedback_Processor {
 			}
 
 			$this->send_message( $event_type, $message_data );
-			if ( 'scoring' === $step_type && ! empty( $guide_score ) ) {
-				$result = $guide_score; // Skip API call and use the guide_score directly as the result.
-			} else {
-				// Use API client for parallel API calls.
-				$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
 
-				// Check if result is a WP_Error.
-				if ( is_wp_error( $result ) ) {
-					$error_message = $result->get_error_message();
-					$this->send_error(
-						$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
+			// Use API client for parallel API calls.
+			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
+
+			// Check if result is a WP_Error.
+			if ( is_wp_error( $result ) ) {
+				$error_message = $result->get_error_message();
+				$this->send_error(
+					$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
+					array(
+						'title'    => 'Parallel API Request Failed',
+						'message'  => $error_message,
+						'ctaTitle' => 'Try Again',
+						'ctaLink'  => '#',
+					)
+				);
+				throw new Exception( esc_html( 'Parallel API request failed: ' . $error_message ) );
+			}
+
+			// Process the result if it's a scoring step.
+			if ( 'scoring' === $step_type ) {
+				// If we have a guide_score, use it instead of the extracted score.
+				if ( ! empty( $guide_score ) ) {
+					// Send the AI reasoning and guide score to frontend.
+					$this->send_message(
+						$this->transform_case( $step_type, 'snake_upper' ),
 						array(
-							'title'    => 'Parallel API Request Failed',
-							'message'  => $error_message,
-							'ctaTitle' => 'Try Again',
-							'ctaLink'  => '#',
+							'content'     => $guide_score,
+							'raw_content' => $result,
+							'guided'      => true,
 						)
 					);
-					throw new Exception( esc_html( 'Parallel API request failed: ' . $error_message ) );
-				}
 
-				// Process the result if it's a scoring step.
-				if ( 'scoring' === $step_type ) {
+					// Override result with guide_score.
+					$result = $guide_score;
+				} else {
+					// Extract score using regex as normal.
 					$extracted_score = $this->extract_score_from_result( $result, $score_regex );
 					// Send score to frontend.
 					$this->send_message(
@@ -541,41 +555,65 @@ class Ieltssci_Writing_Feedback_Processor {
 			// For a single string prompt, proceed with appropriate call.
 			$prompt = $processed_prompt;
 
-			// If this is a scoring step and we have guide_score provided, use it directly without API call.
+			// If this is a scoring step and we have guide_score provided, still make the API call to get reasoning.
+			// When step_type is 'scoring', the score will be extracted from the response.
+			$result = $this->api_client->make_stream_api_call(
+				$api_provider,
+				$model,
+				$prompt,
+				$temperature,
+				$max_tokens,
+				$feed,
+				$step_type,
+				$images,
+				$guided_choice,
+				$guided_regex,
+				$guided_json,
+				$enable_thinking,
+				'scoring' === $step_type ? $score_regex : null
+			);
+
+			// Check if result is a WP_Error.
+			if ( is_wp_error( $result ) ) {
+				$error_message = $result->get_error_message();
+				$this->send_error(
+					$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
+					array(
+						'title'    => 'API Request Failed',
+						'message'  => $error_message,
+						'ctaTitle' => 'Try Again',
+						'ctaLink'  => '#',
+					)
+				);
+				throw new Exception( esc_html( 'API request failed: ' . $error_message ) );
+			}
+
+			// If this is a scoring step and we have guide_score, use it instead of the extracted score.
 			if ( 'scoring' === $step_type && ! empty( $guide_score ) ) {
-				$result = $guide_score; // Skip API call and use the guide_score directly as the result.
-			} else {
-				// Use API client's streaming API call for all step types.
-				// When step_type is 'scoring', the score will be extracted from the response.
-				$result = $this->api_client->make_stream_api_call(
-					$api_provider,
-					$model,
-					$prompt,
-					$temperature,
-					$max_tokens,
-					$feed,
-					$step_type,
-					$images,
-					$guided_choice,
-					$guided_regex,
-					$guided_json,
-					$enable_thinking,
-					'scoring' === $step_type ? $score_regex : null
+				// Extract any reasoning from the result if it's an array.
+				$reasoning_content = null;
+				if ( is_array( $result ) && isset( $result['reasoning_content'] ) ) {
+					$reasoning_content = $result['reasoning_content'];
+				}
+
+				// Send the AI reasoning and guide score to frontend.
+				$this->send_message(
+					$this->transform_case( $step_type, 'snake_upper' ),
+					array(
+						'content'     => $guide_score,
+						'raw_content' => $result,
+						'guided'      => true,
+					)
 				);
 
-				// Check if result is a WP_Error.
-				if ( is_wp_error( $result ) ) {
-					$error_message = $result->get_error_message();
-					$this->send_error(
-						$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
-						array(
-							'title'    => 'API Request Failed',
-							'message'  => $error_message,
-							'ctaTitle' => 'Try Again',
-							'ctaLink'  => '#',
-						)
+				// Override result with guide_score but preserve reasoning if available.
+				if ( $reasoning_content ) {
+					$result = array(
+						'content'           => $guide_score,
+						'reasoning_content' => $reasoning_content,
 					);
-					throw new Exception( esc_html( 'API request failed: ' . $error_message ) );
+				} else {
+					$result = $guide_score;
 				}
 			}
 		}
