@@ -416,6 +416,11 @@ class Ieltssci_Writing_Feedback_DB {
 		// Initialize Essay DB.
 		$essay_db = new Ieltssci_Essay_DB();
 
+		// Skip chain-of-thought step type.
+		if ( 'chain-of-thought' === $step_type ) {
+			return;
+		}
+
 		// Get the essay_id from UUID.
 		$essays = $essay_db->get_essays(
 			array(
