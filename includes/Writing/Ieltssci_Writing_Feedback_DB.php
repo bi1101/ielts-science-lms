@@ -460,8 +460,9 @@ class Ieltssci_Writing_Feedback_DB {
 		}
 
 		// Arrays to store different segment types and track ordering.
-		$all_segments  = array();
-		$segment_order = 0;
+		$all_segments     = array();
+		$segment_order    = 0;
+		$main_point_count = 0;
 
 		// Process each segment from the JSON data.
 		foreach ( $segments_data as $item ) {
@@ -480,6 +481,11 @@ class Ieltssci_Writing_Feedback_DB {
 				$segment_type = 'introduction';
 			}
 
+			// Increment main point counter if this is a main point.
+			if ( 'main-point' === $segment_type ) {
+				++$main_point_count;
+			}
+
 			// Create title based on segment type.
 			$title = '';
 			switch ( $segment_type ) {
@@ -490,7 +496,7 @@ class Ieltssci_Writing_Feedback_DB {
 					$title = 'Topic Sentence';
 					break;
 				case 'main-point':
-					$title = 'Main Point ' . $segment_order;
+					$title = 'Main Point ' . $main_point_count;
 					break;
 				case 'conclusion':
 					$title = 'Conclusion';
