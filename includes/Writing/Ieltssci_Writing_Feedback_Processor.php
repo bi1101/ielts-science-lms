@@ -102,10 +102,11 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
 	 * @param string $guide_score   Human-guided scoring for the AI to consider.
 	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param string $refetch       Whether to refetch the content even if it exists.
 	 * @return WP_Error|null Error or null on success.
 	 * @throws Exception When feed processing fails.
 	 */
-	public function process_feed_by_id( $feed_id, $uuid, $segment_order = null, $language = 'en', $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
+	public function process_feed_by_id( $feed_id, $uuid, $segment_order = null, $language = 'en', $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
 		// Get the specific feed that needs processing.
 		$feeds = $this->api_feeds_db->get_api_feeds(
 			array(
@@ -127,7 +128,7 @@ class Ieltssci_Writing_Feedback_Processor {
 
 		try {
 			// Process the feed.
-			$this->process_feed( $feed, $uuid, $segment_order, $language, $feedback_style, $guide_score, $guide_feedback );
+			$this->process_feed( $feed, $uuid, $segment_order, $language, $feedback_style, $guide_score, $guide_feedback, $refetch );
 			return null;
 		} catch ( Exception $e ) {
 			return new WP_Error( 'feed_processing_error', $e->getMessage(), array( 'status' => 500 ) );
@@ -144,10 +145,11 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
 	 * @param string $guide_score   Human-guided scoring for the AI to consider.
 	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param string $refetch       Whether to refetch the content even if it exists.
 	 *
 	 * @throws Exception When feed processing fails.
 	 */
-	public function process_feed( $feed, $uuid, $segment_order = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
+	public function process_feed( $feed, $uuid, $segment_order = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
 		// Get segment information if segment_order is provided.
 		$segment = null;
 		if ( null !== $segment_order ) {
