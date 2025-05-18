@@ -253,7 +253,8 @@ class Ieltssci_Writing_Feedback_Processor {
 					$language,
 					$feedback_style,
 					$guide_score,
-					$guide_feedback
+					$guide_feedback,
+					$refetch
 				);
 				$results[] = $result;
 			}
@@ -321,11 +322,12 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
 	 * @param string $guide_score   Human-guided scoring for the AI to consider.
 	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param string $refetch       Whether to refetch content, 'all' or specific step type.
 	 *
 	 * @return string The processed content.
 	 * @throws Exception When API calls fail or return errors.
 	 */
-	public function process_step( $step, $uuid, $feed, $segment = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
+	public function process_step( $step, $uuid, $feed, $segment = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
 		// Get settings from the step.
 		$step_type = isset( $step['step'] ) ? $step['step'] : 'feedback';
 		$sections  = isset( $step['sections'] ) ? $step['sections'] : array();
@@ -387,11 +389,17 @@ class Ieltssci_Writing_Feedback_Processor {
 				break;
 		}
 
-		// Check if this step has already been processed.
-		$existing_content_result = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $segment, $content_field );
+		// Check if we should skip checking existing content based on refetch parameter.
+		$should_check_existing = ! ( 'all' === $refetch || $step_type === $refetch );
+
+		$existing_content_result = null;
+		if ( $should_check_existing ) {
+			// Check if this step has already been processed.
+			$existing_content_result = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $segment, $content_field );
+		}
 
 		// Check if we received segments data along with content.
-		if ( is_array( $existing_content_result ) && isset( $existing_content_result['content'] ) && isset( $existing_content_result['segments_data'] ) ) {
+		if ( $existing_content_result && is_array( $existing_content_result ) && isset( $existing_content_result['content'] ) && isset( $existing_content_result['segments_data'] ) ) {
 			// Extract the content and segments data.
 			$existing_content = $existing_content_result['content'];
 			$segments_data    = $existing_content_result['segments_data'];
@@ -642,7 +650,8 @@ class Ieltssci_Writing_Feedback_Processor {
 				$step_type,
 				$segment,
 				$language,
-				$source
+				$source,
+				$refetch
 			);
 
 			// Save the reasoning content as chain-of-thought if available.
@@ -655,7 +664,8 @@ class Ieltssci_Writing_Feedback_Processor {
 					'chain-of-thought', // Force step_type to chain-of-thought.
 					$segment,
 					$language,
-					$source
+					$source,
+					$refetch
 				);
 			}
 
@@ -673,7 +683,8 @@ class Ieltssci_Writing_Feedback_Processor {
 				$step_type,
 				$segment,
 				$language,
-				$source
+				$source,
+				$refetch
 			);
 		}
 
