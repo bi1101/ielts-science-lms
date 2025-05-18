@@ -245,7 +245,16 @@ class Ieltssci_Writing_Feedback_Processor {
 
 			// Process the normal steps.
 			foreach ( $steps as $step ) {
-				$result    = $this->process_step( $step, $uuid, $feed, $segment, $language, $feedback_style, $guide_score, $guide_feedback );
+				$result    = $this->process_step(
+					$step,
+					$uuid,
+					$feed,
+					$segment,
+					$language,
+					$feedback_style,
+					$guide_score,
+					$guide_feedback
+				);
 				$results[] = $result;
 			}
 
