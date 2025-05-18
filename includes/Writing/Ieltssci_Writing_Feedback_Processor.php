@@ -223,8 +223,8 @@ class Ieltssci_Writing_Feedback_Processor {
 				}
 			}
 
-			// If no chain-of-thought step exists, check if we have stored chain-of-thought content.
-			if ( ! $has_cot_step ) {
+			// Skip chain-of-thought for paragraph feeds or process it if not present in steps.
+			if ( ! $has_cot_step && 'paragraph' !== $feed['apply_to'] ) {
 				// Try to get existing chain-of-thought content.
 				$existing_cot = $this->feedback_db->get_existing_step_content( 'chain-of-thought', $feed, $uuid, $segment, 'cot_content' );
 
