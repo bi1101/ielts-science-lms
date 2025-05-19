@@ -344,13 +344,29 @@ class Ieltssci_Merge_Tags_Processor {
 
 				$feedbacks = $essay_db->get_essay_feedbacks( $query_args );
 				if ( ! is_wp_error( $feedbacks ) && ! empty( $feedbacks ) ) {
-					if ( 1 === count( $feedbacks ) ) {
+					// Filter out feedbacks where the required field is empty.
+					$filtered_feedbacks = array_filter(
+						$feedbacks,
+						function ( $feedback ) use ( $field ) {
+							return isset( $feedback[ $field ] ) && ! empty( $feedback[ $field ] );
+						}
+					);
+
+					// If no feedbacks remain after filtering, return null.
+					if ( empty( $filtered_feedbacks ) ) {
+						return null;
+					}
+
+					// Re-index the array.
+					$filtered_feedbacks = array_values( $filtered_feedbacks );
+
+					if ( 1 === count( $filtered_feedbacks ) ) {
 						// Return just the specific field for single result.
-						return isset( $feedbacks[0][ $field ] ) ? $feedbacks[0][ $field ] : null;
+						return $filtered_feedbacks[0][ $field ];
 					} else {
 						// For multiple results, create an array of field values.
-						$values = array_column( $feedbacks, $field );
-						return ! empty( $values ) ? $values : null;
+						$values = array_column( $filtered_feedbacks, $field );
+						return $values;
 					}
 				}
 				break;
@@ -405,13 +421,29 @@ class Ieltssci_Merge_Tags_Processor {
 
 				$feedbacks = $essay_db->get_segment_feedbacks( $query_args );
 				if ( ! is_wp_error( $feedbacks ) && ! empty( $feedbacks ) ) {
-					if ( 1 === count( $feedbacks ) ) {
+					// Filter out feedbacks where the required field is empty.
+					$filtered_feedbacks = array_filter(
+						$feedbacks,
+						function ( $feedback ) use ( $field ) {
+							return isset( $feedback[ $field ] ) && ! empty( $feedback[ $field ] );
+						}
+					);
+
+					// If no feedbacks remain after filtering, return null.
+					if ( empty( $filtered_feedbacks ) ) {
+						return null;
+					}
+
+					// Re-index the array.
+					$filtered_feedbacks = array_values( $filtered_feedbacks );
+
+					if ( 1 === count( $filtered_feedbacks ) ) {
 						// Return just the specific field for single result.
-						return isset( $feedbacks[0][ $field ] ) ? $feedbacks[0][ $field ] : null;
+						return $filtered_feedbacks[0][ $field ];
 					} else {
 						// For multiple results, create an array of field values.
-						$values = array_column( $feedbacks, $field );
-						return ! empty( $values ) ? $values : null;
+						$values = array_column( $filtered_feedbacks, $field );
+						return $values;
 					}
 				}
 				break;
@@ -505,13 +537,29 @@ class Ieltssci_Merge_Tags_Processor {
 
 				$feedbacks = $speech_db->get_speech_feedbacks( $query_args );
 				if ( ! is_wp_error( $feedbacks ) && ! empty( $feedbacks ) ) {
-					if ( 1 === count( $feedbacks ) ) {
+					// Filter out feedbacks where the required field is empty.
+					$filtered_feedbacks = array_filter(
+						$feedbacks,
+						function ( $feedback ) use ( $field ) {
+							return isset( $feedback[ $field ] ) && ! empty( $feedback[ $field ] );
+						}
+					);
+
+					// If no feedbacks remain after filtering, return null.
+					if ( empty( $filtered_feedbacks ) ) {
+						return null;
+					}
+
+					// Re-index the array.
+					$filtered_feedbacks = array_values( $filtered_feedbacks );
+
+					if ( 1 === count( $filtered_feedbacks ) ) {
 						// Return just the specific field for single result.
-						return isset( $feedbacks[0][ $field ] ) ? $feedbacks[0][ $field ] : null;
+						return $filtered_feedbacks[0][ $field ];
 					} else {
 						// For multiple results, create an array of field values.
-						$values = array_column( $feedbacks, $field );
-						return ! empty( $values ) ? $values : null;
+						$values = array_column( $filtered_feedbacks, $field );
+						return $values;
 					}
 				}
 				break;
