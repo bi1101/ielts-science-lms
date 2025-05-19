@@ -394,52 +394,62 @@ class Ieltssci_Merge_Tags_Processor {
 					return null;
 				}
 
-				// Extract segment IDs.
-				$segment_ids = array_column( $segments, 'id' );
+				// Process segment feedbacks one by one to get exactly one feedback per segment.
+				$collected_feedback_content = array();
 
-				// Build query for segment feedbacks.
-				$query_args = array(
-					'segment_id' => $segment_ids,
-				);
+				// For each segment, get only one feedback.
+				foreach ( $segments as $segment ) {
+					$segment_id = $segment['id'];
 
-				// Add additional filter if provided.
-				if ( ! empty( $filter_field ) && ! empty( $filter_value ) ) {
-					$query_args[ $filter_field ] = $filter_value;
-				}
-
-				// Add fields filter.
-				if ( '*' !== $field ) {
-					$query_args['fields'] = array( $field );
-				}
-
-				$feedbacks = $essay_db->get_segment_feedbacks( $query_args );
-				if ( ! is_wp_error( $feedbacks ) && ! empty( $feedbacks ) ) {
-					// Filter out feedbacks where the required field is empty.
-					$filtered_feedbacks = array_filter(
-						$feedbacks,
-						function ( $feedback ) use ( $field ) {
-							return isset( $feedback[ $field ] ) && ! empty( $feedback[ $field ] );
-						}
+					// Build query for this segment's feedback.
+					$query_args = array(
+						'segment_id' => $segment_id,
 					);
 
-					// If no feedbacks remain after filtering, return null.
-					if ( empty( $filtered_feedbacks ) ) {
-						return null;
+					// Add additional filter if provided.
+					if ( ! empty( $filter_field ) && ! empty( $filter_value ) ) {
+						$query_args[ $filter_field ] = $filter_value;
 					}
 
-					// Re-index the array.
-					$filtered_feedbacks = array_values( $filtered_feedbacks );
+					// Add fields filter.
+					if ( '*' !== $field ) {
+						$query_args['fields'] = array( $field );
+					}
 
-					if ( 1 === count( $filtered_feedbacks ) ) {
-						// Return just the specific field for single result.
-						return $filtered_feedbacks[0][ $field ];
-					} else {
-						// For multiple results, create an array of field values.
-						$values = array_column( $filtered_feedbacks, $field );
-						return $values;
+					// Get all feedback for this segment.
+					$segment_feedback = $essay_db->get_segment_feedbacks( $query_args );
+
+					// If we found any feedback, filter for non-empty content.
+					if ( ! is_wp_error( $segment_feedback ) && ! empty( $segment_feedback ) ) {
+						// Filter feedbacks where the requested field has valid content.
+						$filtered_feedback = array_filter(
+							$segment_feedback,
+							function ( $feedback ) use ( $field ) {
+								return isset( $feedback[ $field ] ) && ! empty( $feedback[ $field ] );
+							}
+						);
+
+						// If we have any valid feedback after filtering, use the first one.
+						if ( ! empty( $filtered_feedback ) ) {
+							$filtered_feedback            = array_values( $filtered_feedback );
+							$collected_feedback_content[] = $filtered_feedback[0][ $field ];
+						}
 					}
 				}
-				break;
+
+				// If no valid feedbacks were found, return null.
+				if ( empty( $collected_feedback_content ) ) {
+					return null;
+				}
+
+				// If segment_order was specified, we should have only one result.
+				// Or if we happened to get just one feedback anyway.
+				if ( null !== $segment_order || 1 === count( $collected_feedback_content ) ) {
+					return $collected_feedback_content[0]; // Return just the first/only value.
+				} else {
+					// Return all collected feedback content as an array.
+					return $collected_feedback_content;
+				}
 		}
 
 		// If we get here, no results were found.
