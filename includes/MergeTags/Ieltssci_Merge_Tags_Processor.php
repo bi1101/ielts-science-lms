@@ -360,14 +360,7 @@ class Ieltssci_Merge_Tags_Processor {
 					// Re-index the array.
 					$filtered_feedbacks = array_values( $filtered_feedbacks );
 
-					if ( 1 === count( $filtered_feedbacks ) ) {
-						// Return just the specific field for single result.
-						return $filtered_feedbacks[0][ $field ];
-					} else {
-						// For multiple results, create an array of field values.
-						$values = array_column( $filtered_feedbacks, $field );
-						return $values;
-					}
+					return $filtered_feedbacks[0][ $field ];
 				}
 				break;
 
