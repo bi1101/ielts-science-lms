@@ -598,7 +598,7 @@ class Ieltssci_RateLimit {
 			}
 
 			// Check if usage exceeds limit.
-			if ( ! is_wp_error( $usage_count ) && $max_allowed > 0 && $usage_count >= $max_allowed ) {
+			if ( ! is_wp_error( $usage_count ) && ( ( $max_allowed > 0 && $usage_count >= $max_allowed ) || 0 === $max_allowed ) ) {
 				$usage_exceeded = true;
 				$exceeded_limit = $limit;
 				break;
