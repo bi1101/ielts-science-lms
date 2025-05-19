@@ -166,6 +166,13 @@ class Ieltssci_Writing_SSE_REST {
 						},
 						'sanitize_callback' => 'sanitize_text_field',
 					),
+					'refetch'        => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
 				),
 			)
 		);
