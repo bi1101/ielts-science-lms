@@ -391,6 +391,25 @@ class Ieltssci_Writing_Feedback_Processor {
 
 			return $existing_content;
 		} elseif ( $existing_content_result ) {
+
+			// If this step has thinking enabled, check for existing chain-of-thought content.
+			if ( $enable_thinking ) {
+				$existing_cot = $this->feedback_db->get_existing_step_content( 'chain-of-thought', $feed, $uuid, $segment, 'cot_content' );
+
+				if ( $existing_cot ) {
+					// Stream the existing chain-of-thought content to the client.
+					$this->send_message(
+						'CHAIN_OF_THOUGHT',
+						array(
+							'content' => $existing_cot,
+							'reused'  => true,
+						)
+					);
+
+				}
+				// Send DONE message to indicate completion of chain-of-thought.
+				$this->send_done( 'CHAIN_OF_THOUGHT' );
+			}
 			// Simple string content, no segments data.
 			$existing_content = $existing_content_result;
 
