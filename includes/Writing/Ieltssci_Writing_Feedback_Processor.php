@@ -211,7 +211,19 @@ class Ieltssci_Writing_Feedback_Processor {
 		}
 
 		try {
-			$steps   = isset( $feed['meta'] ) ? json_decode( $feed['meta'], true )['steps'] : array();
+			$steps = isset( $feed['meta'] ) ? json_decode( $feed['meta'], true )['steps'] : array();
+
+			// If refetch is set to a specific step, then only process that step, if refetch is set to 'all', then process all steps.
+			if ( ! empty( $refetch ) && is_string( $refetch ) && 'all' !== $refetch ) {
+				// Filter steps to only process the specific step requested.
+				$steps = array_filter(
+					$steps,
+					function ( $step ) use ( $refetch ) {
+						return isset( $step['step'] ) && $step['step'] === $refetch;
+					}
+				);
+			}
+
 			$results = array();
 
 			foreach ( $steps as $step ) {
