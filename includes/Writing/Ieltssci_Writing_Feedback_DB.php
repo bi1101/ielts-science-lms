@@ -238,7 +238,7 @@ class Ieltssci_Writing_Feedback_DB {
 	 * @param string $language   The language of the feedback.
 	 * @param string $source     The source of the feedback, 'ai' or 'human'.
 	 * @param string $refetch    Whether to refetch content, 'all' or specific step type.
-	 * @return int|WP_Error|bool ID of created/updated feedback, error, or false if skipped.
+	 * @return int|WP_Error|bool ID of created feedback, error, or false if skipped.
 	 */
 	private function save_segment_feedback( $uuid, $feedback, $feed, $step_type, $segment, $language = 'en', $source = 'ai', $refetch = '' ) {
 		// Check if segment is null - if so, return false (nothing to save).
@@ -270,16 +270,6 @@ class Ieltssci_Writing_Feedback_DB {
 		// Initialize Essay DB.
 		$essay_db = new Ieltssci_Essay_DB();
 
-		// Check if existing feedback already exists for this segment, criteria, and source.
-		$existing_feedback = $essay_db->get_segment_feedbacks(
-			array(
-				'segment_id'        => $segment_id,
-				'feedback_criteria' => $feedback_criteria,
-				'source'            => $source,
-				'per_page'          => 1,
-			)
-		);
-
 		// Prepare feedback data.
 		$feedback_data = array(
 			'segment_id'        => $segment_id,
@@ -289,26 +279,8 @@ class Ieltssci_Writing_Feedback_DB {
 			$content_field      => $feedback,
 		);
 
-		// Check if we should create a new entry based on refetch parameter.
-		$should_create_new = 'all' === $refetch || $step_type === $refetch;
-
-		// If existing record found and not refetching.
-		if ( ! $should_create_new && ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) ) {
-			$existing = $existing_feedback[0];
-
-			// Check if the content field for this step_type is empty.
-			if ( empty( $existing[ $content_field ] ) ) {
-				// Update the existing record with new content.
-				$feedback_data['id'] = $existing['id'];
-				return $essay_db->create_update_segment_feedback( $feedback_data );
-			} else {
-				// Skip saving if content already exists and not refetching.
-				return false;
-			}
-		} else {
-			// Create new feedback entry for new records or refetch cases.
-			return $essay_db->create_update_segment_feedback( $feedback_data );
-		}
+		// Always create a new feedback entry regardless of existing records.
+		return $essay_db->create_update_segment_feedback( $feedback_data );
 	}
 
 	/**
@@ -360,16 +332,6 @@ class Ieltssci_Writing_Feedback_DB {
 				break;
 		}
 
-		// Check if existing feedback already exists for this essay, criteria, and source.
-		$existing_feedback = $essay_db->get_essay_feedbacks(
-			array(
-				'essay_id'          => $essay_id,
-				'feedback_criteria' => $feedback_criteria,
-				'source'            => $source,
-				'per_page'          => 1,
-			)
-		);
-
 		// Prepare feedback data.
 		$feedback_data = array(
 			'essay_id'          => $essay_id,
@@ -379,26 +341,8 @@ class Ieltssci_Writing_Feedback_DB {
 			$content_field      => $feedback,
 		);
 
-		// Check if we should create a new entry based on refetch parameter.
-		$should_create_new = 'all' === $refetch || $step_type === $refetch;
-
-		// If existing record found and not refetching.
-		if ( ! $should_create_new && ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) ) {
-			$existing = $existing_feedback[0];
-
-			// Check if the content field for this step_type is empty.
-			if ( empty( $existing[ $content_field ] ) ) {
-				// Update the existing record with new content.
-				$feedback_data['id'] = $existing['id'];
-				return $essay_db->create_update_essay_feedback( $feedback_data );
-			} else {
-				// Skip saving if content already exists and not refetching.
-				return false;
-			}
-		} else {
-			// Create new feedback entry for new records or refetch cases.
-			return $essay_db->create_update_essay_feedback( $feedback_data );
-		}
+		// Always create a new feedback entry.
+		return $essay_db->create_update_essay_feedback( $feedback_data );
 	}
 
 	/**
