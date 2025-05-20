@@ -96,49 +96,23 @@ class Ieltssci_Writing_Feedback_DB {
 		// Check the appropriate table based on apply_to.
 		switch ( $apply_to ) {
 			case 'essay':
-					// First try to get human feedback if it exists.
-					$human_feedback = $essay_db->get_essay_feedbacks(
-						array(
-							'essay_id'          => $essay_id,
-							'feedback_criteria' => $feedback_criteria,
-							'source'            => 'human',
-							'fields'            => array( $content_field, 'created_at' ),
-							'orderby'           => 'created_at',
-							'order'             => 'DESC',
-						)
-					);
+				// Get feedback.
+				$feedback_results = $essay_db->get_essay_feedbacks(
+					array(
+						'essay_id'          => $essay_id,
+						'feedback_criteria' => $feedback_criteria,
+						'fields'            => array( $content_field, 'created_at' ),
+						'orderby'           => 'created_at',
+						'order'             => 'DESC',
+					)
+				);
 
-					// If human feedback exists with non-empty content field, use it.
-					$found_human_feedback = false;
-				if ( ! is_wp_error( $human_feedback ) && ! empty( $human_feedback ) ) {
-					foreach ( $human_feedback as $feedback ) {
+				// Use the first feedback that has content in the required field.
+				if ( ! is_wp_error( $feedback_results ) && ! empty( $feedback_results ) ) {
+					foreach ( $feedback_results as $feedback ) {
 						if ( ! empty( $feedback[ $content_field ] ) ) {
-							$existing_content     = $feedback[ $content_field ];
-							$found_human_feedback = true;
+							$existing_content = $feedback[ $content_field ];
 							break;
-						}
-					}
-				}
-
-					// If no human feedback with required content, check for AI feedback.
-				if ( ! $found_human_feedback ) {
-					$ai_feedback = $essay_db->get_essay_feedbacks(
-						array(
-							'essay_id'          => $essay_id,
-							'feedback_criteria' => $feedback_criteria,
-							'source'            => 'ai',
-							'fields'            => array( $content_field, 'created_at' ),
-							'orderby'           => 'created_at',
-							'order'             => 'DESC',
-						)
-					);
-
-					if ( ! is_wp_error( $ai_feedback ) && ! empty( $ai_feedback ) ) {
-						foreach ( $ai_feedback as $feedback ) {
-							if ( ! empty( $feedback[ $content_field ] ) ) {
-								$existing_content = $feedback[ $content_field ];
-								break;
-							}
 						}
 					}
 				}
@@ -178,49 +152,23 @@ class Ieltssci_Writing_Feedback_DB {
 			case 'conclusion':
 				// Check if segment feedback already exists for this step.
 				if ( null !== $segment && ! empty( $segment['id'] ) ) {
-					// First try to get human feedback.
-					$human_feedback = $essay_db->get_segment_feedbacks(
+					// Get feedback regardless of source.
+					$feedback_results = $essay_db->get_segment_feedbacks(
 						array(
 							'segment_id'        => $segment['id'],
 							'feedback_criteria' => $feedback_criteria,
-							'source'            => 'human',
 							'fields'            => array( $content_field, 'created_at' ),
 							'orderby'           => 'created_at',
 							'order'             => 'DESC',
 						)
 					);
 
-					// If human feedback exists with non-empty content field, use it.
-					$found_human_feedback = false;
-					if ( ! is_wp_error( $human_feedback ) && ! empty( $human_feedback ) ) {
-						foreach ( $human_feedback as $feedback ) {
+					// Use the first feedback that has content in the required field.
+					if ( ! is_wp_error( $feedback_results ) && ! empty( $feedback_results ) ) {
+						foreach ( $feedback_results as $feedback ) {
 							if ( ! empty( $feedback[ $content_field ] ) ) {
-								$existing_content     = $feedback[ $content_field ];
-								$found_human_feedback = true;
+								$existing_content = $feedback[ $content_field ];
 								break;
-							}
-						}
-					}
-
-					// If no human feedback with required content, check for AI feedback.
-					if ( ! $found_human_feedback ) {
-						$ai_feedback = $essay_db->get_segment_feedbacks(
-							array(
-								'segment_id'        => $segment['id'],
-								'feedback_criteria' => $feedback_criteria,
-								'source'            => 'ai',
-								'fields'            => array( $content_field, 'created_at' ),
-								'orderby'           => 'created_at',
-								'order'             => 'DESC',
-							)
-						);
-
-						if ( ! is_wp_error( $ai_feedback ) && ! empty( $ai_feedback ) ) {
-							foreach ( $ai_feedback as $feedback ) {
-								if ( ! empty( $feedback[ $content_field ] ) ) {
-									$existing_content = $feedback[ $content_field ];
-									break;
-								}
 							}
 						}
 					}
