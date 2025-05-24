@@ -279,6 +279,22 @@ class Ieltssci_API_Client {
 			case 'google':
 			case 'openai':
 			case 'open-key-ai':
+				// Add guided JSON using response_format if available.
+				if ( ! empty( $guided_json ) ) {
+					$json_schema = json_decode( $guided_json, true );
+					// Ensure JSON decoding was successful before adding it.
+					if ( JSON_ERROR_NONE === json_last_error() ) {
+						$base_payload['response_format'] = array(
+							'type'        => 'json_schema',
+							'json_schema' => array(
+								'strict' => true,
+								'schema' => $json_schema,
+							),
+						);
+					}
+				}
+				break;
+
 			case 'home-server-whisperx-api-server':
 			default:
 				// Standard OpenAI-compatible format, no additional parameters needed.
