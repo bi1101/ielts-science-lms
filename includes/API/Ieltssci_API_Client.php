@@ -185,22 +185,6 @@ class Ieltssci_API_Client {
 	 * @throws Exception When API key is not found for the provider.
 	 */
 	private function get_request_payload( $provider, $model, $prompt, $temperature, $max_tokens, $stream = true, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false ) {
-		if ( 'home-server' === $provider ) {
-			// Get API key for huggingface when using home-server.
-			$api_keys_db = new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_DB();
-			$api_key     = $api_keys_db->get_api_key(
-				0,
-				array(
-					'provider'        => 'huggingface',
-					'increment_usage' => false,
-				)
-			);
-
-			if ( ! $api_key ) {
-				throw new Exception( esc_html( 'HF API key not found for provider: home-server' ) );
-			}
-		}
-
 		// Base message content.
 		$message_content = array();
 
@@ -235,6 +219,7 @@ class Ieltssci_API_Client {
 			}
 		}
 
+		// Base payload for all providers.
 		$base_payload = array(
 			'model'       => $model,
 			'messages'    => array( $message_content ),
@@ -243,35 +228,61 @@ class Ieltssci_API_Client {
 			'stream'      => (bool) $stream,
 		);
 
-		// Add guided generation parameters if available, with priority: JSON > Regex > Choice.
-		if ( ! empty( $guided_json ) ) {
-			$json_schema = json_decode( $guided_json, true );
-			// Ensure JSON decoding was successful before adding it.
-			if ( JSON_ERROR_NONE === json_last_error() ) {
-				$base_payload['guided_json'] = $json_schema;
-			}
-			// Optionally, you could log an error here if json_decode fails.
-		} elseif ( ! empty( $guided_regex ) ) {
-			$base_payload['guided_regex'] = $guided_regex;
-		} elseif ( ! empty( $guided_choice ) ) {
-			// Choices are expected to be a string separated by `|` character.
-			$choices_array = array_map( 'trim', explode( '|', $guided_choice ) );
-			// Ensure the array is not empty after splitting.
-			if ( ! empty( $choices_array ) && ( count( $choices_array ) > 1 || ! empty( $choices_array[0] ) ) ) {
-				$base_payload['guided_choice'] = $choices_array;
-			}
-		}
+		// Provider-specific configurations.
+		switch ( $provider ) {
+			case 'vllm':
+			case 'slm':
+				// Add guided generation parameters if available, with priority: JSON > Regex > Choice.
+				if ( ! empty( $guided_json ) ) {
+					$json_schema = json_decode( $guided_json, true );
+					// Ensure JSON decoding was successful before adding it.
+					if ( JSON_ERROR_NONE === json_last_error() ) {
+						$base_payload['guided_json'] = $json_schema;
+					}
+					// Optionally, you could log an error here if json_decode fails.
+				} elseif ( ! empty( $guided_regex ) ) {
+					$base_payload['guided_regex'] = $guided_regex;
+				} elseif ( ! empty( $guided_choice ) ) {
+					// Choices are expected to be a string separated by `|` character.
+					$choices_array = array_map( 'trim', explode( '|', $guided_choice ) );
+					// Ensure the array is not empty after splitting.
+					if ( ! empty( $choices_array ) && ( count( $choices_array ) > 1 || ! empty( $choices_array[0] ) ) ) {
+						$base_payload['guided_choice'] = $choices_array;
+					}
+				}
 
-		// Add enable_thinking parameter to chat_template_kwargs for vllm and slm endpoints.
-		if ( 'vllm' === $provider || 'slm' === $provider ) {
-			$base_payload['chat_template_kwargs'] = array(
-				'enable_thinking' => $enable_thinking,
-			);
-		}
+				// Add enable_thinking parameter to chat_template_kwargs.
+				$base_payload['chat_template_kwargs'] = array(
+					'enable_thinking' => $enable_thinking,
+				);
+				break;
 
-		// Add API token for home-server.
-		if ( 'home-server' === $provider ) {
-			$base_payload['api_token'] = $api_key['meta']['api-key'];
+			case 'home-server':
+				// Get API key for huggingface when using home-server.
+				$api_keys_db = new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_DB();
+				$api_key     = $api_keys_db->get_api_key(
+					0,
+					array(
+						'provider'        => 'huggingface',
+						'increment_usage' => false,
+					)
+				);
+
+				if ( ! $api_key ) {
+					throw new Exception( esc_html( 'HF API key not found for provider: home-server' ) );
+				}
+
+				// Add API token for home-server.
+				$base_payload['api_token'] = $api_key['meta']['api-key'];
+				break;
+
+			case 'google':
+			case 'openai':
+			case 'open-key-ai':
+			case 'home-server-whisperx-api-server':
+			default:
+				// Standard OpenAI-compatible format, no additional parameters needed.
+				break;
 		}
 
 		return $base_payload;
