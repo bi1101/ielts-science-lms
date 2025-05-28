@@ -34,6 +34,7 @@ class Ieltssci_Speaking_Settings {
 	 */
 	public function __construct() {
 		add_filter( 'ieltssci_settings_config', array( $this, 'register_settings_config' ) );
+		add_filter( 'ieltssci_sample_results_data', array( $this, 'register_sample_results_data' ) );
 		$this->db = new Ieltssci_ApiFeeds_DB();
 	}
 
@@ -498,6 +499,28 @@ class Ieltssci_Speaking_Settings {
 			),
 		);
 
-			return $speaking_apis_settings;
+		return $speaking_apis_settings;
+	}
+
+	/**
+	 * Register speaking module sample results data.
+	 *
+	 * @param array $sample_results_data Existing sample results data.
+	 * @return array Updated sample results data with speaking module information.
+	 */
+	public function register_sample_results_data( $sample_results_data ) {
+		$sample_results_data['speaking_module'] = array(
+			'module_name'   => 'speaking_module',
+			'section_title' => __( 'Speaking Module Sample Results', 'ielts-science-lms' ),
+			'section_desc'  => __( 'Configure sample result links for the Speaking Module.', 'ielts-science-lms' ),
+			'samples'       => array(
+				'speaking_sample' => array(
+					'label'       => __( 'Speaking Sample Result', 'ielts-science-lms' ),
+					'description' => __( 'URL to a sample result page. Will be available in front-end apps.', 'ielts-science-lms' ),
+				),
+			),
+		);
+
+		return $sample_results_data;
 	}
 }
