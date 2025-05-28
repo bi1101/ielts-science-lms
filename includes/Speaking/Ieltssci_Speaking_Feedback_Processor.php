@@ -458,7 +458,8 @@ class Ieltssci_Speaking_Feedback_Processor {
 				$feed,
 				$uuid,
 				$step_type,
-				$language
+				$language,
+				$source
 			);
 
 			// Save the reasoning content as chain-of-thought if available.
@@ -469,7 +470,8 @@ class Ieltssci_Speaking_Feedback_Processor {
 					$feed,
 					$uuid,
 					'chain-of-thought', // Force step_type to chain-of-thought.
-					$language
+					$language,
+					$source
 				);
 			}
 
