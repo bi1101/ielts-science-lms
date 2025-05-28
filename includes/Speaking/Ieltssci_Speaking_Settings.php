@@ -184,6 +184,14 @@ class Ieltssci_Speaking_Settings {
 						'label' => 'gpt-4o',
 						'value' => 'gpt-4o',
 					),
+					array(
+						'label' => 'gemini-2.0-flash',
+						'value' => 'gemini-2.0-flash',
+					),
+					array(
+						'label' => 'gemini-2.0-flash-lite',
+						'value' => 'gemini-2.0-flash-lite',
+					),
 				),
 				'open-ai'     => array(
 					array(
@@ -208,6 +216,10 @@ class Ieltssci_Speaking_Settings {
 						'label' => 'gemini-2.0-flash',
 						'value' => 'gemini-2.0-flash',
 					),
+					array(
+						'label' => 'gemini-2.0-flash-lite',
+						'value' => 'gemini-2.0-flash-lite',
+					),
 				),
 				'azure'       => array(
 					array(
@@ -220,6 +232,8 @@ class Ieltssci_Speaking_Settings {
 					),
 				),
 				'home-server' => array(),
+				'vllm'        => array(),
+				'slm'         => array(),
 			)
 		);
 
@@ -260,6 +274,7 @@ class Ieltssci_Speaking_Settings {
 		$common_general_fields = array(
 			$settings_config_instance->create_api_provider_field(),
 			$settings_config_instance->create_model_picker_field( 'apiProvider', $default_model_options ),
+			$settings_config_instance->create_field( 'enable_thinking', 'toggle', 'Enable Thinking', 'Enable the thinking process for this model. Only apply to vllm & slm endpoints & reasoning models', false ),
 			$settings_config_instance->create_prompt_field( 'englishPrompt', 'English Prompt', 'Message sent to the model {|parameter_name|}', $speaking_merge_tags ),
 			$settings_config_instance->create_prompt_field( 'vietnamesePrompt', 'Vietnamese Prompt', 'Message sent to the model {|parameter_name|}', $speaking_merge_tags ),
 		);
@@ -268,6 +283,9 @@ class Ieltssci_Speaking_Settings {
 		$common_advanced_fields = array(
 			$settings_config_instance->create_field( 'maxToken', 'number', 'Max Token', 'The maximum number of tokens to generate.', 2048 ),
 			$settings_config_instance->create_field( 'temperature', 'number', 'Temperature', 'The value used to module the next token probabilities.', 0.1 ),
+			$settings_config_instance->create_field( 'guided_choice', 'text', 'Guided Choice', 'The output will be exactly one of the choices. Choices separate by `|` character', null ),
+			$settings_config_instance->create_field( 'guided_regex', 'text', 'Guided Regex', 'The output will follow the regex pattern.', null ),
+			$settings_config_instance->create_field( 'guided_json', 'textarea', 'Guided JSON', 'The output will follow the JSON schema. A valid schema must be provided.', null ),
 		);
 
 		// Common sections for most APIs.
@@ -374,7 +392,7 @@ class Ieltssci_Speaking_Settings {
 						'transcript',
 						array( 'speaking' ),
 						array(
-							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
@@ -391,7 +409,7 @@ class Ieltssci_Speaking_Settings {
 						'transcript',
 						array( 'speaking' ),
 						array(
-							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
@@ -402,7 +420,7 @@ class Ieltssci_Speaking_Settings {
 						'transcript',
 						array( 'speaking' ),
 						array(
-							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
@@ -413,7 +431,7 @@ class Ieltssci_Speaking_Settings {
 						'transcript',
 						array( 'speaking' ),
 						array(
-							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
@@ -445,7 +463,7 @@ class Ieltssci_Speaking_Settings {
 						'transcript',
 						array( 'speaking' ),
 						array(
-							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
@@ -456,7 +474,7 @@ class Ieltssci_Speaking_Settings {
 						'transcript',
 						array( 'speaking' ),
 						array(
-							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
