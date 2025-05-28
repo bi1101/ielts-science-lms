@@ -95,6 +95,73 @@ class Ieltssci_Speaking_REST {
 				),
 			)
 		);
+
+		// Register route for updating speech feedback.
+		register_rest_route(
+			$this->namespace,
+			"/{$this->base}/feedback",
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'update_speech_feedback' ),
+				'permission_callback' => array( $this, 'update_speech_feedback_permissions_check' ),
+				'args'                => array(
+					'uuid'              => array(
+						'required'          => true,
+						'description'       => 'The UUID of the speech recording to update feedback for.',
+						'type'              => 'string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param ) && ! empty( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'feedback_criteria' => array(
+						'required'          => true,
+						'description'       => 'The criteria this feedback relates to.',
+						'type'              => 'string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param ) && ! empty( $param );
+						},
+						'sanitize_callback' => 'sanitize_key',
+					),
+					'language'          => array(
+						'required'          => true,
+						'description'       => 'The language code for the feedback.',
+						'type'              => 'string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param ) && ! empty( $param );
+						},
+						'sanitize_callback' => 'sanitize_key',
+					),
+					'cot_content'       => array(
+						'required'          => false,
+						'description'       => 'The Chain of Thought content.',
+						'type'              => 'string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param ) && ! empty( $param );
+						},
+						'sanitize_callback' => 'sanitize_textarea_field',
+					),
+					'score_content'     => array(
+						'required'          => false,
+						'description'       => 'The Score content.',
+						'type'              => 'string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param ) && ! empty( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'feedback_content'  => array(
+						'required'          => false,
+						'description'       => 'The main Feedback content.',
+						'type'              => 'string',
+						'validate_callback' => function ( $param ) {
+							return is_string( $param ) && ! empty( $param );
+						},
+						'sanitize_callback' => 'sanitize_textarea_field',
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -467,5 +534,160 @@ class Ieltssci_Speaking_REST {
 		}
 
 		return $request;
+	}
+
+	/**
+	 * Check if user has permission to update speech feedback.
+	 *
+	 * Only checks that the user is logged in. The ownership check happens in the callback.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return bool Whether the user has permission.
+	 */
+	public function update_speech_feedback_permissions_check( WP_REST_Request $request ) {
+		return is_user_logged_in();
+	}
+
+	/**
+	 * Update speech feedback endpoint.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response or error.
+	 */
+	public function update_speech_feedback( WP_REST_Request $request ) {
+		// Get parameters.
+		$uuid              = $request->get_param( 'uuid' );
+		$feedback_criteria = $request->get_param( 'feedback_criteria' );
+		$language          = $request->get_param( 'language' );
+		$cot_content       = $request->get_param( 'cot_content' );
+		$score_content     = $request->get_param( 'score_content' );
+		$feedback_content  = $request->get_param( 'feedback_content' );
+
+		// Validate that at least one content field is provided.
+		if ( empty( $cot_content ) && empty( $score_content ) && empty( $feedback_content ) ) {
+			return new WP_Error(
+				'missing_content',
+				__( 'At least one of cot_content, score_content, or feedback_content must be provided.', 'ielts-science-lms' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// Initialize required DB handlers.
+		$speech_db   = $this->speech_service;
+		$feedback_db = new Ieltssci_Speaking_Feedback_DB();
+
+		// Get speech details to verify ownership.
+		$speeches = $speech_db->get_speeches(
+			array(
+				'uuid'     => $uuid,
+				'per_page' => 1,
+			)
+		);
+
+		// Check if speech exists.
+		if ( is_wp_error( $speeches ) ) {
+			return $speeches;
+		}
+
+		if ( empty( $speeches ) ) {
+			return new WP_Error(
+				'speech_not_found',
+				__( 'Speech not found.', 'ielts-science-lms' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$speech = $speeches[0];
+
+		// Verify ownership.
+		if ( get_current_user_id() !== (int) $speech['created_by'] ) {
+			return new WP_Error(
+				'forbidden',
+				__( 'You do not have permission to update feedback for this speech.', 'ielts-science-lms' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		// Set up feed array for feedback database function.
+		$feed = array(
+			'feedback_criteria' => $feedback_criteria,
+		);
+
+		$success = array();
+		$errors  = array();
+
+		// Process each content type if provided.
+		if ( ! empty( $cot_content ) ) {
+			$result = $feedback_db->save_feedback_to_database(
+				$cot_content,
+				$feed,
+				$uuid,
+				'chain-of-thought',
+				$language,
+				'human'
+			);
+
+			if ( is_wp_error( $result ) || false === $result ) {
+				$errors[] = 'cot';
+			} else {
+				$success[] = 'cot';
+			}
+		}
+
+		if ( ! empty( $score_content ) ) {
+			$result = $feedback_db->save_feedback_to_database(
+				$score_content,
+				$feed,
+				$uuid,
+				'scoring',
+				$language,
+				'human'
+			);
+
+			if ( is_wp_error( $result ) || false === $result ) {
+				$errors[] = 'score';
+			} else {
+				$success[] = 'score';
+			}
+		}
+
+		if ( ! empty( $feedback_content ) ) {
+			$result = $feedback_db->save_feedback_to_database(
+				$feedback_content,
+				$feed,
+				$uuid,
+				'feedback',
+				$language,
+				'human'
+			);
+
+			if ( is_wp_error( $result ) || false === $result ) {
+				$errors[] = 'feedback';
+			} else {
+				$success[] = 'feedback';
+			}
+		}
+
+		// Return appropriate response based on results.
+		if ( empty( $success ) ) {
+			return new WP_Error(
+				'update_failed',
+				__( 'Failed to update any feedback content.', 'ielts-science-lms' ),
+				array(
+					'status' => 500,
+					'detail' => $errors,
+				)
+			);
+		}
+
+		return new WP_REST_Response(
+			array(
+				'status'  => 'success',
+				'message' => __( 'Feedback updated successfully.', 'ielts-science-lms' ),
+				'updated' => $success,
+				'failed'  => $errors,
+			),
+			200
+		);
 	}
 }
