@@ -94,10 +94,11 @@ class Ieltssci_Speaking_Feedback_Processor {
 	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
 	 * @param string $guide_score   Human-guided scoring for the AI to consider.
 	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param string $refetch       Whether to refetch the content even if it exists.
 	 * @return WP_Error|null Error or null on success.
 	 * @throws Exception When feed processing fails.
 	 */
-	public function process_feed_by_id( $feed_id, $uuid, $language = 'en', $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
+	public function process_feed_by_id( $feed_id, $uuid, $language = 'en', $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
 		// Get the specific feed that needs processing.
 		$feeds = $this->api_feeds_db->get_api_feeds(
 			array(
@@ -119,7 +120,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 
 		try {
 			// Process the feed (to be implemented).
-			$this->process_feed( $feed, $uuid, $language, $feedback_style, $guide_score, $guide_feedback );
+			$this->process_feed( $feed, $uuid, $language, $feedback_style, $guide_score, $guide_feedback, $refetch );
 			return null;
 		} catch ( Exception $e ) {
 			return new WP_Error( 500, $e->getMessage() );
@@ -135,10 +136,11 @@ class Ieltssci_Speaking_Feedback_Processor {
 	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
 	 * @param string $guide_score   Human-guided scoring for the AI to consider.
 	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param string $refetch       Whether to refetch the content even if it exists.
 	 *
 	 * @throws Exception When feed processing fails.
 	 */
-	public function process_feed( $feed, $uuid, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
+	public function process_feed( $feed, $uuid, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
 		// Announce starting this feed.
 		$this->send_message(
 			'feed_start',
@@ -151,11 +153,23 @@ class Ieltssci_Speaking_Feedback_Processor {
 		);
 
 		try {
-			$steps   = isset( $feed['meta'] ) ? json_decode( $feed['meta'], true )['steps'] : array();
+			$steps = isset( $feed['meta'] ) ? json_decode( $feed['meta'], true )['steps'] : array();
+
+			// If refetch is set to a specific step, then only process that step, if refetch is set to 'all', then process all steps.
+			if ( ! empty( $refetch ) && is_string( $refetch ) && 'all' !== $refetch ) {
+				// Filter steps to only process the specific step requested.
+				$steps = array_filter(
+					$steps,
+					function ( $step ) use ( $refetch ) {
+						return isset( $step['step'] ) && $step['step'] === $refetch;
+					}
+				);
+			}
+
 			$results = array();
 
 			foreach ( $steps as $step ) {
-				$result    = $this->process_step( $step, $uuid, $feed, $language, $feedback_style, $guide_score, $guide_feedback );
+				$result    = $this->process_step( $step, $uuid, $feed, $language, $feedback_style, $guide_score, $guide_feedback, $refetch );
 				$results[] = $result;
 			}
 
@@ -194,11 +208,12 @@ class Ieltssci_Speaking_Feedback_Processor {
 	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
 	 * @param string $guide_score   Human-guided scoring for the AI to consider.
 	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param string $refetch       Whether to refetch the content even if it exists.
 	 *
 	 * @return string The processed content.
 	 * @throws Exception Throw exception when requests fail.
 	 */
-	public function process_step( $step, $uuid, $feed, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
+	public function process_step( $step, $uuid, $feed, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
 		// Get settings from the step.
 		$step_type = isset( $step['step'] ) ? $step['step'] : 'feedback';
 		$sections  = isset( $step['sections'] ) ? $step['sections'] : array();
@@ -265,8 +280,14 @@ class Ieltssci_Speaking_Feedback_Processor {
 				break;
 		}
 
+		// Check if we should skip checking existing content based on refetch parameter.
+		$should_check_existing = ! ( 'all' === $refetch || $step_type === $refetch );
+
 		// Check if this step has already been processed.
-		$existing_content = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $content_field );
+		$existing_content = null;
+		if ( $should_check_existing ) {
+			$existing_content = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $content_field );
+		}
 
 		// Get score regex if available in scoring step.
 		if ( 'scoring' === $step_type && isset( $config['advanced-setting']['scoreRegex'] ) ) {
@@ -487,7 +508,8 @@ class Ieltssci_Speaking_Feedback_Processor {
 				$feed,
 				$uuid,
 				$step_type,
-				$language
+				$language,
+				$source
 			);
 		}
 

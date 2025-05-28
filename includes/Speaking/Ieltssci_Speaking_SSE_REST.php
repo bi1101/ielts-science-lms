@@ -97,6 +97,13 @@ class Ieltssci_Speaking_SSE_REST {
 						},
 						'sanitize_callback' => 'sanitize_text_field',
 					),
+					'refetch'        => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
 				),
 			)
 		);
@@ -117,6 +124,7 @@ class Ieltssci_Speaking_SSE_REST {
 		$feedback_style = $request->get_param( 'feedback_style' );
 		$guide_score    = $request->get_param( 'guide_score' );
 		$guide_feedback = $request->get_param( 'guide_feedback' );
+		$refetch        = $request->get_param( 'refetch' );
 
 		// Check rate limits before setting headers.
 		$rate_limiter = new Ieltssci_RateLimit();
@@ -148,7 +156,15 @@ class Ieltssci_Speaking_SSE_REST {
 		);
 
 		// Process the specific feed.
-		$result = $processor->process_feed_by_id( $feed_id, $uuid, $language, $feedback_style, $guide_score, $guide_feedback );
+		$result = $processor->process_feed_by_id(
+			$feed_id,
+			$uuid,
+			$language,
+			$feedback_style,
+			$guide_score,
+			$guide_feedback,
+			$refetch
+		);
 
 		// Handle errors.
 		if ( is_wp_error( $result ) ) {
