@@ -196,6 +196,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
 	 *
 	 * @return string The processed content.
+	 * @throws Exception Throw exception when requests fail.
 	 */
 	public function process_step( $step, $uuid, $feed, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
 		// Get settings from the step.
@@ -231,6 +232,18 @@ class Ieltssci_Speaking_Feedback_Processor {
 		$model             = isset( $config['general-setting']['model'] ) ? $config['general-setting']['model'] : $model;
 		$temperature       = isset( $config['advanced-setting']['temperature'] ) ? $config['advanced-setting']['temperature'] : $temperature;
 		$max_tokens        = isset( $config['advanced-setting']['maxToken'] ) ? $config['advanced-setting']['maxToken'] : $max_tokens;
+		$enable_thinking   = isset( $config['general-setting']['enable_thinking'] ) ? $config['general-setting']['enable_thinking'] : false;
+
+		// Extract guided parameters from advanced settings.
+		$guided_choice = isset( $config['advanced-setting']['guided_choice'] ) ? $config['advanced-setting']['guided_choice'] : null;
+		$guided_regex  = isset( $config['advanced-setting']['guided_regex'] ) ? $config['advanced-setting']['guided_regex'] : null;
+		$guided_json   = isset( $config['advanced-setting']['guided_json'] ) ? $config['advanced-setting']['guided_json'] : null;
+
+		// Determine if the source should be 'human' based on guide content.
+		$source = 'ai';
+		if ( ! empty( $guide_score ) || ! empty( $guide_feedback ) ) {
+			$source = 'human';
+		}
 
 		// Handle special case for transcription step.
 		if ( 'transcribe' === $step_type ) {
@@ -265,6 +278,24 @@ class Ieltssci_Speaking_Feedback_Processor {
 
 		// If existing content is found, send it back without making a new API call.
 		if ( ! empty( $existing_content ) ) {
+			// If this step has thinking enabled, check for existing chain-of-thought content.
+			if ( $enable_thinking ) {
+				$existing_cot = $this->feedback_db->get_existing_step_content( 'chain-of-thought', $feed, $uuid, 'cot_content' );
+
+				if ( $existing_cot ) {
+					// Stream the existing chain-of-thought content to the client.
+					$this->send_message(
+						'CHAIN_OF_THOUGHT',
+						array(
+							'content' => $existing_cot,
+							'reused'  => true,
+						)
+					);
+				}
+				// Send DONE message to indicate completion of chain-of-thought.
+				$this->send_done( 'CHAIN_OF_THOUGHT' );
+			}
+
 			$this->send_message(
 				$this->transform_case( $step_type, 'snake_upper' ),
 				array(
@@ -289,32 +320,51 @@ class Ieltssci_Speaking_Feedback_Processor {
 
 		// Handle different prompt processing results.
 		if ( is_array( $processed_prompt ) ) {
-			// For array of prompts, use parallel API calls.
-			$event_type = 'batch_processing';
-			$this->send_message(
-				$event_type,
-				array(
-					'total_prompts' => count( $processed_prompt ),
-					'message'       => 'Starting parallel processing of multiple prompts',
-				)
+			// If it's an array, we'll use parallel API calls.
+			$event_type   = 'batch_processing';
+			$message_data = array(
+				'total_prompts' => count( $processed_prompt ),
+				'message'       => 'Starting parallel processing of multiple prompts',
 			);
 
-			if ( 'scoring' === $step_type && ! empty( $guide_score ) ) {
-				$result = $guide_score; // Skip API call and use the guide_score directly.
-			} else {
-				// Use API client for parallel API calls.
-				$result = $this->api_client->make_parallel_api_calls(
-					$api_provider,
-					$model,
-					$processed_prompt,
-					$temperature,
-					$max_tokens,
-					$feed,
-					$step_type
-				);
+			$this->send_message( $event_type, $message_data );
 
-				// Process result for scoring step.
-				if ( 'scoring' === $step_type ) {
+			// Use API client for parallel API calls.
+			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
+
+			// Check if result is a WP_Error.
+			if ( is_wp_error( $result ) ) {
+				$error_message = $result->get_error_message();
+				$this->send_error(
+					$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
+					array(
+						'title'    => 'Parallel API Request Failed',
+						'message'  => $error_message,
+						'ctaTitle' => 'Try Again',
+						'ctaLink'  => '#',
+					)
+				);
+				throw new Exception( esc_html( 'Parallel API request failed: ' . $error_message ) );
+			}
+
+			// Process the result if it's a scoring step.
+			if ( 'scoring' === $step_type ) {
+				// If we have a guide_score, use it instead of the extracted score.
+				if ( ! empty( $guide_score ) ) {
+					// Send the AI reasoning and guide score to frontend.
+					$this->send_message(
+						$this->transform_case( $step_type, 'snake_upper' ),
+						array(
+							'content'     => $guide_score,
+							'raw_content' => $result,
+							'guided'      => true,
+						)
+					);
+
+					// Override result with guide_score.
+					$result = $guide_score;
+				} else {
+					// Extract score using regex as normal.
 					$extracted_score = $this->extract_score_from_result( $result, $score_regex );
 					// Send score to frontend.
 					$this->send_message(
@@ -325,6 +375,8 @@ class Ieltssci_Speaking_Feedback_Processor {
 							'regex_used'  => $score_regex,
 						)
 					);
+
+					// Use extracted score as the result.
 					$result = $extracted_score;
 				}
 			}
@@ -332,52 +384,110 @@ class Ieltssci_Speaking_Feedback_Processor {
 			// For single prompt, proceed with appropriate call.
 			$prompt = $processed_prompt;
 
-			// Handle scoring or guided score.
+			// If this is a scoring step and we have guide_score provided, still make the API call to get reasoning.
+			// When step_type is 'scoring', the score will be extracted from the response.
+			$result = $this->api_client->make_stream_api_call(
+				$api_provider,
+				$model,
+				$prompt,
+				$temperature,
+				$max_tokens,
+				$feed,
+				$step_type,
+				array(), // no images for speaking.
+				$guided_choice,
+				$guided_regex,
+				$guided_json,
+				$enable_thinking,
+				'scoring' === $step_type ? $score_regex : null
+			);
+
+			// Check if result is a WP_Error.
+			if ( is_wp_error( $result ) ) {
+				$error_message = $result->get_error_message();
+				$this->send_error(
+					$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
+					array(
+						'title'    => 'API Request Failed',
+						'message'  => $error_message,
+						'ctaTitle' => 'Try Again',
+						'ctaLink'  => '#',
+					)
+				);
+				throw new Exception( esc_html( 'API request failed: ' . $error_message ) );
+			}
+
+			// If this is a scoring step and we have guide_score, use it instead of the extracted score.
 			if ( 'scoring' === $step_type && ! empty( $guide_score ) ) {
-				$result = $guide_score; // Skip API call and use guide_score.
+				// Extract any reasoning from the result if it's an array.
+				$reasoning_content = null;
+				if ( is_array( $result ) && isset( $result['reasoning_content'] ) ) {
+					$reasoning_content = $result['reasoning_content'];
+				}
+
+				// Send the AI reasoning and guide score to frontend.
 				$this->send_message(
 					$this->transform_case( $step_type, 'snake_upper' ),
 					array(
-						'content' => $result,
-						'type'    => 'score',
-						'guided'  => true,
-					)
-				);
-			} elseif ( 'scoring' === $step_type ) {
-				// For scoring, use non-streaming API call.
-				$result = $this->api_client->make_score_api_call(
-					$api_provider,
-					$model,
-					$prompt,
-					$temperature,
-					$max_tokens,
-					$score_regex
-				);
-				// Send score to frontend.
-				$this->send_message(
-					$this->transform_case( $step_type, 'snake_upper' ),
-					array(
-						'content'     => $result,
+						'content'     => $guide_score,
 						'raw_content' => $result,
-						'regex_used'  => $score_regex,
+						'guided'      => true,
 					)
 				);
-			} else {
-				// For other step types, use streaming API call.
-				$result = $this->api_client->make_stream_api_call(
-					$api_provider,
-					$model,
-					$prompt,
-					$temperature,
-					$max_tokens,
-					$feed,
-					$step_type
-				);
+
+				// Override result with guide_score but preserve reasoning if available.
+				if ( $reasoning_content ) {
+					$result = array(
+						'content'           => $guide_score,
+						'reasoning_content' => $reasoning_content,
+					);
+				} else {
+					$result = $guide_score;
+				}
 			}
 		}
 
-		// Save the results to the database.
-		$this->feedback_db->save_feedback_to_database( $result, $feed, $uuid, $step_type, $language );
+		// Process result based on type.
+		if ( is_array( $result ) ) {
+			$main_content      = $result['content'] ?? $result[0] ?? '';
+			$reasoning_content = $result['reasoning_content'] ?? null;
+
+			// Save the main content to the database based on step_type.
+			$this->feedback_db->save_feedback_to_database(
+				$main_content,
+				$feed,
+				$uuid,
+				$step_type,
+				$language
+			);
+
+			// Save the reasoning content as chain-of-thought if available.
+			if ( ! empty( $reasoning_content ) ) {
+				// Save reasoning content to cot_content regardless of step_type.
+				$this->feedback_db->save_feedback_to_database(
+					$reasoning_content,
+					$feed,
+					$uuid,
+					'chain-of-thought', // Force step_type to chain-of-thought.
+					$language
+				);
+			}
+
+			// Set result to main content for return value.
+			$result = $main_content;
+		} else {
+			// Enforce $result to be a string.
+			$result = (string) $result;
+
+			// Save the string result to the database.
+			$this->feedback_db->save_feedback_to_database(
+				$result,
+				$feed,
+				$uuid,
+				$step_type,
+				$language
+			);
+		}
 
 		// Send completion signal.
 		$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
