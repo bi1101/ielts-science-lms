@@ -38,7 +38,7 @@ class Ieltssci_Speaking_Feedback_DB {
 	}
 
 	/**
-	 * Check if a step has already been processed and retrieve existing content
+	 * Check if a step has already been processed and retrieve existing content.
 	 *
 	 * @param string $step_type     The type of step (chain-of-thought, scoring, feedback).
 	 * @param array  $feed          The feed data containing configuration.
@@ -83,17 +83,27 @@ class Ieltssci_Speaking_Feedback_DB {
 
 		$speech_id = $speeches[0]['id'];
 
-		// Check if speech feedback already exists for this step.
-		$existing_feedback = $this->speech_db->get_speech_feedbacks(
+		// Get feedback ordered by creation date (newest first).
+		$feedback_results = $this->speech_db->get_speech_feedbacks(
 			array(
 				'speech_id'         => $speech_id,
 				'feedback_criteria' => $feedback_criteria,
-				'number'            => 1,
+				'include_cot'       => ( 'cot_content' === $content_field ),
+				'include_score'     => ( 'score_content' === $content_field ),
+				'include_feedback'  => ( 'feedback_content' === $content_field ),
+				'orderby'           => 'created_at',
+				'order'             => 'DESC',
 			)
 		);
 
-		if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) && ! empty( $existing_feedback[0][ $content_field ] ) ) {
-			$existing_content = $existing_feedback[0][ $content_field ];
+		// Use the first feedback that has content in the required field.
+		if ( ! is_wp_error( $feedback_results ) && ! empty( $feedback_results ) ) {
+			foreach ( $feedback_results as $feedback ) {
+				if ( ! empty( $feedback[ $content_field ] ) ) {
+					$existing_content = $feedback[ $content_field ];
+					break;
+				}
+			}
 		}
 
 		return $existing_content;
