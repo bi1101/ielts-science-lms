@@ -131,7 +131,7 @@ class Ieltssci_Speaking_Feedback_DB {
 	 * @param string $language   The language of the feedback.
 	 * @param string $source     The source of the feedback, 'ai' or 'human'.
 	 * @param string $refetch    Whether to refetch content, 'all' or specific step type.
-	 * @return int|WP_Error|bool ID of created/updated feedback, error, or false if skipped.
+	 * @return int|WP_Error ID of created feedback or error.
 	 */
 	private function save_speech_feedback( $uuid, $feedback, $feed, $step_type, $language = 'en', $source = 'ai', $refetch = '' ) {
 		// Get speech ID from UUID.
@@ -166,15 +166,6 @@ class Ieltssci_Speaking_Feedback_DB {
 				break;
 		}
 
-		// Check if existing feedback already exists for this speech and criteria.
-		$existing_feedback = $this->speech_db->get_speech_feedbacks(
-			array(
-				'speech_id'         => $speech_id,
-				'feedback_criteria' => $feedback_criteria,
-				'number'            => 1,
-			)
-		);
-
 		// Prepare feedback data.
 		$feedback_data = array(
 			'speech_id'         => $speech_id,
@@ -185,23 +176,7 @@ class Ieltssci_Speaking_Feedback_DB {
 			'created_by'        => get_current_user_id(),
 		);
 
-		// If existing record found.
-		if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) ) {
-			$existing = $existing_feedback[0];
-
-			// Check if the content field for this step_type is empty.
-			if ( empty( $existing[ $content_field ] ) ) {
-				// Update the existing record with new content.
-				$feedback_data['id'] = $existing['id'];
-				$result              = $this->speech_db->create_update_speech_feedback( $feedback_data );
-				return $result;
-			} else {
-				return false;
-			}
-		} else {
-			// No existing record, create new feedback entry.
-			$result = $this->speech_db->create_update_speech_feedback( $feedback_data );
-			return $result;
-		}
+		// Always create a new feedback entry.
+		return $this->speech_db->create_update_speech_feedback( $feedback_data );
 	}
 }
