@@ -523,7 +523,6 @@ class Ieltssci_RateLimit {
 				$query_args = array(
 					'created_by'        => $creator_id,
 					'feedback_criteria' => $feedback_criteria,
-					'count'             => true,
 				);
 
 				// Add date constraints if set.
@@ -534,7 +533,7 @@ class Ieltssci_RateLimit {
 					$query_args['date_to'] = $date_constraints['date_to'];
 				}
 
-				$usage_count = $essay_db->get_essay_feedbacks( $query_args );
+				$usage_count = $essay_db->count_distinct_essays_with_essay_feedback( $query_args );
 
 				// Add current usage to the tracking array.
 				$current_usage[ $limit['time_period_type'] ] = array(
