@@ -651,4 +651,74 @@ class Ieltssci_Speech_DB {
 
 		return ! empty( $transcripts ) ? $transcripts : null;
 	}
+
+	/**
+	 * Count distinct speech entries that have speech feedback based on specified criteria.
+	 *
+	 * @param array $args {
+	 *     Optional. Arguments to count distinct speech entries with speech feedback.
+	 *     @type int    $created_by        User ID of the feedback creator.
+	 *     @type string $feedback_criteria Feedback criteria.
+	 *     @type string $date_from         Start date for feedback creation (Y-m-d H:i:s).
+	 *     @type string $date_to           End date for feedback creation (Y-m-d H:i:s).
+	 * }
+	 * @return int|WP_Error Count of distinct speech entries or WP_Error on failure.
+	 * @throws Exception If there is a database error.
+	 */
+	public function count_distinct_speech_with_speech_feedback( $args = array() ) {
+		try {
+			$defaults = array(
+				'created_by'        => null,
+				'feedback_criteria' => null,
+				'date_from'         => null,
+				'date_to'           => null,
+			);
+			$args     = wp_parse_args( $args, $defaults );
+
+			$where          = array( '1=1' );
+			$prepare_values = array();
+
+			if ( ! is_null( $args['created_by'] ) ) {
+				$where[]          = 'created_by = %d';
+				$prepare_values[] = absint( $args['created_by'] );
+			}
+
+			if ( ! is_null( $args['feedback_criteria'] ) ) {
+				$where[]          = 'feedback_criteria = %s';
+				$prepare_values[] = sanitize_text_field( $args['feedback_criteria'] );
+			}
+
+			if ( ! is_null( $args['date_from'] ) ) {
+				$where[]          = 'created_at >= %s';
+				$prepare_values[] = $args['date_from'];
+			}
+
+			if ( ! is_null( $args['date_to'] ) ) {
+				$where[]          = 'created_at <= %s';
+				$prepare_values[] = $args['date_to'];
+			}
+
+			$sql = "SELECT COUNT(DISTINCT speech_id)
+					FROM {$this->speech_feedback_table}
+					WHERE " . implode( ' AND ', $where );
+
+			if ( ! empty( $prepare_values ) ) {
+				$prepared_sql = $this->wpdb->prepare( $sql, $prepare_values );
+			} else {
+				$prepared_sql = $sql;
+			}
+
+			$count = $this->wpdb->get_var( $prepared_sql );
+
+			if ( is_null( $count ) && $this->wpdb->last_error ) {
+				// This indicates a potential DB error during get_var!
+				return new WP_Error( 'database_error', 'Failed to count distinct speech entries with speech feedback: ' . $this->wpdb->last_error, array( 'status' => 500 ) );
+			}
+
+			return (int) $count;
+
+		} catch ( Exception $e ) {
+			return new WP_Error( 'database_error', 'Failed to count distinct speech entries with speech feedback: ' . $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
 }
