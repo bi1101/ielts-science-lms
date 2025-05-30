@@ -378,12 +378,42 @@ class Ieltssci_Writing_Settings {
 				),
 			),
 			array(
+				'groupName'  => 'vocabulary-range',
+				'groupTitle' => 'Vocabulary Range',
+				'feeds'      => array(
+					$settings_config_instance->create_feed(
+						'vocabulary-range',
+						'Vocabulary Range',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+				),
+			),
+			array(
 				'groupName'  => 'grammar-suggestions',
 				'groupTitle' => 'Grammar Suggestions',
 				'feeds'      => array(
 					$settings_config_instance->create_feed(
 						'grammar-suggestions',
 						'Grammar Suggestions',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'grammar-range',
+				'groupTitle' => 'Grammar Range',
+				'feeds'      => array(
+					$settings_config_instance->create_feed(
+						'grammar-range',
+						'Grammar Range',
 						'essay',
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
