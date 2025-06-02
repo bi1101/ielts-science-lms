@@ -299,10 +299,16 @@ class Ieltssci_Essay_DB {
 
 			// Process search.
 			if ( ! is_null( $args['search'] ) ) {
-				$where[]          = '(e.question LIKE %s OR e.essay_content LIKE %s)';
+				// Search in uuid, creator's username instead of question/content.
+				$where[]          = '(e.uuid LIKE %s OR u.user_login LIKE %s)';
 				$search_term      = '%' . $this->wpdb->esc_like( $args['search'] ) . '%';
 				$prepare_values[] = $search_term;
 				$prepare_values[] = $search_term;
+
+				// Make sure we join the users table if not already joined.
+				if ( strpos( $from, $this->wpdb->users ) === false ) {
+					$from = $this->essays_table . ' e LEFT JOIN ' . $this->wpdb->users . ' u ON e.created_by = u.ID';
+				}
 			}
 
 			// Process date query (simplified approach).
