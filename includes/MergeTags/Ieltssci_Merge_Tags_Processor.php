@@ -680,7 +680,7 @@ class Ieltssci_Merge_Tags_Processor {
 	 * Split text into paragraphs
 	 *
 	 * @param string $text The text to split.
-	 * @return array Array of paragraphs.
+	 * @return array Array of paragraphs with numbering.
 	 */
 	private function split_into_paragraphs( $text ) {
 		if ( empty( $text ) ) {
@@ -705,8 +705,16 @@ class Ieltssci_Merge_Tags_Processor {
 		// Filter out empty paragraphs and trim each paragraph.
 		$paragraphs = array_filter( array_map( 'trim', $paragraphs ) );
 
+		// Add paragraph numbering.
+		$numbered_paragraphs = array();
+		$i = 1;
+		foreach ( $paragraphs as $paragraph ) {
+			$numbered_paragraphs[] = "Paragraph {$i}: {$paragraph}";
+			$i++;
+		}
+
 		// Return indexed array (not associative).
-		return array_values( $paragraphs );
+		return array_values( $numbered_paragraphs );
 	}
 
 	/**
