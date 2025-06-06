@@ -446,17 +446,17 @@ class Ieltssci_Dashboard_Module {
 	}
 
 	/**
-	 * Register custom rewrite rules for UUID child slugs.
+	 * Register custom rewrite rules for dashboard subroutes.
 	 *
-	 * Sets up rewrite rules to support URL patterns with UUIDs for entry identification.
+	 * Sets up rewrite rules to support React Router navigation under dashboard pages.
 	 *
 	 * @return void
 	 */
 	public function register_custom_rewrite_rules() {
 		$ielts_pages = get_option( 'ielts_science_lms_pages', array() );
 
-		// List of dashboard pages to add rewrite rules for (if needed).
-		$dashboard_pages = array( 'dashboard_overview', 'user_profile' );
+		// List of dashboard pages to add rewrite rules for.
+		$dashboard_pages = array( 'teacher_dashboard' );
 
 		foreach ( $dashboard_pages as $page_key ) {
 			// Check if the dashboard page is set.
@@ -466,10 +466,11 @@ class Ieltssci_Dashboard_Module {
 				if ( $dashboard_page ) {
 					$slug = $dashboard_page->post_name;
 
-					// Add rewrite rule for UUIDs (8-4-4-4-12 format) if needed for dashboard.
+					// Add rewrite rule for dashboard page with any subroutes.
+					// This catches all URLs starting with the dashboard slug followed by anything.
 					add_rewrite_rule(
-						'^' . $slug . '/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/?$',
-						'index.php?pagename=' . $slug . '&entry_id=$matches[1]',
+						'^' . $slug . '(/.*)?/?$',
+						'index.php?pagename=' . $slug,
 						'top'
 					);
 				}
@@ -500,7 +501,7 @@ class Ieltssci_Dashboard_Module {
 			'section_title' => __( 'Dashboard Module Pages', 'ielts-science-lms' ),
 			'section_desc'  => __( 'Select the pages for the Dashboard Module.', 'ielts-science-lms' ),
 			'pages'         => array(
-				'dashboard_overview' => __( 'Teacher Dashboard', 'ielts-science-lms' ),
+				'teacher_dashboard' => __( 'Teacher Dashboard', 'ielts-science-lms' ),
 			),
 		);
 
