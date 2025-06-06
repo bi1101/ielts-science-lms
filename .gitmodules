@@ -7,3 +7,6 @@
 [submodule "public/speaking"]
 	path = public/speaking
 	url = https://github.com/bi1101/ielts-science-speaking.git
+[submodule "public/dashboard"]
+	path = public/dashboard
+	url = https://github.com/bi1101/ielts-science-teacher-dashboard.git

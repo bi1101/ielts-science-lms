@@ -39,6 +39,7 @@ class Ieltssci_Core_Module {
 		new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys();
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
 		new \IeltsScienceLMS\Speaking\Ieltssci_Speaking_Module();
+		new \IeltsScienceLMS\Dashboard\Ieltssci_Dashboard_Module();
 
 		// Hook for running DB updates.
 		add_action( 'plugins_loaded', array( $this, 'run_database_updates' ), 5 ); // Run early.
