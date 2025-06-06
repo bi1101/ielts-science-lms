@@ -206,6 +206,7 @@ class Ieltssci_Dashboard_Module {
 
 			// Add WordPress login and register URLs.
 			$login_url    = wp_login_url();
+			$logout_url   = wp_logout_url();
 			$register_url = '';
 
 			// Only include registration URL if registration is enabled.
@@ -288,6 +289,7 @@ class Ieltssci_Dashboard_Module {
 				'has_subscription_active'  => $has_subscription_active, // Add subscription status.
 				'max_concurrent_requests'  => $api_settings['max_concurrent_requests'],
 				'login_url'                => $login_url,
+				'logout_url'               => $logout_url,
 				'register_url'             => $register_url,
 				'ajax_url'                 => admin_url( 'admin-ajax.php' ), // Add AJAX URL for custom login.
 				'current_page'             => $current_page,
