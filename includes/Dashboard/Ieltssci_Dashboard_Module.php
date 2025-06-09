@@ -165,6 +165,7 @@ class Ieltssci_Dashboard_Module {
 
 			// --- User Data ---
 			$current_user            = wp_get_current_user();
+			$current_user_id         = 0; // Initialize current user ID.
 			$user_link               = '';
 			$display_name            = '';
 			$user_mention            = '';
@@ -173,6 +174,8 @@ class Ieltssci_Dashboard_Module {
 			$has_subscription_active = false; // Initialize subscription status.
 
 			if ( is_user_logged_in() ) {
+				$current_user_id = $current_user->ID; // Set the current user ID.
+
 				// BuddyBoss-specific functions (if BuddyBoss is active).
 				if ( function_exists( 'bp_core_get_user_domain' ) ) {
 					$user_link = bp_core_get_user_domain( $current_user->ID );
@@ -279,6 +282,7 @@ class Ieltssci_Dashboard_Module {
 				'nonce'                    => $nonce,
 				'root_url'                 => $root_url,
 				'is_logged_in'             => is_user_logged_in(),
+				'current_user_id'          => $current_user_id, // Add current user ID.
 				'header_menu'              => $formatted_header_menu_items,
 				'account_menu'             => $formatted_account_menu_items,
 				'user_link'                => $user_link,
