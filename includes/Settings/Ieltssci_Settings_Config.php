@@ -79,6 +79,10 @@ class Ieltssci_Settings_Config {
 					'value' => 'open-key-ai',
 				),
 				array(
+					'label' => 'Two Key AI',
+					'value' => 'two-key-ai',
+				),
+				array(
 					'label' => 'Open AI',
 					'value' => 'open-ai',
 				),

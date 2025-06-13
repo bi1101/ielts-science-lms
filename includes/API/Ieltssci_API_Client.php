@@ -65,7 +65,10 @@ class Ieltssci_API_Client {
 				$settings['base_uri'] = 'https://api.openai.com/v1/';
 				break;
 			case 'open-key-ai':
-				$settings['base_uri'] = 'https://two.keyai.shop/v1/';
+				$settings['base_uri'] = 'https://open.keyai.shop/v1/';
+				break;
+			case 'two-key-ai':
+					$settings['base_uri'] = 'https://two.keyai.shop/v1/';
 				break;
 
 			case 'home-server':
@@ -128,6 +131,12 @@ class Ieltssci_API_Client {
 					'Accept'        => $accept_header,
 				);
 			case 'open-key-ai':
+				return array(
+					'Authorization' => 'Bearer ' . $api_key['meta']['api-key'],
+					'Content-Type'  => 'application/json',
+					'Accept'        => $accept_header,
+				);
+			case 'two-key-ai':
 				return array(
 					'Authorization' => 'Bearer ' . $api_key['meta']['api-key'],
 					'Content-Type'  => 'application/json',
@@ -279,6 +288,7 @@ class Ieltssci_API_Client {
 			case 'google':
 			case 'openai':
 			case 'open-key-ai':
+			case 'two-key-ai':
 				// Add guided JSON using response_format if available.
 				if ( ! empty( $guided_json ) ) {
 					$json_schema = json_decode( $guided_json, true );
@@ -346,6 +356,7 @@ class Ieltssci_API_Client {
 
 			case 'openai':
 			case 'open-key-ai':
+			case 'two-key-ai':
 				$chunk = json_decode( $data, true );
 				if ( JSON_ERROR_NONE === json_last_error() && isset( $chunk['choices'][0]['delta'] ) ) {
 					$delta = $chunk['choices'][0]['delta'];

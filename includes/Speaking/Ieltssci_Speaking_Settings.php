@@ -205,6 +205,24 @@ class Ieltssci_Speaking_Settings {
 						'value' => 'gpt-4o',
 					),
 				),
+				'two-key-ai'  => array(
+					array(
+						'label' => 'gpt-4o-mini',
+						'value' => 'gpt-4o-mini',
+					),
+					array(
+						'label' => 'gpt-4o',
+						'value' => 'gpt-4o',
+					),
+					array(
+						'label' => 'gemini-2.0-flash',
+						'value' => 'gemini-2.0-flash',
+					),
+					array(
+						'label' => 'gemini-2.0-flash-lite',
+						'value' => 'gemini-2.0-flash-lite',
+					),
+				),
 				'google'      => array(
 					array(
 						'label' => 'gemini-1.5-flash',

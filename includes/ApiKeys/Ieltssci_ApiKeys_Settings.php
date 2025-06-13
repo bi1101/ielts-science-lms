@@ -69,6 +69,11 @@ class Ieltssci_ApiKeys_Settings {
 				'multiKey' => true,
 				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your Open Key AI API key.' ) ),
 			),
+			'two-key-ai'     => array(
+				'label'    => __( 'Two Key AI', 'ielts-science-lms' ),
+				'multiKey' => true,
+				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your Two Key AI API key.' ) ),
+			),
 			'open-ai'        => array(
 				'label'    => __( 'Open AI', 'ielts-science-lms' ),
 				'multiKey' => true,
