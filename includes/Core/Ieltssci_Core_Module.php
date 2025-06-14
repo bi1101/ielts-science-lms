@@ -33,6 +33,7 @@ class Ieltssci_Core_Module {
 		$this->db_schema = new Ieltssci_Database_Schema();
 
 		new Ieltssci_Core_Ajax();
+		new Ieltssci_ACF();
 		new \IeltsScienceLMS\Settings\Ieltssci_Settings();
 		new \IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeed_Module();
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit();
