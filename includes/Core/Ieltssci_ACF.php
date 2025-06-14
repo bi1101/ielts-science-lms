@@ -341,6 +341,10 @@ class Ieltssci_ACF {
 				'taxonomies'       => array(
 					0 => 'writing-task-type',
 				),
+				'has_archive'      => 'writing-task-library',
+				'rewrite'          => array(
+					'feeds' => false,
+				),
 				'delete_with_user' => false,
 			)
 		);
@@ -399,6 +403,10 @@ class Ieltssci_ACF {
 				),
 				'taxonomies'       => array(
 					0 => 'writing-test-tag',
+				),
+				'has_archive'      => 'writing-test-library',
+				'rewrite'          => array(
+					'feeds' => false,
 				),
 				'delete_with_user' => false,
 			)
