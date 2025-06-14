@@ -9,7 +9,6 @@
 namespace IeltsScienceLMS\Core;
 
 use WP_Post;
-use WP_Error;
 
 /**
  * Core module class handling basic plugin functionality.
@@ -52,6 +51,9 @@ class Ieltssci_Core_Module {
 		add_filter( 'template_include', array( $this, 'load_custom_page_template' ) );
 		add_filter( 'display_post_states', array( $this, 'add_module_page_post_state' ), 10, 2 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'dequeue_assets_for_react_template' ), 100 );
+
+		// Add template overrides for writing tasks and tests.
+		add_filter( 'single_template', array( $this, 'override_writing_post_templates' ) );
 	}
 
 	/**
@@ -256,10 +258,32 @@ class Ieltssci_Core_Module {
 	}
 
 	/**
+	 * Override writing post templates to use React template.
+	 *
+	 * @param string $template Current template path.
+	 * @return string Modified template path for writing-task and writing-test posts.
+	 */
+	public function override_writing_post_templates( $template ) {
+		global $post;
+
+		// Check if we're viewing a writing-task or writing-test post.
+		if ( is_singular( array( 'writing-task', 'writing-test' ) ) ) {
+			$react_template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
+
+			// Check if our React template file exists.
+			if ( file_exists( $react_template ) ) {
+				return $react_template;
+			}
+		}
+
+		return $template;
+	}
+
+	/**
 	 * Dequeue unnecessary assets for React template.
 	 */
 	public function dequeue_assets_for_react_template() {
-		if ( is_page_template( 'template-react-page.php' ) ) {
+		if ( is_page_template( 'template-react-page.php' ) || is_singular( array( 'writing-task', 'writing-test' ) ) ) {
 
 			// Dequeue Stylesheets.
 			wp_dequeue_style( 'bb_theme_block-buddypanel-style-css' );
