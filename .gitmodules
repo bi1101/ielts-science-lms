@@ -10,3 +10,6 @@
 [submodule "public/dashboard"]
 	path = public/dashboard
 	url = https://github.com/bi1101/ielts-science-teacher-dashboard.git
+[submodule "public/global-components"]
+	path = public/global-components
+	url = https://github.com/bi1101/ielts-science-global-components.git
