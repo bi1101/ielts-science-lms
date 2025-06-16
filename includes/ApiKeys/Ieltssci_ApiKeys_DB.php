@@ -316,10 +316,7 @@ class Ieltssci_ApiKeys_DB {
 		try {
 			// Get all existing keys.
 			$existing_keys = $this->wpdb->get_results(
-				$this->wpdb->prepare(
-					'SELECT id, api_provider FROM %s',
-					$this->table_name
-				),
+				"SELECT id, api_provider FROM {$this->table_name}",
 				ARRAY_A
 			);
 
