@@ -9,6 +9,9 @@
 
 namespace IeltsScienceLMS\Writing;
 
+use WP_REST_Users_Controller;
+use WP_REST_Request;
+
 /**
  * Class Ieltssci_Writing_Module
  *
@@ -195,7 +198,20 @@ class Ieltssci_Writing_Module {
 			$user_roles              = array(); // Initialize user roles array.
 			$has_subscription_active = false; // Initialize subscription status.
 
+			// Prepare safe user data using WordPress REST API user preparation.
+			$safe_user_data = null;
+
 			if ( is_user_logged_in() ) {
+
+				$users_controller = new WP_REST_Users_Controller();
+				$request          = new WP_REST_Request();
+				$request->set_param( 'context', 'edit' ); // Use 'edit' context for more comprehensive data.
+
+				// Prepare user data using WordPress's own REST API methods.
+				$user_data      = $users_controller->prepare_item_for_response( $current_user, $request );
+				$safe_user_data = $user_data->get_data();
+
+				// WordPress REST API automatically excludes sensitive data like passwords.
 				// BuddyBoss-specific functions (if BuddyBoss is active).
 				if ( function_exists( 'bp_core_get_user_domain' ) ) {
 					$user_link = bp_core_get_user_domain( $current_user->ID );
@@ -336,6 +352,7 @@ class Ieltssci_Writing_Module {
 				'nonce'                    => $nonce,
 				'root_url'                 => $root_url,
 				'is_logged_in'             => is_user_logged_in(),
+				'current_user'             => $safe_user_data, // Use safe user data prepared by WordPress REST API.
 				'header_menu'              => $formatted_header_menu_items,
 				'account_menu'             => $formatted_account_menu_items,
 				'user_link'                => $user_link,
