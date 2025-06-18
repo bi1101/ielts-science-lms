@@ -89,6 +89,8 @@ class Ieltssci_Writing_Module {
 
 		// Check if current page is one of the assigned writing module pages.
 		$should_enqueue = false;
+		$script_type    = 'index'; // Default script type.
+
 		if ( ! empty( $ielts_pages ) && ! empty( $writing_module_pages ) ) {
 			foreach ( $writing_module_pages as $page_key => $page_label ) {
 				if ( isset( $ielts_pages[ $page_key ] ) && is_page( $ielts_pages[ $page_key ] ) ) {
@@ -98,10 +100,27 @@ class Ieltssci_Writing_Module {
 			}
 		}
 
+		// Check for writing task/test pages and archives.
+		if ( ! $should_enqueue ) {
+			if ( is_singular( 'writing-task' ) ) {
+				$should_enqueue = true;
+				$script_type    = 'writing-task-single';
+			} elseif ( is_singular( 'writing-test' ) ) {
+				$should_enqueue = true;
+				$script_type    = 'writing-test-single';
+			} elseif ( is_post_type_archive( 'writing-task' ) || ( is_home() && get_option( 'page_for_posts' ) && get_post_type( get_option( 'page_for_posts' ) ) === 'writing-task' ) ) {
+				$should_enqueue = true;
+				$script_type    = 'writing-task-archive';
+			} elseif ( is_post_type_archive( 'writing-test' ) || ( is_home() && get_option( 'page_for_posts' ) && get_post_type( get_option( 'page_for_posts' ) ) === 'writing-test' ) ) {
+				$should_enqueue = true;
+				$script_type    = 'writing-test-archive';
+			}
+		}
+
 		if ( $should_enqueue ) {
-			// Define the handle for the index script and style.
-			$script_handle  = 'ielts-science-writing-index';
-			$style_handle   = 'ielts-science-writing-index-css';
+			// Define the handle for the script and style based on type.
+			$script_handle  = 'ielts-science-writing-' . $script_type;
+			$style_handle   = 'ielts-science-writing-' . $script_type . '-css';
 			$runtime_handle = 'ielts-science-writing-runtime';
 
 			// Enqueue the runtime script if it's registered.
@@ -218,11 +237,42 @@ class Ieltssci_Writing_Module {
 			}
 
 			// Get current page information.
+			$queried_object = get_queried_object();
+			$slug           = '';
+			$page_id        = 0;
+			$page_url       = '';
+			$page_title     = '';
+			$page_path      = ''; // Initialize page path.
+
+			if ( $queried_object ) {
+				if ( is_a( $queried_object, 'WP_Post' ) ) {
+					// It's a post object.
+					$slug       = $queried_object->post_name;
+					$page_id    = get_queried_object_id();
+					$page_url   = get_permalink( $page_id );
+					$page_path  = wp_make_link_relative( $page_url );
+					$page_title = get_the_title();
+				} elseif ( is_post_type_archive() ) {
+					$page_id    = 0; // Archive pages don't have a specific ID.
+					$page_url   = get_post_type_archive_link( $queried_object->name );
+					$page_title = $queried_object->labels->name ?? $queried_object->label ?? '';
+					$page_path  = wp_make_link_relative( $page_url ); // Get relative path.
+					$slug       = $queried_object->has_archive ? $queried_object->has_archive : $queried_object->name;
+				} elseif ( is_tax() || is_category() || is_tag() ) {
+					$page_id    = $queried_object->term_id;
+					$page_url   = get_term_link( $queried_object );
+					$page_path  = wp_make_link_relative( $page_url ); // Get relative path.
+					$page_title = $queried_object->name;
+					$slug       = $queried_object->slug;
+				}
+			}
+
 			$current_page = array(
-				'id'    => get_queried_object_id(),
-				'url'   => get_permalink( get_queried_object_id() ),
-				'title' => get_the_title(),
-				'slug'  => get_queried_object() ? get_queried_object()->post_name : '',
+				'id'    => $page_id,
+				'url'   => $page_url,
+				'title' => $page_title,
+				'path'  => $page_path, // Use relative path.
+				'slug'  => $slug,
 			);
 
 			$setting_instance = new Ieltssci_Writing_Settings();
