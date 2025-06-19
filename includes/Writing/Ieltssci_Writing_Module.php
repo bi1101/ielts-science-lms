@@ -140,6 +140,36 @@ class Ieltssci_Writing_Module {
 				wp_enqueue_style( $style_handle );
 			}
 
+			// --- Post Data Retrieval ---.
+			$post_data = null;
+			if ( is_singular( array( 'writing-task', 'writing-test' ) ) ) {
+				$current_post = get_queried_object();
+
+				if ( $current_post && is_a( $current_post, 'WP_Post' ) ) {
+					try {
+						// Build the proper REST route.
+						$route = '/wp/v2/' . $current_post->post_type . '/' . $current_post->ID;
+
+						// Create a REST request that mimics a normal API request.
+						$request = new WP_REST_Request( 'GET', $route );
+						$request->set_param( 'acf_format', 'standard' ); // Ensure ACF fields are included in the response.
+						// Set the route on the request.
+						$request->set_route( $route );
+
+						// Dispatch the request through the REST server to get ACF fields.
+						$response = rest_do_request( $request );
+
+						if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
+							$server    = rest_get_server();
+							$post_data = $server->response_to_data( $response, true );
+						}
+					} catch ( \Exception $e ) {
+						// Log error but continue execution.
+						error_log( 'Post data preparation failed: ' . $e->getMessage() );
+					}
+				}
+			}
+
 			// Prepare data for localization using writing module pages.
 			$page_data_for_js = array();
 			foreach ( $writing_module_pages as $page_key => $page_label ) {
@@ -367,6 +397,7 @@ class Ieltssci_Writing_Module {
 				'register_url'             => $register_url,
 				'ajax_url'                 => admin_url( 'admin-ajax.php' ), // Add AJAX URL for custom login.
 				'current_page'             => $current_page,
+				'post_data'                => $post_data,
 				// Add sample results data.
 				'sample_results'           => $sample_results,
 				// Check if Nextend Social Login plugin is active.
