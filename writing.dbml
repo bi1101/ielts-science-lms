@@ -23,6 +23,13 @@ Table ieltssci_essays {
   created_by integer [not null, note: 'ID người tạo bài, nếu fork từ bài khác thì là ID của người fork']
 }
 
+Table ieltssci_essay_meta {
+  id integer [primary key, increment]
+  essay_id integer [not null, note: 'FK to ieltssci_essays.']
+  meta_key varchar [not null, note: 'e.g., overall_score, grading_rubric, etc.']
+  meta_value text [not null, note: 'Value for the meta key.']
+}
+
 Table ieltssci_segment {
   id integer [primary key, increment]
   essay_id integer [not null]
@@ -76,6 +83,46 @@ Table ieltssci_api_feed {
   apply_to varchar [not null, note: 'Áp dụng cho cả bài hay từng đoạn, mở thân, kết, vv']
   meta json [not null, note: 'Setting cho API feed, base URL, parameters, step vv']
 }
+
+// Writing Tasks as CPT
+Table wp_writing_tasks {
+  id integer [primary key, increment]
+}
+
+// Writing Tests as CPT
+Table wp_writing_tests {
+  id integer [primary key, increment]
+  task_ids integer[] [not null, note: 'ID của bài viết trong wp_writing_tasks']
+}
+
+Table ieltssci_test_submissions {
+  id integer [primary key, increment]
+  test_id integer [not null, note: 'ID of the test from wp_writing_tests.']
+  user_id integer [not null, note: 'ID of the user who submitted the test.']
+  status varchar [not null, default: 'in-progress', note: 'e.g., in-progress, completed, graded.']
+  started_at timestamp [note: 'Timestamp when the test was started.']
+  updated_at timestamp [note: 'Timestamp when the test was last updated.']
+  completed_at timestamp [note: 'Timestamp when the test was completed.']
+}
+
+Table ieltssci_task_submissions {
+  id integer [primary key, increment]
+  test_submission_id integer [note: 'ID of the test submission from ieltssci_test_submissions, nullable if standalone.']
+  user_id integer [not null, note: 'ID of the user who submitted the test.']
+  task_id integer [not null, note: 'ID of the writing task from wp_writing_tasks.']
+  status varchar [not null, default: 'in-progress', note: 'e.g., in-progress, completed, graded.']
+  essay_id integer [not null, note: 'ID of the essay from ieltssci_essays.']
+  started_at timestamp [note: 'Timestamp when the task was started.']
+  updated_at timestamp [note: 'Timestamp when the task was last updated.']
+  completed_at timestamp [note: 'Timestamp when the task was completed.']
+}
+
+// Relationships
+Ref: wp_writing_tests.id < ieltssci_test_submissions.test_id
+Ref: ieltssci_test_submissions.id < ieltssci_task_submissions.test_submission_id
+Ref: wp_writing_tasks.id < ieltssci_task_submissions.task_id
+Ref: ieltssci_essays.id < ieltssci_task_submissions.essay_id
+
 
 Table ieltssci_rate_limit_rule {
   id integer [primary key, increment]
@@ -132,6 +179,7 @@ Enum LimitType {
 Ref: ieltssci_essays.id < ieltssci_segment.essay_id
 Ref: ieltssci_segment.id < ieltssci_segment_feedback.segment_id
 Ref: ieltssci_essays.id < ieltssci_essay_feedback.essay_id
+Ref: ieltssci_essays.id < ieltssci_essay_meta.essay_id
 Ref: ieltssci_api_feed.id < ieltssci_api_feed_rate_limit_rule.api_feed_id
 Ref: ieltssci_rate_limit_rule.id < ieltssci_api_feed_rate_limit_rule.rate_limit_rule_id
 Ref: ieltssci_api_feed.feedback_criteria < ieltssci_segment_feedback.feedback_criteria
