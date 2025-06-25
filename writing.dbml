@@ -117,11 +117,27 @@ Table ieltssci_task_submissions {
   completed_at timestamp [note: 'Timestamp when the task was completed.']
 }
 
+Table ieltssci_test_submission_meta {
+  id integer [primary key, increment]
+  test_submission_id integer [not null, note: 'FK to ieltssci_test_submissions.']
+  meta_key varchar [not null, note: 'e.g., time_elapsed, time_limit, etc.']
+  meta_value text [note: 'Value for the meta key.']
+}
+
+Table ieltssci_task_submission_meta {
+  id integer [primary key, increment]
+  task_submission_id integer [not null, note: 'FK to ieltssci_task_submissions.']
+  meta_key varchar [not null, note: 'e.g., time_elapsed, time_limit, etc.']
+  meta_value text [note: 'Value for the meta key.']
+}
+
 // Relationships
 Ref: wp_writing_tests.id < ieltssci_test_submissions.test_id
 Ref: ieltssci_test_submissions.id < ieltssci_task_submissions.test_submission_id
 Ref: wp_writing_tasks.id < ieltssci_task_submissions.task_id
 Ref: ieltssci_essays.id < ieltssci_task_submissions.essay_id
+Ref: ieltssci_test_submissions.id < ieltssci_test_submission_meta.test_submission_id
+Ref: ieltssci_task_submissions.id < ieltssci_task_submission_meta.task_submission_id
 
 
 Table ieltssci_rate_limit_rule {
