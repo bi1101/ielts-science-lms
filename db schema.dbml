@@ -203,3 +203,95 @@ Ref: ieltssci_api_feed.feedback_criteria < ieltssci_essay_feedback.feedback_crit
 Ref: ieltssci_api_feed.id < ieltssci_api_request_log.api_feed_id
 Ref: ieltssci_rate_limit_rule.id < ieltssci_role_rate_limit_rule.rate_limit_rule_id
 Ref: ieltssci_api_feed.id < ieltssci_api_feed_essay_type.api_feed_id
+
+// Speaking related tables
+
+Table ieltssci_speech {
+  id integer [primary key, increment]
+  uuid varchar [not null, unique, note: 'UUID của bài nói, dùng để tạo link share bài nói']
+  audio_ids text [not null, note: 'ID của file audio người dùng upload']
+  created_at timestamp [default: `now()`]
+  created_by integer [not null, note: 'ID người tạo bài, nếu fork từ bài khác thì là ID của người fork']
+}
+
+// Speech meta data
+Table ieltssci_speech_meta {
+  id integer [primary key, increment]
+  speech_id integer [not null, note: 'FK to ieltssci_speech.']
+  meta_key varchar [not null, note: 'e.g., overall_score, grading_rubric, etc.']
+  meta_value text [not null, note: 'Value for the meta key.']
+}
+
+Ref: ieltssci_speech.id < ieltssci_speech_meta.speech_id
+
+Table ieltssci_speech_feedback {
+  id integer [primary key, increment]
+  feedback_criteria varchar [not null, note: 'Tiêu chí feedback e.g relevance, clearAnswer, rewrite, logicDepth, etc.']
+  speech_id integer [not null]
+  feedback_language varchar [not null, note: 'Ngôn ngữ của feedback e.g English, Vietnamese']
+  source FeedbackSource [not null, note: 'Nguồn của feedback']
+  cot_content text [note: 'Nội dung phần COT']
+  score_content text [note: 'Nội dung phần điểm số']
+  feedback_content text [note: 'Nội dung phần feedback']
+  is_preferred boolean [default: false, note: 'Feedback được chọn làm feedback mặc định']
+  created_at timestamp [default: `now()`]
+  created_by integer [not null, note: 'ID của người call API hoặc update MANUAL feedback']
+}
+
+// Relationships
+Ref: ieltssci_speech.id < ieltssci_speech_feedback.speech_id
+
+// Speaking Parts as CPT
+Table wp_speaking_parts {
+  id integer [primary key, increment]
+}
+
+// Speaking Tests as CPT
+Table wp_speaking_tests {
+  id integer [primary key, increment]
+  part_ids integer[] [not null, note: 'ID của các phần nói trong wp_speaking_parts']
+}
+
+Table ieltssci_speaking_test_submissions {
+  id integer [primary key, increment]
+  test_id integer [not null, note: 'ID of the test from wp_speaking_tests.']
+  user_id integer [not null, note: 'ID of the user who submitted the test.']
+  status varchar [not null, default: 'in-progress', note: 'e.g., in-progress, completed, graded.']
+  started_at timestamp [note: 'Timestamp when the test was started.']
+  updated_at timestamp [note: 'Timestamp when the test was last updated.']
+  completed_at timestamp [note: 'Timestamp when the test was completed.']
+}
+
+Table ieltssci_speaking_part_submissions {
+  id integer [primary key, increment]
+  test_submission_id integer [note: 'ID of the test submission from ieltssci_speaking_test_submissions, nullable if standalone.']
+  user_id integer [not null, note: 'ID of the user who submitted the test.']
+  part_id integer [not null, note: 'ID of the speaking part from wp_speaking_parts.']
+  status varchar [not null, default: 'in-progress', note: 'e.g., in-progress, completed, graded.']
+  speech_id integer [not null, note: 'ID of the speech from ieltssci_speech.']
+  started_at timestamp [note: 'Timestamp when the part was started.']
+  updated_at timestamp [note: 'Timestamp when the part was last updated.']
+  completed_at timestamp [note: 'Timestamp when the part was completed.']
+}
+
+Table ieltssci_speaking_test_submission_meta {
+  id integer [primary key, increment]
+  test_submission_id integer [not null, note: 'FK to ieltssci_speaking_test_submissions.']
+  meta_key varchar [not null, note: 'e.g., time_elapsed, time_limit, etc.']
+  meta_value text [note: 'Value for the meta key.']
+}
+
+Table ieltssci_speaking_part_submission_meta {
+  id integer [primary key, increment]
+  part_submission_id integer [not null, note: 'FK to ieltssci_speaking_part_submissions.']
+  meta_key varchar [not null, note: 'e.g., time_elapsed, time_limit, etc.']
+  meta_value text [note: 'Value for the meta key.']
+}
+
+// Relationships
+Ref: wp_speaking_tests.id < ieltssci_speaking_test_submissions.test_id
+Ref: ieltssci_speaking_test_submissions.id < ieltssci_speaking_part_submissions.test_submission_id
+Ref: wp_speaking_parts.id < ieltssci_speaking_part_submissions.part_id
+Ref: ieltssci_speech.id < ieltssci_speaking_part_submissions.speech_id
+Ref: ieltssci_speaking_test_submissions.id < ieltssci_speaking_test_submission_meta.test_submission_id
+Ref: ieltssci_speaking_part_submissions.id < ieltssci_speaking_part_submission_meta.part_submission_id
