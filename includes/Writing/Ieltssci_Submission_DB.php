@@ -569,7 +569,7 @@ class Ieltssci_Submission_DB {
 			// Delete test submission meta data.
 			$meta_result = $this->wpdb->delete(
 				$this->test_submission_meta_table,
-				array( 'test_submission_id' => $submission_id ),
+				array( 'ieltssci_writing_test_submission_id' => $submission_id ),
 				array( '%d' )
 			);
 
@@ -1174,11 +1174,36 @@ class Ieltssci_Submission_DB {
 							// Include specific meta keys.
 							$submission['meta'] = array();
 							foreach ( $args['include_meta'] as $meta_key ) {
-								$submission['meta'][ $meta_key ] = $this->get_task_submission_meta( $submission['id'], $meta_key, true );
+								$meta_value = $this->get_task_submission_meta( $submission['id'], $meta_key, true );
+								// Ensure consistent format - return single value as string.
+								$submission['meta'][ $meta_key ] = is_string( $meta_value ) ? $meta_value : '';
 							}
 						} elseif ( true === $args['include_meta'] ) {
 							// Include all meta data.
-							$submission['meta'] = $this->get_task_submission_meta( $submission['id'] );
+							$all_meta           = $this->get_task_submission_meta( $submission['id'] );
+							$submission['meta'] = array();
+
+							if ( is_array( $all_meta ) ) {
+								foreach ( $all_meta as $meta_key => $meta_values ) {
+									// WordPress meta API returns arrays even for single values.
+									// For consistency, always return the first value as a string.
+									if ( is_array( $meta_values ) && ! empty( $meta_values ) ) {
+										// Get the first value and ensure it's a string.
+										$first_value = $meta_values[0];
+										if ( is_string( $first_value ) ) {
+											$submission['meta'][ $meta_key ] = $first_value;
+										} else {
+											// Handle serialized data or convert to string.
+											$submission['meta'][ $meta_key ] = maybe_unserialize( $first_value );
+											if ( ! is_string( $submission['meta'][ $meta_key ] ) ) {
+												$submission['meta'][ $meta_key ] = (string) $submission['meta'][ $meta_key ];
+											}
+										}
+									} else {
+										$submission['meta'][ $meta_key ] = is_string( $meta_values ) ? $meta_values : '';
+									}
+								}
+							}
 						}
 					}
 				}
@@ -1219,7 +1244,7 @@ class Ieltssci_Submission_DB {
 			// Delete task submission meta data.
 			$meta_result = $this->wpdb->delete(
 				$this->task_submission_meta_table,
-				array( 'task_submission_id' => $submission_id ),
+				array( 'ieltssci_writing_task_submission_id' => $submission_id ),
 				array( '%d' )
 			);
 

@@ -30,6 +30,7 @@ class Ieltssci_Writing_Module {
 		new Ieltssci_Writing_Settings();
 		new Ieltssci_Writing_Entries();
 		new Ieltssci_Submission_DB();
+		new Ieltssci_Writing_Task_Submission_Controller(); // Register REST controller via constructor.
 		// Initialize the writing module.
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_writing_assets' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_writing_assets' ) );
