@@ -4,6 +4,14 @@
  *
  * This file handles the database schema creation and updates.
  *
+ * The submission tables (test_submissions, task_submissions) are designed to work with
+ * the ACF Custom Post Types defined in Ieltssci_ACF.php:
+ * - test_submissions.test_id references wp_posts.ID where post_type='writing-test'
+ * - task_submissions.task_id references wp_posts.ID where post_type='writing-task'
+ *
+ * These tables track user progress through writing tests and individual tasks,
+ * storing submission status, timing data, and linking to essay content.
+ *
  * @package IELTS_Science_LMS
  * @subpackage Core
  */
@@ -29,7 +37,7 @@ class Ieltssci_Database_Schema {
 	 *
 	 * @var string
 	 */
-	private $db_version = '0.0.6'; // Updated version number for adding dependencies column to api_feed_essay_type table.
+	private $db_version = '0.0.7'; // Updated version number for adding test and task submission tables.
 
 	/**
 	 * WordPress database object.
@@ -80,6 +88,10 @@ class Ieltssci_Database_Schema {
 			$this->create_essay_feedback_table();
 			$this->create_speech_table();
 			$this->create_speech_feedback_table();
+			$this->create_writing_test_submissions_table();
+			$this->create_writing_task_submissions_table();
+			$this->create_writing_test_submission_meta_table();
+			$this->create_writing_task_submission_meta_table();
 
 			return;
 		} catch ( Exception $e ) {
@@ -126,6 +138,10 @@ class Ieltssci_Database_Schema {
 
 			if ( version_compare( $current_version, '0.0.6', '<' ) ) {
 				$this->update_to_0_0_6();
+			}
+
+			if ( version_compare( $current_version, '0.0.7', '<' ) ) {
+				$this->update_to_0_0_7();
 			}
 
 			// All updates successful, update the stored version.
@@ -220,6 +236,19 @@ class Ieltssci_Database_Schema {
 				throw new Exception( 'Error adding dependencies column: ' . esc_html( $this->wpdb->last_error ) );
 			}
 		}
+	}
+
+	/**
+	 * Update schema to version 0.0.7.
+	 * Adds test submission and task submission tables with their meta tables.
+	 *
+	 * @throws \Exception On SQL error.
+	 */
+	private function update_to_0_0_7() {
+		$this->create_writing_test_submissions_table();
+		$this->create_writing_task_submissions_table();
+		$this->create_writing_test_submission_meta_table();
+		$this->create_writing_task_submission_meta_table();
 	}
 
 	/**
@@ -568,6 +597,130 @@ class Ieltssci_Database_Schema {
 			CONSTRAINT fk_speech_feedback_speech
 				FOREIGN KEY (speech_id)
 				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "speech(id)
+				ON DELETE CASCADE
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
+	 * Creates the writing test submissions table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_writing_test_submissions_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'writing_test_submissions';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			uuid varchar(36) NOT NULL,
+			test_id bigint(20) UNSIGNED NOT NULL COMMENT 'ID of the test from wp_writing_tests',
+			user_id bigint(20) UNSIGNED NOT NULL COMMENT 'ID of the user who submitted the test',
+			status varchar(50) NOT NULL DEFAULT 'in-progress' COMMENT 'e.g., in-progress, completed, graded',
+			started_at datetime DEFAULT NULL COMMENT 'Timestamp when the test was started',
+			updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Timestamp when the test was last updated',
+			completed_at datetime DEFAULT NULL COMMENT 'Timestamp when the test was completed',
+			PRIMARY KEY (id),
+			UNIQUE KEY uuid (uuid),
+			KEY test_id (test_id),
+			KEY user_id (user_id),
+			KEY status (status)
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
+	 * Creates the writing task submissions table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_writing_task_submissions_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'writing_task_submissions';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			uuid varchar(36) NOT NULL,
+			test_submission_id bigint(20) UNSIGNED DEFAULT NULL COMMENT 'ID of the test submission from ieltssci_writing_test_submissions, nullable if standalone',
+			user_id bigint(20) UNSIGNED NOT NULL COMMENT 'ID of the user who submitted the test',
+			task_id bigint(20) UNSIGNED NOT NULL COMMENT 'ID of the writing task from wp_writing_tasks',
+			status varchar(50) NOT NULL DEFAULT 'in-progress' COMMENT 'e.g., in-progress, completed, graded',
+			essay_id bigint(20) UNSIGNED NOT NULL COMMENT 'ID of the essay from ieltssci_essays',
+			started_at datetime DEFAULT NULL COMMENT 'Timestamp when the task was started',
+			updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Timestamp when the task was last updated',
+			completed_at datetime DEFAULT NULL COMMENT 'Timestamp when the task was completed',
+			PRIMARY KEY (id),
+			UNIQUE KEY uuid (uuid),
+			KEY test_submission_id (test_submission_id),
+			KEY user_id (user_id),
+			KEY task_id (task_id),
+			KEY essay_id (essay_id),
+			KEY status (status),
+			CONSTRAINT fk_task_submission_test_submission
+				FOREIGN KEY (test_submission_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "writing_test_submissions(id)
+				ON DELETE CASCADE,
+			CONSTRAINT fk_task_submission_essay
+				FOREIGN KEY (essay_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "essays(id)
+				ON DELETE CASCADE
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
+	 * Creates the writing test submission meta table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_writing_test_submission_meta_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'writing_test_submission_meta';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			meta_id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			ieltssci_writing_test_submission_id bigint(20) UNSIGNED NOT NULL COMMENT 'FK to ieltssci_writing_test_submissions',
+			meta_key varchar(191) NOT NULL COMMENT 'e.g., time_elapsed, time_limit, etc.',
+			meta_value longtext DEFAULT NULL COMMENT 'Value for the meta key',
+			PRIMARY KEY (meta_id),
+			KEY ieltssci_writing_test_submission_id (ieltssci_writing_test_submission_id),
+			KEY meta_key (meta_key),
+			CONSTRAINT fk_writing_test_submission_meta_test_submission
+				FOREIGN KEY (ieltssci_writing_test_submission_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "writing_test_submissions(id)
+				ON DELETE CASCADE
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
+	 * Creates the writing task submission meta table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_writing_task_submission_meta_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'writing_task_submission_meta';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			meta_id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			ieltssci_writing_task_submission_id bigint(20) UNSIGNED NOT NULL COMMENT 'FK to ieltssci_writing_task_submissions',
+			meta_key varchar(191) NOT NULL COMMENT 'e.g., time_elapsed, time_limit, etc.',
+			meta_value longtext DEFAULT NULL COMMENT 'Value for the meta key',
+			PRIMARY KEY (meta_id),
+			KEY ieltssci_writing_task_submission_id (ieltssci_writing_task_submission_id),
+			KEY meta_key (meta_key),
+			CONSTRAINT fk_writing_task_submission_meta_task_submission
+				FOREIGN KEY (ieltssci_writing_task_submission_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "writing_task_submissions(id)
 				ON DELETE CASCADE
 		) $charset_collate";
 
