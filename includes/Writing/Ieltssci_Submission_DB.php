@@ -96,8 +96,6 @@ class Ieltssci_Submission_DB {
 		$wpdb->ieltssci_writing_task_submissionmeta = $this->task_submission_meta_table;
 	}
 
-	// == Test Submission Methods == //
-
 	/**
 	 * Adds a new test submission.
 	 *
@@ -158,6 +156,7 @@ class Ieltssci_Submission_DB {
 				'user_id'    => absint( $data['user_id'] ),
 				'status'     => sanitize_text_field( $data['status'] ),
 				'started_at' => $data['started_at'],
+				'updated_at' => current_time( 'mysql', true ), // Use GMT time.
 			);
 
 			$format = array(
@@ -166,6 +165,7 @@ class Ieltssci_Submission_DB {
 				'%d', // user_id.
 				'%s', // status.
 				'%s', // started_at.
+				'%s', // updated_at.
 			);
 
 			// Insert the submission.
@@ -261,6 +261,10 @@ class Ieltssci_Submission_DB {
 				$this->wpdb->query( 'COMMIT' );
 				return true;
 			}
+
+			// Always update the updated_at timestamp.
+			$update_data['updated_at'] = current_time( 'mysql', true ); // Use GMT time.
+			$format[]                  = '%s';
 
 			// Perform the update.
 			$result = $this->wpdb->update(
@@ -768,6 +772,7 @@ class Ieltssci_Submission_DB {
 				'essay_id'   => absint( $data['essay_id'] ),
 				'status'     => sanitize_text_field( $data['status'] ),
 				'started_at' => $data['started_at'],
+				'updated_at' => current_time( 'mysql', true ), // Use GMT time.
 			);
 
 			$format = array(
@@ -777,6 +782,7 @@ class Ieltssci_Submission_DB {
 				'%d', // essay_id.
 				'%s', // status.
 				'%s', // started_at.
+				'%s', // updated_at.
 			);
 
 			// Add optional test_submission_id if provided.
@@ -890,6 +896,10 @@ class Ieltssci_Submission_DB {
 				$this->wpdb->query( 'COMMIT' );
 				return true;
 			}
+
+			// Always update the updated_at timestamp.
+			$update_data['updated_at'] = current_time( 'mysql', true ); // Use GMT time.
+			$format[]                  = '%s';
 
 			// Perform the update.
 			$result = $this->wpdb->update(
