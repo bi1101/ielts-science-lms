@@ -293,13 +293,13 @@ class Ieltssci_Submission_DB {
 	 * A simple wrapper for get_test_submissions().
 	 *
 	 * @param int $submission_id The ID of the submission to retrieve.
-	 * @return array|null The submission data, or null if not found.
+	 * @return array|null|WP_Error The submission data, or null if not found, or WP_Error on failure.
 	 */
 	public function get_test_submission( $submission_id ) {
 		$submissions = $this->get_test_submissions( array( 'id' => $submission_id ) );
 
-		if ( is_wp_error( $submissions ) || empty( $submissions ) ) {
-			return null;
+		if ( is_wp_error( thing: $submissions ) || empty( $submissions ) ) {
+			return $submissions;
 		}
 
 		return $submissions[0];
@@ -926,13 +926,13 @@ class Ieltssci_Submission_DB {
 	 * Retrieves a single task submission by its ID.
 	 *
 	 * @param int $submission_id The ID of the submission to retrieve.
-	 * @return array|null The submission data, or null if not found.
+	 * @return array|null|WP_Error The submission data if found, null if not found, or WP_Error on failure.
 	 */
 	public function get_task_submission( $submission_id ) {
 		$submissions = $this->get_task_submissions( array( 'id' => $submission_id ) );
 
 		if ( is_wp_error( $submissions ) || empty( $submissions ) ) {
-			return null;
+			return $submissions;
 		}
 
 		return $submissions[0];
