@@ -111,6 +111,12 @@ class Ieltssci_Writing_Module {
 			foreach ( $writing_module_pages as $page_key => $page_label ) {
 				if ( isset( $ielts_pages[ $page_key ] ) && is_page( $ielts_pages[ $page_key ] ) ) {
 					$should_enqueue = true;
+					// Set specific script types for practice pages.
+					if ( 'writing_task_practice' === $page_key ) {
+						$script_type = 'writing-task-practice';
+					} elseif ( 'writing_test_practice' === $page_key ) {
+						$script_type = 'writing-test-practice';
+					}
 					break;
 				}
 			}
@@ -588,16 +594,22 @@ class Ieltssci_Writing_Module {
 	public function register_custom_rewrite_rules() {
 		$ielts_pages = get_option( 'ielts_science_lms_pages', array() );
 
-		// List of result pages to add rewrite rules for.
-		$result_pages = array( 'result_task_2', 'result_task_1', 'result_general_essay' );
+		// List of result pages and submission pages to add rewrite rules for.
+		$uuid_pages = array(
+			'result_task_2',
+			'result_task_1',
+			'result_general_essay',
+			'writing_task_practice',
+			'writing_test_practice',
+		);
 
-		foreach ( $result_pages as $page_key ) {
-			// Check if the result page is set.
+		foreach ( $uuid_pages as $page_key ) {
+			// Check if the page is set.
 			if ( ! empty( $ielts_pages[ $page_key ] ) ) {
-				$result_page = get_post( $ielts_pages[ $page_key ] );
+				$page = get_post( $ielts_pages[ $page_key ] );
 
-				if ( $result_page ) {
-					$slug = $result_page->post_name;
+				if ( $page ) {
+					$slug = $page->post_name;
 
 					// Add rewrite rule for UUIDs (8-4-4-4-12 format).
 					add_rewrite_rule(
@@ -633,11 +645,13 @@ class Ieltssci_Writing_Module {
 			'section_title' => __( 'Writing Module Pages', 'ielts-science-lms' ),
 			'section_desc'  => __( 'Select the pages for the Writing Module.', 'ielts-science-lms' ),
 			'pages'         => array(
-				'writing_submission'   => __( 'IELTS Science Writing', 'ielts-science-lms' ),
-				'result_task_2'        => __( 'Result Task 2', 'ielts-science-lms' ),
-				'result_task_1'        => __( 'Result Task 1', 'ielts-science-lms' ),
-				'result_general_essay' => __( 'Result General Essay', 'ielts-science-lms' ),
-				'evaluation_history'   => __( 'Evaluation History', 'ielts-science-lms' ),
+				'writing_submission'    => __( 'IELTS Science Writing', 'ielts-science-lms' ),
+				'result_task_2'         => __( 'Result Task 2', 'ielts-science-lms' ),
+				'result_task_1'         => __( 'Result Task 1', 'ielts-science-lms' ),
+				'result_general_essay'  => __( 'Result General Essay', 'ielts-science-lms' ),
+				'evaluation_history'    => __( 'Evaluation History', 'ielts-science-lms' ),
+				'writing_task_practice' => __( 'Writing Task Practice', 'ielts-science-lms' ),
+				'writing_test_practice' => __( 'Writing Test Practice', 'ielts-science-lms' ),
 			),
 		);
 
