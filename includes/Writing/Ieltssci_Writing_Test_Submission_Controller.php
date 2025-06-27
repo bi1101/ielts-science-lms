@@ -303,8 +303,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 
 		// Include meta data by default for single item requests.
 		if ( ! isset( $submission['meta'] ) ) {
-			$all_meta           = $this->db->get_test_submission_meta( $submission_id );
-			$submission['meta'] = $this->standardize_meta_data( $all_meta );
+			$submission['meta'] = $this->db->get_test_submission_meta( $submission_id );
 		}
 
 		// Prepare the response.
@@ -473,9 +472,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 		// Add meta data if provided.
 		if ( ! empty( $request['meta'] ) && is_array( $request['meta'] ) ) {
 			foreach ( $request['meta'] as $meta_key => $meta_value ) {
-				// Ensure consistent meta value format - always store as string.
-				$sanitized_value = is_string( $meta_value ) ? $meta_value : (string) $meta_value;
-				$meta_result     = $this->db->add_test_submission_meta( $submission_id, $meta_key, $sanitized_value );
+				$meta_result = $this->db->add_test_submission_meta( $submission_id, $meta_key, $meta_value );
 				if ( is_wp_error( $meta_result ) ) {
 					error_log( 'Failed to add meta data: ' . $meta_result->get_error_message() );
 				}
@@ -489,8 +486,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 		}
 
 		// Include meta data with consistent formatting.
-		$all_meta                   = $this->db->get_test_submission_meta( $submission_id );
-		$created_submission['meta'] = $this->standardize_meta_data( $all_meta );
+		$created_submission['meta'] = $this->db->get_test_submission_meta( $submission_id );
 
 		// Prepare the response.
 		$response = $this->prepare_test_submission_for_response( $created_submission, $request );
@@ -637,9 +633,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 		// Handle meta data updates.
 		if ( isset( $request['meta'] ) && is_array( $request['meta'] ) ) {
 			foreach ( $request['meta'] as $meta_key => $meta_value ) {
-				// Ensure consistent meta value format - always store as string.
-				$sanitized_value = is_string( $meta_value ) ? $meta_value : (string) $meta_value;
-				$meta_result     = $this->db->update_test_submission_meta( $submission_id, $meta_key, $sanitized_value );
+				$meta_result = $this->db->update_test_submission_meta( $submission_id, $meta_key, $meta_value );
 				if ( is_wp_error( $meta_result ) ) {
 					error_log( 'Failed to update meta data: ' . $meta_result->get_error_message() );
 				}
@@ -653,8 +647,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 		}
 
 		// Include meta data with consistent formatting.
-		$all_meta                   = $this->db->get_test_submission_meta( $submission_id );
-		$updated_submission['meta'] = $this->standardize_meta_data( $all_meta );
+		$updated_submission['meta'] = $this->db->get_test_submission_meta( $submission_id );
 
 		// Prepare the response.
 		$response = $this->prepare_test_submission_for_response( $updated_submission, $request );
@@ -850,9 +843,12 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 		);
 
 		$params['include_meta'] = array(
-			'description' => 'Whether to include meta data in the response.',
-			'type'        => 'boolean',
+			'description' => 'Include meta fields in response. Pass specific meta keys as array, true for all meta, or false for none.',
+			'type'        => array( 'boolean', 'array' ),
 			'default'     => false,
+			'items'       => array(
+				'type' => 'string',
+			),
 		);
 
 		return $params;
@@ -905,9 +901,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 			'description'          => 'Meta data for the submission.',
 			'type'                 => 'object',
 			'properties'           => array(),
-			'additionalProperties' => array(
-				'type' => 'string',
-			),
+			'additionalProperties' => true,
 		);
 
 		return $params;
@@ -963,9 +957,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 			'description'          => 'Meta data for the submission.',
 			'type'                 => 'object',
 			'properties'           => array(),
-			'additionalProperties' => array(
-				'type' => 'string',
-			),
+			'additionalProperties' => true,
 		);
 
 		return $params;
@@ -1043,52 +1035,11 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 					'type'                 => 'object',
 					'context'              => array( 'view', 'edit' ),
 					'properties'           => array(),
-					'additionalProperties' => array(
-						'type' => 'string',
-					),
+					'additionalProperties' => true,
 				),
 			),
 		);
 
 		return $this->add_additional_fields_schema( $schema );
-	}
-
-	/**
-	 * Standardize meta data formatting for consistency.
-	 *
-	 * WordPress meta API returns arrays even for single values.
-	 * This method ensures consistent string formatting across all meta operations.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @param array $raw_meta Raw meta data from WordPress meta API.
-	 * @return array Standardized meta data with string values.
-	 */
-	protected function standardize_meta_data( $raw_meta ) {
-		$standardized_meta = array();
-
-		if ( is_array( $raw_meta ) ) {
-			foreach ( $raw_meta as $meta_key => $meta_values ) {
-				// WordPress meta API returns arrays even for single values.
-				// For consistency, always return the first value as a string.
-				if ( is_array( $meta_values ) && ! empty( $meta_values ) ) {
-					// Get the first value and ensure it's a string.
-					$first_value = $meta_values[0];
-					if ( is_string( $first_value ) ) {
-						$standardized_meta[ $meta_key ] = $first_value;
-					} else {
-						// Handle serialized data or convert to string.
-						$standardized_meta[ $meta_key ] = maybe_unserialize( $first_value );
-						if ( ! is_string( $standardized_meta[ $meta_key ] ) ) {
-							$standardized_meta[ $meta_key ] = (string) $standardized_meta[ $meta_key ];
-						}
-					}
-				} else {
-					$standardized_meta[ $meta_key ] = is_string( $meta_values ) ? $meta_values : '';
-				}
-			}
-		}
-
-		return $standardized_meta;
 	}
 }

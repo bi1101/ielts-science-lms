@@ -309,30 +309,7 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 
 		// Include meta data by default for single item requests.
 		if ( ! isset( $submission['meta'] ) ) {
-			$all_meta           = $this->db->get_task_submission_meta( $submission_id );
-			$submission['meta'] = array();
-
-			if ( is_array( $all_meta ) ) {
-				foreach ( $all_meta as $meta_key => $meta_values ) {
-					// WordPress meta API returns arrays even for single values.
-					// For consistency, always return the first value as a string.
-					if ( is_array( $meta_values ) && ! empty( $meta_values ) ) {
-						// Get the first value and ensure it's a string.
-						$first_value = $meta_values[0];
-						if ( is_string( $first_value ) ) {
-							$submission['meta'][ $meta_key ] = $first_value;
-						} else {
-							// Handle serialized data or convert to string.
-							$submission['meta'][ $meta_key ] = maybe_unserialize( $first_value );
-							if ( ! is_string( $submission['meta'][ $meta_key ] ) ) {
-								$submission['meta'][ $meta_key ] = (string) $submission['meta'][ $meta_key ];
-							}
-						}
-					} else {
-						$submission['meta'][ $meta_key ] = is_string( $meta_values ) ? $meta_values : '';
-					}
-				}
-			}
+			$submission['meta'] = $this->db->get_task_submission_meta( $submission_id );
 		}
 
 		// Prepare the response.
@@ -481,30 +458,7 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 		}
 
 		// Include meta data with consistent formatting.
-		$all_meta                   = $this->db->get_task_submission_meta( $submission_id );
-		$created_submission['meta'] = array();
-
-		if ( is_array( $all_meta ) ) {
-			foreach ( $all_meta as $meta_key => $meta_values ) {
-				// WordPress meta API returns arrays even for single values.
-				// For consistency, always return the first value as a string.
-				if ( is_array( $meta_values ) && ! empty( $meta_values ) ) {
-					// Get the first value and ensure it's a string.
-					$first_value = $meta_values[0];
-					if ( is_string( $first_value ) ) {
-						$created_submission['meta'][ $meta_key ] = $first_value;
-					} else {
-						// Handle serialized data or convert to string.
-						$created_submission['meta'][ $meta_key ] = maybe_unserialize( $first_value );
-						if ( ! is_string( $created_submission['meta'][ $meta_key ] ) ) {
-							$created_submission['meta'][ $meta_key ] = (string) $created_submission['meta'][ $meta_key ];
-						}
-					}
-				} else {
-					$created_submission['meta'][ $meta_key ] = is_string( $meta_values ) ? $meta_values : '';
-				}
-			}
-		}
+		$created_submission['meta'] = $this->db->get_task_submission_meta( $submission_id );
 
 		// Prepare the response.
 		$response = $this->prepare_task_submission_for_response( $created_submission, $request );
@@ -660,30 +614,7 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 		}
 
 		// Include meta data with consistent formatting.
-		$all_meta                   = $this->db->get_task_submission_meta( $submission_id );
-		$updated_submission['meta'] = array();
-
-		if ( is_array( $all_meta ) ) {
-			foreach ( $all_meta as $meta_key => $meta_values ) {
-				// WordPress meta API returns arrays even for single values.
-				// For consistency, always return the first value as a string.
-				if ( is_array( $meta_values ) && ! empty( $meta_values ) ) {
-					// Get the first value and ensure it's a string.
-					$first_value = $meta_values[0];
-					if ( is_string( $first_value ) ) {
-						$updated_submission['meta'][ $meta_key ] = $first_value;
-					} else {
-						// Handle serialized data or convert to string.
-						$updated_submission['meta'][ $meta_key ] = maybe_unserialize( $first_value );
-						if ( ! is_string( $updated_submission['meta'][ $meta_key ] ) ) {
-							$updated_submission['meta'][ $meta_key ] = (string) $updated_submission['meta'][ $meta_key ];
-						}
-					}
-				} else {
-					$updated_submission['meta'][ $meta_key ] = is_string( $meta_values ) ? $meta_values : '';
-				}
-			}
-		}
+		$updated_submission['meta'] = $this->db->get_task_submission_meta( $submission_id );
 
 		// Prepare the response.
 		$response = $this->prepare_task_submission_for_response( $updated_submission, $request );
@@ -748,36 +679,8 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 			);
 		}
 
-		// Get submission meta data before deletion for the action hook.
-		$submission_meta = $this->db->get_task_submission_meta( $submission_id );
-
-		// Include meta data with consistent formatting for the response.
-		$existing_submission['meta'] = array();
-
-		if ( is_array( $submission_meta ) ) {
-			foreach ( $submission_meta as $meta_key => $meta_values ) {
-				// WordPress meta API returns arrays even for single values.
-				// For consistency, always return the first value as a string.
-				if ( is_array( $meta_values ) && ! empty( $meta_values ) ) {
-					// Get the first value and ensure it's a string.
-					$first_value = $meta_values[0];
-					if ( is_string( $first_value ) ) {
-						$existing_submission['meta'][ $meta_key ] = $first_value;
-					} else {
-						// Handle serialized data or convert to string.
-						$existing_submission['meta'][ $meta_key ] = maybe_unserialize( $first_value );
-						if ( ! is_string( $existing_submission['meta'][ $meta_key ] ) ) {
-							$existing_submission['meta'][ $meta_key ] = (string) $existing_submission['meta'][ $meta_key ];
-						}
-					}
-				} else {
-					$existing_submission['meta'][ $meta_key ] = is_string( $meta_values ) ? $meta_values : '';
-				}
-			}
-		}
-
-		// Store essay ID for potential cleanup.
-		$essay_id = ! empty( $existing_submission['essay_id'] ) ? (int) $existing_submission['essay_id'] : null;
+		// Include meta data for the response.
+		$existing_submission['meta'] = $this->db->get_task_submission_meta( $submission_id );
 
 		// Attempt to delete the task submission (this will also delete meta data).
 		$delete_result = $this->db->delete_task_submission( $submission_id );
@@ -925,10 +828,8 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 				),
 				'meta'               => array(
 					'type'                 => 'object',
-					'description'          => 'Meta data for the task submission. All values will be stored and returned as strings.',
-					'additionalProperties' => array(
-						'type' => 'string',
-					),
+					'description'          => 'Meta data for the task submission.',
+					'additionalProperties' => true,
 				),
 			),
 		);

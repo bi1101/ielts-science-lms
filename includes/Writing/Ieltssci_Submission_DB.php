@@ -513,7 +513,7 @@ class Ieltssci_Submission_DB {
 							// Include specific meta keys.
 							$submission['meta'] = array();
 							foreach ( $args['include_meta'] as $meta_key ) {
-								$submission['meta'][ $meta_key ] = $this->get_test_submission_meta( $submission['id'], $meta_key, true );
+								$submission['meta'][ $meta_key ] = $this->get_test_submission_meta( $submission['id'], $meta_key );
 							}
 						} elseif ( true === $args['include_meta'] ) {
 							// Include all meta data.
@@ -1174,36 +1174,11 @@ class Ieltssci_Submission_DB {
 							// Include specific meta keys.
 							$submission['meta'] = array();
 							foreach ( $args['include_meta'] as $meta_key ) {
-								$meta_value = $this->get_task_submission_meta( $submission['id'], $meta_key, true );
-								// Ensure consistent format - return single value as string.
-								$submission['meta'][ $meta_key ] = is_string( $meta_value ) ? $meta_value : '';
+								$submission['meta'][ $meta_key ] = $this->get_task_submission_meta( $submission['id'], $meta_key );
 							}
 						} elseif ( true === $args['include_meta'] ) {
 							// Include all meta data.
-							$all_meta           = $this->get_task_submission_meta( $submission['id'] );
-							$submission['meta'] = array();
-
-							if ( is_array( $all_meta ) ) {
-								foreach ( $all_meta as $meta_key => $meta_values ) {
-									// WordPress meta API returns arrays even for single values.
-									// For consistency, always return the first value as a string.
-									if ( is_array( $meta_values ) && ! empty( $meta_values ) ) {
-										// Get the first value and ensure it's a string.
-										$first_value = $meta_values[0];
-										if ( is_string( $first_value ) ) {
-											$submission['meta'][ $meta_key ] = $first_value;
-										} else {
-											// Handle serialized data or convert to string.
-											$submission['meta'][ $meta_key ] = maybe_unserialize( $first_value );
-											if ( ! is_string( $submission['meta'][ $meta_key ] ) ) {
-												$submission['meta'][ $meta_key ] = (string) $submission['meta'][ $meta_key ];
-											}
-										}
-									} else {
-										$submission['meta'][ $meta_key ] = is_string( $meta_values ) ? $meta_values : '';
-									}
-								}
-							}
+							$submission['meta'] = $this->get_task_submission_meta( $submission['id'] );
 						}
 					}
 				}
