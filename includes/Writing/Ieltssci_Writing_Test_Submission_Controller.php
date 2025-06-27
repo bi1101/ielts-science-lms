@@ -88,7 +88,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 
 		register_rest_route(
 			$this->namespace,
-			'/' . $this->resource_test . '/(?P<id>\\d+)',
+			'/' . $this->resource_test . '/(?P<id>[0-9a-f-]+)',
 			array(
 				array(
 					'methods'             => WP_REST_Server::READABLE,
@@ -96,10 +96,13 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 					'permission_callback' => array( $this, 'can_read' ),
 					'args'                => array(
 						'id' => array(
-							'description' => 'Unique identifier for the test submission.',
-							'type'        => 'integer',
-							'required'    => true,
-							'minimum'     => 1,
+							'description'       => 'Unique identifier (ID or UUID) for the test submission.',
+							'type'              => 'string',
+							'required'          => true,
+							'validate_callback' => function ( $param ) {
+								// Accept either numeric ID or valid UUID format.
+								return is_numeric( $param ) || wp_is_uuid( $param );
+							},
 						),
 					),
 				),
@@ -115,10 +118,13 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 					'permission_callback' => array( $this, 'can_edit' ),
 					'args'                => array(
 						'id' => array(
-							'description' => 'Unique identifier for the test submission.',
-							'type'        => 'integer',
-							'required'    => true,
-							'minimum'     => 1,
+							'description'       => 'Unique identifier (ID or UUID) for the test submission.',
+							'type'              => 'string',
+							'required'          => true,
+							'validate_callback' => function ( $param ) {
+								// Accept either numeric ID or valid UUID format.
+								return is_numeric( $param ) || wp_is_uuid( $param );
+							},
 						),
 					),
 				),
@@ -301,7 +307,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Get a single test submission by ID.
+	 * Get a single test submission by ID or UUID.
 	 *
 	 * Retrieves a specific test submission with its associated meta data.
 	 *
@@ -311,10 +317,16 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error Response object or error.
 	 */
 	public function get_test_submission( WP_REST_Request $request ) {
-		$submission_id = (int) $request['id'];
+		$identifier = $request['id'];
 
-		// Retrieve the submission from database.
-		$submission = $this->db->get_test_submission( $submission_id );
+		// Determine if identifier is numeric ID or UUID.
+		if ( is_numeric( $identifier ) ) {
+			$submission = $this->db->get_test_submission( (int) $identifier );
+		} else {
+			// It's a UUID, query by UUID.
+			$submissions = $this->db->get_test_submissions( array( 'uuid' => $identifier ) );
+			$submission  = ! empty( $submissions ) ? $submissions[0] : null;
+		}
 
 		if ( is_wp_error( $submission ) ) {
 			return $submission;
@@ -339,12 +351,12 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 
 		// Include meta data by default for single item requests.
 		if ( ! isset( $submission['meta'] ) ) {
-			$submission['meta'] = $this->db->get_test_submission_meta( $submission_id );
+			$submission['meta'] = $this->db->get_test_submission_meta( $submission['id'] );
 		}
 
 		// Always fetch task submissions for link generation.
 		if ( ! isset( $submission['task_submissions'] ) ) {
-			$task_submissions = $this->db->get_task_submissions( array( 'test_submission_id' => $submission_id ) );
+			$task_submissions = $this->db->get_task_submissions( array( 'test_submission_id' => $submission['id'] ) );
 			if ( ! is_wp_error( $task_submissions ) && ! empty( $task_submissions ) ) {
 				$submission['task_submissions'] = array_map(
 					function ( $task_submission ) {
@@ -578,10 +590,16 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error Response object or error.
 	 */
 	public function update_test_submission( WP_REST_Request $request ) {
-		$submission_id = (int) $request['id'];
+		$identifier = $request['id'];
 
-		// Retrieve the existing submission.
-		$existing_submission = $this->db->get_test_submission( $submission_id );
+		// Determine if identifier is numeric ID or UUID and get submission.
+		if ( is_numeric( $identifier ) ) {
+			$existing_submission = $this->db->get_test_submission( (int) $identifier );
+		} else {
+			// It's a UUID, query by UUID.
+			$submissions         = $this->db->get_test_submissions( array( 'uuid' => $identifier ) );
+			$existing_submission = ! empty( $submissions ) ? $submissions[0] : null;
+		}
 
 		if ( is_wp_error( $existing_submission ) ) {
 			return $existing_submission;
@@ -594,6 +612,9 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 				array( 'status' => 404 )
 			);
 		}
+
+		// Get the numeric submission ID for database operations.
+		$submission_id = (int) $existing_submission['id'];
 
 		// Check if current user can access this submission.
 		if ( ! $this->can_access_submission( $existing_submission, $request ) ) {
@@ -729,10 +750,18 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error Response object or error.
 	 */
 	public function delete_test_submission( WP_REST_Request $request ) {
-		$submission_id = (int) $request['id'];
+		$identifier = $request['id'];
 
-		// Retrieve the existing submission.
-		$existing_submission = $this->db->get_test_submission( $submission_id );
+		// Determine if identifier is numeric ID or UUID and get submission.
+		if ( is_numeric( $identifier ) ) {
+			$existing_submission = $this->db->get_test_submission( (int) $identifier );
+			$submission_id       = (int) $identifier;
+		} else {
+			// It's a UUID, query by UUID.
+			$submissions         = $this->db->get_test_submissions( array( 'uuid' => $identifier ) );
+			$existing_submission = ! empty( $submissions ) ? $submissions[0] : null;
+			$submission_id       = $existing_submission ? (int) $existing_submission['id'] : 0;
+		}
 
 		if ( is_wp_error( $existing_submission ) ) {
 			return $existing_submission;
@@ -1028,6 +1057,16 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 	 */
 	protected function get_test_submission_update_params() {
 		$params = array();
+
+		$params['id'] = array(
+			'description'       => 'Unique identifier (ID or UUID) for the test submission.',
+			'type'              => 'string',
+			'required'          => true,
+			'validate_callback' => function ( $param ) {
+				// Accept either numeric ID or valid UUID format.
+				return is_numeric( $param ) || wp_is_uuid( $param );
+			},
+		);
 
 		$params['test_id'] = array(
 			'description'       => 'The ID of the writing test.',
