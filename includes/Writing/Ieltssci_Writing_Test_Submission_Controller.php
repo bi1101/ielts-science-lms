@@ -239,6 +239,50 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 			return $submissions;
 		}
 
+		// Include task submissions if requested (efficient batch query).
+		$include_task_submissions = isset( $request['include_task_submissions'] ) ? $request['include_task_submissions'] : false;
+		if ( $include_task_submissions && ! empty( $submissions ) ) {
+			// Extract all submission IDs for batch query.
+			$submission_ids = array_column( $submissions, 'id' );
+
+			// Get all task submissions for these test submissions in one query.
+			$task_submissions = $this->db->get_task_submissions(
+				array(
+					'test_submission_id' => $submission_ids,
+					'number'             => 999, // Large number to get all related task submissions.
+				)
+			);
+
+			if ( ! is_wp_error( $task_submissions ) ) {
+				// Group task submissions by test submission ID.
+				$task_submissions_by_test = array();
+				foreach ( $task_submissions as $task_submission ) {
+					$test_submission_id = $task_submission['test_submission_id'];
+					if ( ! isset( $task_submissions_by_test[ $test_submission_id ] ) ) {
+						$task_submissions_by_test[ $test_submission_id ] = array();
+					}
+					$task_submissions_by_test[ $test_submission_id ][] = array(
+						'task_submission_id' => (int) $task_submission['id'],
+						'task_id'            => (int) $task_submission['task_id'],
+						'essay_id'           => (int) $task_submission['essay_id'],
+					);
+				}
+
+				// Add task submissions to each test submission.
+				foreach ( $submissions as &$submission ) {
+					$submission_id                  = $submission['id'];
+					$submission['task_submissions'] = isset( $task_submissions_by_test[ $submission_id ] )
+						? $task_submissions_by_test[ $submission_id ]
+						: array();
+				}
+			} else {
+				// If error fetching task submissions, add empty arrays.
+				foreach ( $submissions as &$submission ) {
+					$submission['task_submissions'] = array();
+				}
+			}
+		}
+
 		// Prepare response data - all submissions should already be accessible based on query filtering.
 		$data = array();
 		foreach ( $submissions as $submission ) {
@@ -304,6 +348,25 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 		// Include meta data by default for single item requests.
 		if ( ! isset( $submission['meta'] ) ) {
 			$submission['meta'] = $this->db->get_test_submission_meta( $submission_id );
+		}
+
+		// Include task submissions for single item requests.
+		if ( ! isset( $submission['task_submissions'] ) ) {
+			$task_submissions = $this->db->get_task_submissions( array( 'test_submission_id' => $submission_id ) );
+			if ( ! is_wp_error( $task_submissions ) && ! empty( $task_submissions ) ) {
+				$submission['task_submissions'] = array_map(
+					function ( $task_submission ) {
+						return array(
+							'task_submission_id' => (int) $task_submission['id'],
+							'task_id'            => (int) $task_submission['task_id'],
+							'essay_id'           => (int) $task_submission['essay_id'],
+						);
+					},
+					$task_submissions
+				);
+			} else {
+				$submission['task_submissions'] = array();
+			}
 		}
 
 		// Prepare the response.
@@ -392,8 +455,8 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 		}
 
 		// Get associated writing tasks from the test.
-		$writing_tasks            = get_field( 'writing_tasks', $test_id );
-		$created_task_submissions = array();
+		$writing_tasks    = get_field( 'writing_tasks', $test_id );
+		$task_submissions = array();
 
 		if ( ! empty( $writing_tasks ) && is_array( $writing_tasks ) ) {
 			// Create task submissions for each associated writing task.
@@ -461,7 +524,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 					continue;
 				}
 
-				$created_task_submissions[] = array(
+				$task_submissions[] = array(
 					'task_submission_id' => $task_submission_id,
 					'task_id'            => $task_id,
 					'essay_id'           => (int) $essay['id'],
@@ -488,15 +551,13 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 		// Include meta data with consistent formatting.
 		$created_submission['meta'] = $this->db->get_test_submission_meta( $submission_id );
 
+		// Add task submissions to the submission data before preparation.
+		if ( ! empty( $task_submissions ) ) {
+			$created_submission['task_submissions'] = $task_submissions;
+		}
+
 		// Prepare the response.
 		$response = $this->prepare_test_submission_for_response( $created_submission, $request );
-
-		// Add information about created task submissions to the response.
-		if ( ! empty( $created_task_submissions ) ) {
-			$response_data                             = $response->get_data();
-			$response_data['created_task_submissions'] = $created_task_submissions;
-			$response->set_data( $response_data );
-		}
 
 		// Set 201 Created status.
 		$response->set_status( 201 );
@@ -750,6 +811,11 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 			$data['meta'] = $submission['meta'];
 		}
 
+		// Include task submissions if available (typically during creation).
+		if ( isset( $submission['task_submissions'] ) ) {
+			$data['task_submissions'] = $submission['task_submissions'];
+		}
+
 		$context = ! empty( $request['context'] ) ? $request['context'] : 'view';
 		$data    = $this->filter_response_by_context( $data, $context );
 
@@ -849,6 +915,12 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 			'items'       => array(
 				'type' => 'string',
 			),
+		);
+
+		$params['include_task_submissions'] = array(
+			'description' => 'Include task submissions associated with each test submission.',
+			'type'        => 'boolean',
+			'default'     => false,
 		);
 
 		return $params;
@@ -976,66 +1048,89 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 			'title'      => 'test_submission',
 			'type'       => 'object',
 			'properties' => array(
-				'id'           => array(
+				'id'               => array(
 					'description' => 'Unique identifier for the test submission.',
 					'type'        => 'integer',
-					'context'     => array( 'view', 'edit' ),
+					'context'     => array( 'view', 'edit', 'create' ),
 					'readonly'    => true,
 				),
-				'test_id'      => array(
+				'test_id'          => array(
 					'description' => 'The ID of the writing test.',
 					'type'        => 'integer',
-					'context'     => array( 'view', 'edit' ),
+					'context'     => array( 'view', 'edit', 'create' ),
 				),
-				'user_id'      => array(
+				'user_id'          => array(
 					'description' => 'The ID of the user who submitted.',
 					'type'        => 'integer',
-					'context'     => array( 'view', 'edit' ),
+					'context'     => array( 'view', 'edit', 'create' ),
 				),
-				'uuid'         => array(
+				'uuid'             => array(
 					'description' => 'Unique identifier for the submission.',
 					'type'        => 'string',
-					'context'     => array( 'view', 'edit' ),
+					'context'     => array( 'view', 'edit', 'create' ),
 					'readonly'    => true,
 				),
-				'status'       => array(
+				'status'           => array(
 					'description' => 'Submission status.',
 					'type'        => 'string',
 					'enum'        => array( 'in-progress', 'completed', 'graded', 'cancelled' ),
-					'context'     => array( 'view', 'edit' ),
+					'context'     => array( 'view', 'edit', 'create' ),
 				),
-				'started_at'   => array(
+				'started_at'       => array(
 					'description' => 'The date the submission was started, in the site\'s timezone.',
 					'type'        => array( 'string', 'null' ),
 					'format'      => 'date-time',
-					'context'     => array( 'view', 'edit' ),
+					'context'     => array( 'view', 'edit', 'create' ),
 				),
-				'completed_at' => array(
+				'completed_at'     => array(
 					'description' => 'The date the submission was completed, in the site\'s timezone.',
 					'type'        => array( 'string', 'null' ),
 					'format'      => 'date-time',
-					'context'     => array( 'view', 'edit' ),
+					'context'     => array( 'view', 'edit', 'create' ),
 				),
-				'created_at'   => array(
+				'created_at'       => array(
 					'description' => 'The date the submission was created, in the site\'s timezone.',
 					'type'        => 'string',
 					'format'      => 'date-time',
-					'context'     => array( 'view', 'edit' ),
+					'context'     => array( 'view', 'edit', 'create' ),
 					'readonly'    => true,
 				),
-				'updated_at'   => array(
+				'updated_at'       => array(
 					'description' => 'The date the submission was last modified, in the site\'s timezone.',
 					'type'        => 'string',
 					'format'      => 'date-time',
-					'context'     => array( 'view', 'edit' ),
+					'context'     => array( 'view', 'edit', 'create' ),
 					'readonly'    => true,
 				),
-				'meta'         => array(
+				'meta'             => array(
 					'description'          => 'Meta data for the submission.',
 					'type'                 => 'object',
-					'context'              => array( 'view', 'edit' ),
+					'context'              => array( 'view', 'edit', 'create' ),
 					'properties'           => array(),
 					'additionalProperties' => true,
+				),
+				'task_submissions' => array(
+					'description' => 'Task submissions associated with this test submission.',
+					'type'        => 'array',
+					'context'     => array( 'view', 'edit', 'create' ),
+					'readonly'    => true,
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'task_submission_id' => array(
+								'description' => 'ID of the task submission.',
+								'type'        => 'integer',
+							),
+							'task_id'            => array(
+								'description' => 'ID of the writing task.',
+								'type'        => 'integer',
+							),
+							'essay_id'           => array(
+								'description' => 'ID of the associated essay.',
+								'type'        => 'integer',
+							),
+						),
+					),
 				),
 			),
 		);
