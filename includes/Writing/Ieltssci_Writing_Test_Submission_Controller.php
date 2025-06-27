@@ -239,9 +239,8 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 			return $submissions;
 		}
 
-		// Include task submissions if requested (efficient batch query).
-		$include_task_submissions = isset( $request['include_task_submissions'] ) ? $request['include_task_submissions'] : false;
-		if ( $include_task_submissions && ! empty( $submissions ) ) {
+		// Always fetch task submissions for linking (efficient batch query).
+		if ( ! empty( $submissions ) ) {
 			// Extract all submission IDs for batch query.
 			$submission_ids = array_column( $submissions, 'id' );
 
@@ -268,17 +267,10 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 					);
 				}
 
-				// Add task submissions to each test submission.
+				// Add task submissions to each test submission for link generation.
 				foreach ( $submissions as &$submission ) {
 					$submission_id                  = $submission['id'];
-					$submission['task_submissions'] = isset( $task_submissions_by_test[ $submission_id ] )
-						? $task_submissions_by_test[ $submission_id ]
-						: array();
-				}
-			} else {
-				// If error fetching task submissions, add empty arrays.
-				foreach ( $submissions as &$submission ) {
-					$submission['task_submissions'] = array();
+					$submission['task_submissions'] = $task_submissions_by_test[ $submission_id ] ?? array();
 				}
 			}
 		}
@@ -350,7 +342,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 			$submission['meta'] = $this->db->get_test_submission_meta( $submission_id );
 		}
 
-		// Include task submissions for single item requests.
+		// Always fetch task submissions for link generation.
 		if ( ! isset( $submission['task_submissions'] ) ) {
 			$task_submissions = $this->db->get_task_submissions( array( 'test_submission_id' => $submission_id ) );
 			if ( ! is_wp_error( $task_submissions ) && ! empty( $task_submissions ) ) {
@@ -786,7 +778,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 	/**
 	 * Prepare test submission for response.
 	 *
-	 * Formats the test submission data for API response.
+	 * Formats the test submission data for API response and adds embeddable links to related task submissions.
 	 *
 	 * @since 1.0.0
 	 *
@@ -811,7 +803,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 			$data['meta'] = $submission['meta'];
 		}
 
-		// Include task submissions if available (typically during creation).
+		// Include task submissions if available.
 		if ( isset( $submission['task_submissions'] ) ) {
 			$data['task_submissions'] = $submission['task_submissions'];
 		}
@@ -820,6 +812,60 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 		$data    = $this->filter_response_by_context( $data, $context );
 
 		$response = rest_ensure_response( $data );
+
+		// Add embeddable link to the author (user).
+		$response->add_link(
+			'author',
+			rest_url( 'wp/v2/users/' . $submission['user_id'] ),
+			array(
+				'embeddable' => true,
+			)
+		);
+
+		// Add embeddable link to the writing test.
+		$response->add_link(
+			'writing-test',
+			rest_url( 'wp/v2/writing-test/' . $submission['test_id'] ),
+			array(
+				'embeddable' => true,
+			)
+		);
+
+		// Add embeddable links to related task submissions.
+		if ( isset( $submission['task_submissions'] ) && ! empty( $submission['task_submissions'] ) ) {
+			foreach ( $submission['task_submissions'] as $task_submission ) {
+				$task_submission_id = $task_submission['task_submission_id'];
+				$task_id            = $task_submission['task_id'];
+				$essay_id           = $task_submission['essay_id'];
+
+				// Add embeddable link to each task submission.
+				$response->add_link(
+					'task-submission',
+					rest_url( $this->namespace . '/writing-task-submissions/' . $task_submission_id ),
+					array(
+						'embeddable' => true,
+					)
+				);
+
+				// Add embeddable link to each writing task.
+				$response->add_link(
+					'writing-task',
+					rest_url( 'wp/v2/writing-task/' . $task_id ),
+					array(
+						'embeddable' => true,
+					)
+				);
+
+				// Add embeddable link to each essay using the collection endpoint with ID parameter.
+				$response->add_link(
+					'essay',
+					rest_url( $this->namespace . '/writing/essays' ) . '?id=' . $essay_id,
+					array(
+						'embeddable' => true,
+					)
+				);
+			}
+		}
 
 		/**
 		 * Filters the test submission data for a REST API response.
@@ -915,12 +961,6 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 			'items'       => array(
 				'type' => 'string',
 			),
-		);
-
-		$params['include_task_submissions'] = array(
-			'description' => 'Include task submissions associated with each test submission.',
-			'type'        => 'boolean',
-			'default'     => false,
 		);
 
 		return $params;
@@ -1112,7 +1152,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 				'task_submissions' => array(
 					'description' => 'Task submissions associated with this test submission.',
 					'type'        => 'array',
-					'context'     => array( 'view', 'edit', 'create' ),
+					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
 					'items'       => array(
 						'type'       => 'object',
