@@ -751,6 +751,44 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 		// Create response object.
 		$response = rest_ensure_response( $data );
 
+		// Add embeddable link to the author (user).
+		$response->add_link(
+			'author',
+			rest_url( 'wp/v2/users/' . $submission['user_id'] ),
+			array(
+				'embeddable' => true,
+			)
+		);
+
+		// Add embeddable link to the writing task.
+		$response->add_link(
+			'writing-task',
+			rest_url( 'wp/v2/writing-task/' . $submission['task_id'] ),
+			array(
+				'embeddable' => true,
+			)
+		);
+
+		// Add embeddable link to the essay.
+		$response->add_link(
+			'essay',
+			rest_url( $this->namespace . '/writing/essays' ) . '?id=' . $submission['essay_id'],
+			array(
+				'embeddable' => true,
+			)
+		);
+
+		// Add embeddable link to the parent test submission if available.
+		if ( ! empty( $submission['test_submission_id'] ) ) {
+			$response->add_link(
+				'test-submission',
+				rest_url( $this->namespace . '/writing-test-submissions/' . $submission['test_submission_id'] ),
+				array(
+					'embeddable' => true,
+				)
+			);
+		}
+
 		/**
 		 * Filter task submission data returned from the REST API.
 		 *
