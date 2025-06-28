@@ -181,6 +181,9 @@ class Ieltssci_Writing_Module {
 						if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
 							$server    = rest_get_server();
 							$post_data = $server->response_to_data( $response, true );
+
+							// Add permalink to post data.
+							$post_data['permalink_template'] = get_permalink( $current_post->ID, true );
 						}
 					} catch ( \Exception $e ) {
 						// Log error but continue execution.
