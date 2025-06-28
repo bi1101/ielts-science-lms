@@ -171,7 +171,7 @@ class Ieltssci_Essay_DB {
 		$this->wpdb->query( 'START TRANSACTION' );
 
 		try {
-			// Get existing essay.
+			// Get existing essay by ID or UUID.
 			$existing_essay = null;
 			if ( is_numeric( $essay_identifier ) ) {
 				$existing_essays = $this->get_essays( array( 'id' => (int) $essay_identifier ) );

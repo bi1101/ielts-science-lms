@@ -83,14 +83,14 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 
 		register_rest_route(
 			$this->namespace,
-			'/' . $this->rest_base . '/(?P<uuid>[a-zA-Z0-9-]+)',
+			'/' . $this->rest_base . '/(?P<identifier>[a-zA-Z0-9-]+)',
 			array(
 				array(
 					'methods'             => WP_REST_Server::READABLE,
 					'callback'            => array( $this, 'get_essay' ),
 					'permission_callback' => array( $this, 'get_essay_permissions_check' ),
 					'args'                => array(
-						'uuid' => array(
+						'identifier' => array(
 							'required'          => true,
 							'validate_callback' => function ( $param ) {
 								return is_string( $param ) && ! empty( $param );
@@ -525,7 +525,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 	public function get_essay_creation_args() {
 		return array(
 			'uuid'            => array(
-				'required'          => true,
+				'required'          => false,
 				'type'              => 'string',
 				'validate_callback' => function ( $param ) {
 					return is_string( $param ) && ! empty( $param );
@@ -603,7 +603,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 	 */
 	public function get_essay_update_args() {
 		return array(
-			'uuid'            => array(
+			'identifier'      => array(
 				'required'          => true,
 				'type'              => 'string',
 				'validate_callback' => function ( $param ) {
@@ -725,7 +725,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 	/**
 	 * Get specific essay endpoint.
 	 *
-	 * Retrieves a specific essay by UUID.
+	 * Retrieves a specific essay by UUID or ID.
 	 *
 	 * @since 1.0.0
 	 *
@@ -733,8 +733,14 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error Response or error.
 	 */
 	public function get_essay( WP_REST_Request $request ) {
-		$uuid   = $request->get_param( 'uuid' );
-		$essays = $this->essay_service->get_essays( array( 'uuid' => $uuid ) );
+		$identifier = $request->get_param( 'identifier' );
+
+		// Determine if identifier is numeric (ID) or string (UUID).
+		if ( is_numeric( $identifier ) ) {
+			$essays = $this->essay_service->get_essays( array( 'id' => (int) $identifier ) );
+		} else {
+			$essays = $this->essay_service->get_essays( array( 'uuid' => $identifier ) );
+		}
 
 		if ( is_wp_error( $essays ) ) {
 			return $essays; // Return the WP_Error directly from the DB layer.
@@ -743,7 +749,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 		if ( empty( $essays ) ) {
 			return new WP_Error(
 				'essay_not_found',
-				__( 'Essay not found', 'ielts-science-lms' ),
+				__( 'Essay not found.', 'ielts-science-lms' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -765,10 +771,15 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error Response or error.
 	 */
 	public function update_essay( WP_REST_Request $request ) {
-		$uuid = $request->get_param( 'uuid' );
+		$identifier = $request->get_param( 'identifier' );
 
 		// Get the essay to check ownership.
-		$essays = $this->essay_service->get_essays( array( 'uuid' => $uuid ) );
+		// Determine if identifier is numeric (ID) or string (UUID).
+		if ( is_numeric( $identifier ) ) {
+			$essays = $this->essay_service->get_essays( array( 'id' => (int) $identifier ) );
+		} else {
+			$essays = $this->essay_service->get_essays( array( 'uuid' => $identifier ) );
+		}
 
 		if ( is_wp_error( $essays ) ) {
 			return $essays; // Return the WP_Error directly from the DB layer.
@@ -824,7 +835,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			$essay_data['chart_image_ids'] = $request->get_param( 'chart_image_ids' );
 		}
 
-		$result = $this->essay_service->update_essay( $uuid, $essay_data );
+		$result = $this->essay_service->update_essay( $identifier, $essay_data );
 
 		if ( is_wp_error( $result ) ) {
 			return $result; // Return the WP_Error directly from the DB layer.
