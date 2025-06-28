@@ -11,6 +11,7 @@
 
 namespace IeltsScienceLMS\Writing;
 
+use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
@@ -24,27 +25,27 @@ use WP_REST_Server;
  * @package IeltsScienceLMS\Writing
  * @since 1.0.0
  */
-class Ieltssci_Writing_Essay_Controller {
+class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 	/**
 	 * API namespace.
 	 *
 	 * @var string
 	 */
-	private $namespace = 'ieltssci/v1';
+	protected $namespace = 'ieltssci/v1';
 
 	/**
 	 * API base path.
 	 *
 	 * @var string
 	 */
-	private $base = 'writing';
+	protected $rest_base = 'writing/essays';
 
 	/**
 	 * Essay service instance.
 	 *
 	 * @var Ieltssci_Essay_DB
 	 */
-	private $essay_service;
+	protected $essay_service;
 
 	/**
 	 * Constructor.
@@ -62,13 +63,13 @@ class Ieltssci_Writing_Essay_Controller {
 	public function register_routes() {
 		register_rest_route(
 			$this->namespace,
-			"/{$this->base}/essays",
+			'/' . $this->rest_base,
 			array(
 				array(
 					'methods'             => WP_REST_Server::READABLE,
 					'callback'            => array( $this, 'get_essays' ),
 					'permission_callback' => array( $this, 'get_essays_permissions_check' ),
-					'args'                => $this->get_essays_args(),
+					'args'                => $this->get_collection_params(),
 				),
 				array(
 					'methods'             => WP_REST_Server::CREATABLE,
@@ -76,12 +77,13 @@ class Ieltssci_Writing_Essay_Controller {
 					'permission_callback' => array( $this, 'create_essay_permissions_check' ),
 					'args'                => $this->get_essay_creation_args(),
 				),
+				'schema' => array( $this, 'get_item_schema' ),
 			)
 		);
 
 		register_rest_route(
 			$this->namespace,
-			"/{$this->base}/essays/(?P<uuid>[a-zA-Z0-9-]+)",
+			'/' . $this->rest_base . '/(?P<uuid>[a-zA-Z0-9-]+)',
 			array(
 				array(
 					'methods'             => WP_REST_Server::READABLE,
@@ -96,149 +98,31 @@ class Ieltssci_Writing_Essay_Controller {
 						),
 					),
 				),
+				'schema' => array( $this, 'get_item_schema' ),
 			)
 		);
 
 		// Register route for updating essay feedback.
 		register_rest_route(
 			$this->namespace,
-			"/{$this->base}/feedback",
+			'/' . $this->rest_base . '/(?P<uuid>[a-zA-Z0-9-]+)/feedback',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'update_essay_feedback' ),
 				'permission_callback' => array( $this, 'update_essay_feedback_permissions_check' ),
-				'args'                => array(
-					'uuid'              => array(
-						'required'          => true,
-						'description'       => 'The UUID of the essay to add/update feedback for.',
-						'type'              => 'string',
-						'validate_callback' => function ( $param ) {
-							return is_string( $param ) && ! empty( $param );
-						},
-						'sanitize_callback' => 'sanitize_text_field',
-					),
-					'feedback_criteria' => array(
-						'required'          => true,
-						'description'       => 'The criteria this feedback relates to.',
-						'type'              => 'string',
-						'validate_callback' => function ( $param ) {
-							return is_string( $param ) && ! empty( $param );
-						},
-						'sanitize_callback' => 'sanitize_key',
-					),
-					'language'          => array(
-						'required'          => true,
-						'description'       => 'The language code for the feedback.',
-						'type'              => 'string',
-						'validate_callback' => function ( $param ) {
-							return is_string( $param ) && ! empty( $param );
-						},
-						'sanitize_callback' => 'sanitize_key',
-					),
-					'cot_content'       => array(
-						'required'          => false,
-						'description'       => 'The Chain of Thought content.',
-						'type'              => 'string',
-						'validate_callback' => function ( $param ) {
-							return is_string( $param );
-						},
-						'sanitize_callback' => 'sanitize_textarea_field',
-					),
-					'score_content'     => array(
-						'required'          => false,
-						'description'       => 'The Score content.',
-						'type'              => 'string',
-						'validate_callback' => function ( $param ) {
-							return is_string( $param );
-						},
-						'sanitize_callback' => 'sanitize_text_field',
-					),
-					'feedback_content'  => array(
-						'required'          => false,
-						'description'       => 'The main Feedback content.',
-						'type'              => 'string',
-						'validate_callback' => function ( $param ) {
-							return is_string( $param );
-						},
-						'sanitize_callback' => 'sanitize_textarea_field',
-					),
-				),
+				'args'                => $this->get_essay_feedback_args(),
 			)
 		);
 
 		// Register route for updating segment feedback.
 		register_rest_route(
 			$this->namespace,
-			"/{$this->base}/segment-feedback",
+			'/' . $this->rest_base . '/(?P<uuid>[a-zA-Z0-9-]+)/segment-feedback',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'update_segment_feedback' ),
 				'permission_callback' => array( $this, 'update_segment_feedback_permissions_check' ),
-				'args'                => array(
-					'uuid'              => array(
-						'required'          => true,
-						'description'       => 'The UUID of the essay containing the segment.',
-						'type'              => 'string',
-						'validate_callback' => function ( $param ) {
-							return is_string( $param ) && ! empty( $param );
-						},
-						'sanitize_callback' => 'sanitize_text_field',
-					),
-					'segment_order'     => array(
-						'required'          => true,
-						'description'       => 'The order/index of the segment within the essay.',
-						'type'              => 'integer',
-						'validate_callback' => function ( $param ) {
-							return is_numeric( $param ) && intval( $param ) > 0;
-						},
-						'sanitize_callback' => 'absint',
-					),
-					'feedback_criteria' => array(
-						'required'          => true,
-						'description'       => 'The criteria this feedback relates to.',
-						'type'              => 'string',
-						'validate_callback' => function ( $param ) {
-							return is_string( $param ) && ! empty( $param );
-						},
-						'sanitize_callback' => 'sanitize_key',
-					),
-					'language'          => array(
-						'required'          => true,
-						'description'       => 'The language code for the feedback.',
-						'type'              => 'string',
-						'validate_callback' => function ( $param ) {
-							return is_string( $param ) && ! empty( $param );
-						},
-						'sanitize_callback' => 'sanitize_key',
-					),
-					'cot_content'       => array(
-						'required'          => false,
-						'description'       => 'The Chain of Thought content.',
-						'type'              => 'string',
-						'validate_callback' => function ( $param ) {
-							return is_string( $param ) && ! empty( $param );
-						},
-						'sanitize_callback' => 'sanitize_textarea_field',
-					),
-					'score_content'     => array(
-						'required'          => false,
-						'description'       => 'The Score content.',
-						'type'              => 'string',
-						'validate_callback' => function ( $param ) {
-							return is_string( $param ) && ! empty( $param );
-						},
-						'sanitize_callback' => 'sanitize_text_field',
-					),
-					'feedback_content'  => array(
-						'required'          => false,
-						'description'       => 'The main Feedback content.',
-						'type'              => 'string',
-						'validate_callback' => function ( $param ) {
-							return is_string( $param ) && ! empty( $param );
-						},
-						'sanitize_callback' => 'sanitize_textarea_field',
-					),
-				),
+				'args'                => $this->get_segment_feedback_args(),
 			)
 		);
 	}
@@ -258,137 +142,128 @@ class Ieltssci_Writing_Essay_Controller {
 	 *
 	 * @return array Argument definitions.
 	 */
-	public function get_essays_args() {
-		return array(
-			'id'          => array(
-				'description'       => 'Essay ID or array of IDs',
-				'type'              => array( 'integer', 'array' ),
-				'validate_callback' => function ( $param ) {
-					if ( is_array( $param ) ) {
-						foreach ( $param as $id ) {
-							if ( ! is_numeric( $id ) || $id <= 0 ) {
-								return false;
-							}
+	public function get_collection_params() {
+		$params = parent::get_collection_params();
+
+		// Add custom parameters specific to essays.
+		$params['id'] = array(
+			'description'       => 'Essay ID or array of IDs',
+			'type'              => array( 'integer', 'array' ),
+			'validate_callback' => function ( $param ) {
+				if ( is_array( $param ) ) {
+					foreach ( $param as $id ) {
+						if ( ! is_numeric( $id ) || $id <= 0 ) {
+							return false;
 						}
-						return true;
 					}
-					return is_numeric( $param ) && $param > 0;
-				},
-			),
-			'uuid'        => array(
-				'description'       => 'Essay UUID or array of UUIDs',
-				'type'              => array( 'string', 'array' ),
-				'validate_callback' => function ( $param ) {
-					if ( is_array( $param ) ) {
-						foreach ( $param as $uuid ) {
-							if ( ! is_string( $uuid ) || empty( $uuid ) ) {
-								return false;
-							}
+					return true;
+				}
+				return is_numeric( $param ) && $param > 0;
+			},
+		);
+
+		$params['uuid'] = array(
+			'description'       => 'Essay UUID or array of UUIDs',
+			'type'              => array( 'string', 'array' ),
+			'validate_callback' => function ( $param ) {
+				if ( is_array( $param ) ) {
+					foreach ( $param as $uuid ) {
+						if ( ! is_string( $uuid ) || empty( $uuid ) ) {
+							return false;
 						}
-						return true;
 					}
-					return is_string( $param ) && ! empty( $param );
-				},
-			),
-			'original_id' => array(
-				'description'       => 'Original essay ID or array of IDs',
-				'type'              => array( 'integer', 'array' ),
-				'validate_callback' => function ( $param ) {
-					if ( is_array( $param ) ) {
-						foreach ( $param as $id ) {
-							if ( ! is_numeric( $id ) || $id <= 0 ) {
-								return false;
-							}
+					return true;
+				}
+				return is_string( $param ) && ! empty( $param );
+			},
+		);
+
+		$params['original_id'] = array(
+			'description'       => 'Original essay ID or array of IDs',
+			'type'              => array( 'integer', 'array' ),
+			'validate_callback' => function ( $param ) {
+				if ( is_array( $param ) ) {
+					foreach ( $param as $id ) {
+						if ( ! is_numeric( $id ) || $id <= 0 ) {
+							return false;
 						}
-						return true;
 					}
-					return is_numeric( $param ) && $param > 0;
-				},
-			),
-			'essay_type'  => array(
-				'description'       => 'Essay type or array of types',
-				'type'              => array( 'string', 'array' ),
-				'sanitize_callback' => function ( $param ) {
-					if ( is_array( $param ) ) {
-						return array_map( 'sanitize_text_field', $param );
-					}
-					return sanitize_text_field( $param );
-				},
-			),
-			'created_by'  => array(
-				'description'       => 'User ID or array of user IDs who created the essays',
-				'type'              => array( 'integer', 'array' ),
-				'validate_callback' => function ( $param ) {
-					if ( is_array( $param ) ) {
-						foreach ( $param as $id ) {
-							if ( ! is_numeric( $id ) || $id <= 0 ) {
-								return false;
-							}
+					return true;
+				}
+				return is_numeric( $param ) && $param > 0;
+			},
+		);
+
+		$params['essay_type'] = array(
+			'description'       => 'Essay type or array of types',
+			'type'              => array( 'string', 'array' ),
+			'sanitize_callback' => function ( $param ) {
+				if ( is_array( $param ) ) {
+					return array_map( 'sanitize_text_field', $param );
+				}
+				return sanitize_text_field( $param );
+			},
+		);
+
+		$params['created_by'] = array(
+			'description'       => 'User ID or array of user IDs who created the essays',
+			'type'              => array( 'integer', 'array' ),
+			'validate_callback' => function ( $param ) {
+				if ( is_array( $param ) ) {
+					foreach ( $param as $id ) {
+						if ( ! is_numeric( $id ) || $id <= 0 ) {
+							return false;
 						}
-						return true;
 					}
-					return is_numeric( $param ) && $param > 0;
-				},
-			),
-			'all_entries' => array(
-				'description'       => 'Whether to retrieve all essays regardless of user. Only allowed for managers/administrators.',
-				'type'              => 'boolean',
-				'default'           => false,
-				'sanitize_callback' => 'rest_sanitize_boolean',
-			),
-			'search'      => array(
-				'description'       => 'Search term to look for in question or content',
-				'type'              => 'string',
-				'sanitize_callback' => 'sanitize_text_field',
-			),
-			'after'       => array(
-				'description' => 'Get essays after this date',
-				'type'        => 'string',
-				'format'      => 'date-time',
-			),
-			'before'      => array(
-				'description' => 'Get essays before this date',
-				'type'        => 'string',
-				'format'      => 'date-time',
-			),
-			'orderby'     => array(
-				'description' => 'Field to order results by',
-				'type'        => 'string',
-				'default'     => 'id',
-				'enum'        => array( 'id', 'uuid', 'essay_type', 'created_at', 'created_by' ),
-			),
-			'order'       => array(
-				'description' => 'Order direction',
-				'type'        => 'string',
-				'default'     => 'DESC',
-				'enum'        => array( 'ASC', 'DESC', 'asc', 'desc' ),
-			),
-			'per_page'    => array(
-				'description' => 'Number of essays to return per page',
-				'type'        => 'integer',
-				'default'     => 10,
-				'minimum'     => 1,
-				'maximum'     => 100,
-			),
-			'page'        => array(
-				'description' => 'Page number',
-				'type'        => 'integer',
-				'default'     => 1,
-				'minimum'     => 1,
-			),
-			'include'     => array(
-				'description' => 'Include specific fields in the response',
-				'type'        => 'array',
-				'default'     => array(),
-				'items'       => array(
-					'type' => 'string',
-				),
+					return true;
+				}
+				return is_numeric( $param ) && $param > 0;
+			},
+		);
+
+		$params['all_entries'] = array(
+			'description'       => 'Whether to retrieve all essays regardless of user. Only allowed for managers/administrators.',
+			'type'              => 'boolean',
+			'default'           => false,
+			'sanitize_callback' => 'rest_sanitize_boolean',
+		);
+
+		$params['search'] = array(
+			'description'       => 'Search term to look for in question or content',
+			'type'              => 'string',
+			'sanitize_callback' => 'sanitize_text_field',
+		);
+
+		$params['after'] = array(
+			'description' => 'Get essays after this date',
+			'type'        => 'string',
+			'format'      => 'date-time',
+		);
+
+		$params['before'] = array(
+			'description' => 'Get essays before this date',
+			'type'        => 'string',
+			'format'      => 'date-time',
+		);
+
+		$params['include'] = array(
+			'description' => 'Include specific fields in the response',
+			'type'        => 'array',
+			'default'     => array(),
+			'items'       => array(
+				'type' => 'string',
 			),
 		);
+
+		return $params;
 	}
 
 	/**
 	 * Get essays endpoint.
+	 *
+	 * Retrieves a collection of essays based on provided parameters.
+	 *
+	 * @since 1.0.0
 	 *
 	 * @param WP_REST_Request $request The request object.
 	 * @return WP_REST_Response|WP_Error Response object or error.
@@ -440,12 +315,13 @@ class Ieltssci_Writing_Essay_Controller {
 			$args['include'] = array_map( 'sanitize_text_field', $include );
 		}
 
-		// Check for all_entries parameter.
-		$all_entries = $request->get_param( 'all_entries' );
+		// Apply access control based on user permissions.
+		$current_user_id = get_current_user_id();
+		$all_entries     = $request->get_param( 'all_entries' );
 
-		// If all_entries is true, check if user has proper permissions.
+		// Check for backward compatibility with all_entries parameter.
 		if ( $all_entries ) {
-			// Check if user has manager/administrator capabilities.
+			// Legacy all_entries parameter logic for backward compatibility.
 			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'edit_others_posts' ) ) {
 				return new WP_Error(
 					'rest_forbidden',
@@ -454,8 +330,12 @@ class Ieltssci_Writing_Essay_Controller {
 				);
 			}
 			// If permission check passes, we don't add created_by filter, allowing all essays to be returned.
-		} elseif ( ! isset( $args['uuid'] ) && ! isset( $args['id'] ) ) {
-			$args['created_by'] = get_current_user_id();
+		} elseif ( ! current_user_can( 'manage_options' ) ) {
+			// New access control pattern: If not an administrator, restrict to current user's essays only.
+			$args['created_by'] = $current_user_id;
+			// Administrators can optionally filter by created_by.
+		} elseif ( ! empty( $request['created_by'] ) ) {
+			$args['created_by'] = (int) $request['created_by'];
 		}
 
 		// Get total count for pagination headers.
@@ -479,13 +359,20 @@ class Ieltssci_Writing_Essay_Controller {
 			$essays = array();
 		}
 
+		// Prepare response data - process each essay.
+		$data = array();
+		foreach ( $essays as $essay ) {
+			$response = $this->prepare_item_for_response( $essay, $request );
+			$data[]   = $this->prepare_response_for_collection( $response );
+		}
+
 		// Calculate pagination values.
 		$per_page    = isset( $args['per_page'] ) ? (int) $args['per_page'] : 10;
 		$page        = isset( $args['page'] ) ? (int) $args['page'] : 1;
 		$total_pages = ceil( $total / $per_page );
 
 		// Build response with pagination headers.
-		$response = new WP_REST_Response( $essays, 200 );
+		$response = rest_ensure_response( $data );
 		$response->header( 'X-WP-Total', (int) $total );
 		$response->header( 'X-WP-TotalPages', (int) $total_pages );
 
@@ -509,7 +396,7 @@ class Ieltssci_Writing_Essay_Controller {
 	 * @param array            $pagination Pagination information.
 	 */
 	private function add_pagination_headers( WP_REST_Response $response, array $pagination ) {
-		$base    = rest_url( $this->namespace . '/' . $this->base . '/essays' );
+		$base    = rest_url( $this->namespace . '/' . $this->rest_base );
 		$request = $this->get_current_request_params();
 
 		$max_pages = $pagination['total_pages'];
@@ -694,6 +581,10 @@ class Ieltssci_Writing_Essay_Controller {
 	/**
 	 * Create essay endpoint.
 	 *
+	 * Creates a new essay with the provided data.
+	 *
+	 * @since 1.0.0
+	 *
 	 * @param WP_REST_Request $request The request object.
 	 * @return WP_REST_Response|WP_Error Response or error.
 	 */
@@ -715,11 +606,31 @@ class Ieltssci_Writing_Essay_Controller {
 			return $result; // Return the WP_Error directly from the DB layer.
 		}
 
-		return new WP_REST_Response( $result, 200 );
+		// Prepare the response.
+		$response = $this->prepare_item_for_response( $result, $request );
+
+		// Set 201 Created status.
+		$response->set_status( 201 );
+
+		/**
+		 * Fires after an essay is created via REST API.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param array           $result  The created essay data.
+		 * @param WP_REST_Request $request Request used to create the essay.
+		 */
+		do_action( 'ieltssci_rest_create_essay', $result, $request );
+
+		return $response;
 	}
 
 	/**
 	 * Get specific essay endpoint.
+	 *
+	 * Retrieves a specific essay by UUID.
+	 *
+	 * @since 1.0.0
 	 *
 	 * @param WP_REST_Request $request The request object.
 	 * @return WP_REST_Response|WP_Error Response or error.
@@ -740,7 +651,10 @@ class Ieltssci_Writing_Essay_Controller {
 			);
 		}
 
-		return new WP_REST_Response( $essays[0], 200 );
+		// Prepare the response using the inherited method.
+		$response = $this->prepare_item_for_response( $essays[0], $request );
+
+		return $response;
 	}
 
 	/**
@@ -1061,5 +975,337 @@ class Ieltssci_Writing_Essay_Controller {
 			),
 			200
 		);
+	}
+
+	/**
+	 * Get arguments for the essay feedback endpoint.
+	 *
+	 * @return array Argument definitions.
+	 */
+	public function get_essay_feedback_args() {
+		return array(
+			'uuid'              => array(
+				'required'          => true,
+				'description'       => 'The UUID of the essay to add/update feedback for.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param ) && ! empty( $param );
+				},
+				'sanitize_callback' => 'sanitize_text_field',
+			),
+			'feedback_criteria' => array(
+				'required'          => true,
+				'description'       => 'The criteria this feedback relates to.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param ) && ! empty( $param );
+				},
+				'sanitize_callback' => 'sanitize_key',
+			),
+			'language'          => array(
+				'required'          => true,
+				'description'       => 'The language code for the feedback.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param ) && ! empty( $param );
+				},
+				'sanitize_callback' => 'sanitize_key',
+			),
+			'cot_content'       => array(
+				'required'          => false,
+				'description'       => 'The Chain of Thought content.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param );
+				},
+				'sanitize_callback' => 'sanitize_textarea_field',
+			),
+			'score_content'     => array(
+				'required'          => false,
+				'description'       => 'The Score content.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param );
+				},
+				'sanitize_callback' => 'sanitize_text_field',
+			),
+			'feedback_content'  => array(
+				'required'          => false,
+				'description'       => 'The main Feedback content.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param );
+				},
+				'sanitize_callback' => 'sanitize_textarea_field',
+			),
+		);
+	}
+
+	/**
+	 * Get arguments for the segment feedback endpoint.
+	 *
+	 * @return array Argument definitions.
+	 */
+	public function get_segment_feedback_args() {
+		return array(
+			'uuid'              => array(
+				'required'          => true,
+				'description'       => 'The UUID of the essay containing the segment.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param ) && ! empty( $param );
+				},
+				'sanitize_callback' => 'sanitize_text_field',
+			),
+			'segment_order'     => array(
+				'required'          => true,
+				'description'       => 'The order/index of the segment within the essay.',
+				'type'              => 'integer',
+				'validate_callback' => function ( $param ) {
+					return is_numeric( $param ) && intval( $param ) > 0;
+				},
+				'sanitize_callback' => 'absint',
+			),
+			'feedback_criteria' => array(
+				'required'          => true,
+				'description'       => 'The criteria this feedback relates to.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param ) && ! empty( $param );
+				},
+				'sanitize_callback' => 'sanitize_key',
+			),
+			'language'          => array(
+				'required'          => true,
+				'description'       => 'The language code for the feedback.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param ) && ! empty( $param );
+				},
+				'sanitize_callback' => 'sanitize_key',
+			),
+			'cot_content'       => array(
+				'required'          => false,
+				'description'       => 'The Chain of Thought content.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param ) && ! empty( $param );
+				},
+				'sanitize_callback' => 'sanitize_textarea_field',
+			),
+			'score_content'     => array(
+				'required'          => false,
+				'description'       => 'The Score content.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param ) && ! empty( $param );
+				},
+				'sanitize_callback' => 'sanitize_text_field',
+			),
+			'feedback_content'  => array(
+				'required'          => false,
+				'description'       => 'The main Feedback content.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param ) && ! empty( $param );
+				},
+				'sanitize_callback' => 'sanitize_textarea_field',
+			),
+		);
+	}
+
+	/**
+	 * Get the essay schema for REST API responses.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return array The essay schema.
+	 */
+	public function get_item_schema() {
+		if ( $this->schema ) {
+			// Since WordPress 5.3, the schema can be cached in the $schema property.
+			return $this->schema;
+		}
+
+		$this->schema = array(
+			// This tells the spec of JSON Schema we are using which is draft 4.
+			'$schema'    => 'http://json-schema.org/draft-04/schema#',
+			// The title property marks the identity of the resource.
+			'title'      => 'essay',
+			'type'       => 'object',
+			// In JSON Schema you can specify object properties in the properties attribute.
+			'properties' => array(
+				'id'                   => array(
+					'description' => 'Unique identifier for the essay.',
+					'type'        => 'integer',
+					'context'     => array( 'view', 'edit', 'embed' ),
+					'readonly'    => true,
+				),
+				'uuid'                 => array(
+					'description' => 'UUID for the essay.',
+					'type'        => 'string',
+					'format'      => 'uuid',
+					'context'     => array( 'view', 'edit', 'embed' ),
+				),
+				'original_id'          => array(
+					'description' => 'ID of the original essay if this is a fork.',
+					'type'        => 'integer',
+					'context'     => array( 'view', 'edit', 'embed' ),
+				),
+				'ocr_image_ids'        => array(
+					'description' => 'Array of OCR image attachment IDs.',
+					'type'        => 'array',
+					'items'       => array(
+						'type' => 'integer',
+					),
+					'context'     => array( 'view', 'edit', 'embed' ),
+				),
+				'chart_image_ids'      => array(
+					'description' => 'Array of chart image attachment IDs.',
+					'type'        => 'array',
+					'items'       => array(
+						'type' => 'integer',
+					),
+					'context'     => array( 'view', 'edit', 'embed' ),
+				),
+				'essay_type'           => array(
+					'description' => 'Type of the essay (e.g., task-1, task-2).',
+					'type'        => 'string',
+					'context'     => array( 'view', 'edit', 'embed' ),
+				),
+				'question'             => array(
+					'description' => 'The essay question or prompt.',
+					'type'        => 'string',
+					'context'     => array( 'view', 'edit', 'embed' ),
+				),
+				'essay_content'        => array(
+					'description' => 'The main content of the essay.',
+					'type'        => 'string',
+					'context'     => array( 'view', 'edit', 'embed' ),
+				),
+				'created_by'           => array(
+					'description' => 'ID of the user who created the essay.',
+					'type'        => 'integer',
+					'context'     => array( 'view', 'edit', 'embed' ),
+				),
+				'created_at'           => array(
+					'description' => 'Creation timestamp in ISO 8601 format.',
+					'type'        => 'string',
+					'format'      => 'date-time',
+					'context'     => array( 'view', 'edit', 'embed' ),
+					'readonly'    => true,
+				),
+				'updated_at'           => array(
+					'description' => 'Last update timestamp in ISO 8601 format.',
+					'type'        => 'string',
+					'format'      => 'date-time',
+					'context'     => array( 'view', 'edit', 'embed' ),
+					'readonly'    => true,
+				),
+				'creator_username'     => array(
+					'description' => 'Username of the essay creator.',
+					'type'        => 'string',
+					'context'     => array( 'view', 'edit', 'embed' ),
+					'readonly'    => true,
+				),
+				'creator_display_name' => array(
+					'description' => 'Display name of the essay creator.',
+					'type'        => 'string',
+					'context'     => array( 'view', 'edit', 'embed' ),
+					'readonly'    => true,
+				),
+			),
+		);
+
+		return $this->schema;
+	}
+
+	/**
+	 * Prepare an essay for REST API response.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param array           $essay   Raw essay data from database.
+	 * @param WP_REST_Request $request Current request object.
+	 * @return WP_REST_Response Response object with essay data.
+	 */
+	public function prepare_item_for_response( $essay, $request ) {
+		// Prepare basic fields.
+		$data = array(
+			'id'              => (int) $essay['id'],
+			'uuid'            => $essay['uuid'],
+			'original_id'     => ! empty( $essay['original_id'] ) ? (int) $essay['original_id'] : null,
+			'ocr_image_ids'   => ! empty( $essay['ocr_image_ids'] ) ? $essay['ocr_image_ids'] : array(),
+			'chart_image_ids' => ! empty( $essay['chart_image_ids'] ) ? $essay['chart_image_ids'] : array(),
+			'essay_type'      => $essay['essay_type'],
+			'question'        => $essay['question'],
+			'essay_content'   => $essay['essay_content'],
+			'created_by'      => (int) $essay['created_by'],
+			'created_at'      => ! empty( $essay['created_at'] ) ? mysql_to_rfc3339( $essay['created_at'] ) : null,
+			'updated_at'      => ! empty( $essay['updated_at'] ) ? mysql_to_rfc3339( $essay['updated_at'] ) : null,
+		);
+
+		// Add creator information if available.
+		if ( ! empty( $essay['creator_username'] ) ) {
+			$data['creator_username'] = $essay['creator_username'];
+		}
+
+		if ( ! empty( $essay['creator_display_name'] ) ) {
+			$data['creator_display_name'] = $essay['creator_display_name'];
+		}
+
+		// Add context-based field filtering.
+		$data = $this->filter_response_by_context( $data, 'view' );
+
+		// Create response object.
+		$response = rest_ensure_response( $data );
+
+		// Add embeddable link to the author (user).
+		$response->add_link(
+			'author',
+			rest_url( 'wp/v2/users/' . $essay['created_by'] ),
+			array(
+				'embeddable' => true,
+			)
+		);
+
+		// Add embeddable link to the original essay if this is a fork.
+		if ( ! empty( $essay['original_id'] ) ) {
+			$response->add_link(
+				'original',
+				rest_url( $this->namespace . '/' . $this->rest_base . '/' . $essay['original_id'] ),
+				array(
+					'embeddable' => true,
+				)
+			);
+		}
+
+		/**
+		 * Filter essay data returned from the REST API.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param WP_REST_Response $response The response object.
+		 * @param array            $essay    Raw essay data.
+		 * @param WP_REST_Request  $request  Request used to generate the response.
+		 */
+		return apply_filters( 'ieltssci_rest_prepare_essay', $response, $essay, $request );
+	}
+
+	/**
+	 * Sets up the proper HTTP status code for authorization.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return int HTTP status code.
+	 */
+	public function authorization_status_code() {
+		$status = 401;
+
+		if ( is_user_logged_in() ) {
+			$status = 403;
+		}
+
+		return $status;
 	}
 }
