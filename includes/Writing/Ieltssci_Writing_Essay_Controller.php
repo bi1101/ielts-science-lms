@@ -17,14 +17,14 @@ use WP_Error;
 use WP_REST_Server;
 
 /**
- * Class Ieltssci_Writing_REST
+ * Class Ieltssci_Writing_Essay_Controller
  *
- * Handles REST API endpoints for the IELTS Writing module.
+ * Handles Essay REST API endpoints for the IELTS Writing module.
  *
  * @package IeltsScienceLMS\Writing
  * @since 1.0.0
  */
-class Ieltssci_Writing_REST {
+class Ieltssci_Writing_Essay_Controller {
 	/**
 	 * API namespace.
 	 *

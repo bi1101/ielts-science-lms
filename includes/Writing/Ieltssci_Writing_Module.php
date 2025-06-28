@@ -26,7 +26,7 @@ class Ieltssci_Writing_Module {
 	 */
 	public function __construct() {
 		new Ieltssci_Writing_SSE_REST();
-		new Ieltssci_Writing_REST();
+		new Ieltssci_Writing_Essay_Controller();
 		new Ieltssci_Writing_Settings();
 		new Ieltssci_Writing_Entries();
 		new Ieltssci_Submission_DB();
