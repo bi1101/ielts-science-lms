@@ -280,7 +280,7 @@ class Ieltssci_Writing_Feedback_DB {
 		);
 
 		// Always create a new feedback entry regardless of existing records.
-		return $essay_db->create_update_segment_feedback( $feedback_data );
+		return $essay_db->create_segment_feedback( $feedback_data );
 	}
 
 	/**
@@ -342,7 +342,7 @@ class Ieltssci_Writing_Feedback_DB {
 		);
 
 		// Always create a new feedback entry.
-		return $essay_db->create_update_essay_feedback( $feedback_data );
+		return $essay_db->create_essay_feedback( $feedback_data );
 	}
 
 	/**

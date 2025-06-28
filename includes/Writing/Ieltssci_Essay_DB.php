@@ -972,6 +972,125 @@ class Ieltssci_Essay_DB {
 	}
 
 	/**
+	 * Update an existing essay feedback.
+	 *
+	 * @param int|string $feedback_identifier Feedback ID.
+	 * @param array      $feedback_data {
+	 *     Required. Essay feedback data to update.
+	 *     @type int    $essay_id         Optional. ID of the essay this feedback is for.
+	 *     @type string $feedback_criteria Optional. Criteria for the feedback (e.g., 'coherence', 'lexical-resource', 'task-achievement', 'grammar').
+	 *     @type string $feedback_language Optional. Language of the feedback (e.g., 'en', 'vi').
+	 *     @type string $source           Optional. Source of the feedback (e.g., 'ai', 'human', 'guided').
+	 *     @type string $cot_content      Optional. Chain of Thought content explaining the reasoning.
+	 *     @type string $score_content    Optional. Scoring content or numerical evaluation.
+	 *     @type string $feedback_content Optional. The actual feedback content.
+	 *     @type bool   $is_preferred     Optional. Whether this feedback is the preferred default.
+	 * }
+	 * @return array|WP_Error Updated essay feedback data or error.
+	 * @throws \Exception If there is a database error.
+	 */
+	public function update_essay_feedback( $feedback_identifier, $feedback_data ) {
+		if ( empty( $feedback_identifier ) ) {
+			return new WP_Error( 'missing_identifier', 'Missing feedback identifier.', array( 'status' => 400 ) );
+		}
+
+		$this->wpdb->query( 'START TRANSACTION' );
+
+		try {
+			// Get existing feedback.
+			$existing_feedback = $this->get_essay_feedbacks( array( 'feedback_id' => $feedback_identifier ) );
+			if ( empty( $existing_feedback ) ) {
+				$this->wpdb->query( 'ROLLBACK' );
+				return new WP_Error( 'feedback_not_found', 'Essay feedback not found.', array( 'status' => 404 ) );
+			}
+
+			$existing_feedback = $existing_feedback[0];
+
+			// Prepare update data - only include fields that are provided.
+			$data   = array();
+			$format = array();
+
+			if ( isset( $feedback_data['essay_id'] ) ) {
+				// Validate essay exists if updating essay_id.
+				$essay = $this->get_essays( array( 'id' => $feedback_data['essay_id'] ) );
+				if ( empty( $essay ) ) {
+					throw new \Exception( 'Essay not found.' );
+				}
+				$data['essay_id'] = $feedback_data['essay_id'];
+				$format[]         = '%d';
+			}
+
+			if ( isset( $feedback_data['feedback_criteria'] ) ) {
+				$data['feedback_criteria'] = $feedback_data['feedback_criteria'];
+				$format[]                  = '%s';
+			}
+
+			if ( isset( $feedback_data['feedback_language'] ) ) {
+				$data['feedback_language'] = $feedback_data['feedback_language'];
+				$format[]                  = '%s';
+			}
+
+			if ( isset( $feedback_data['source'] ) ) {
+				$data['source'] = $feedback_data['source'];
+				$format[]       = '%s';
+			}
+
+			if ( isset( $feedback_data['cot_content'] ) ) {
+				$data['cot_content'] = $feedback_data['cot_content'];
+				$format[]            = '%s';
+			}
+
+			if ( isset( $feedback_data['score_content'] ) ) {
+				$data['score_content'] = $feedback_data['score_content'];
+				$format[]              = '%s';
+			}
+
+			if ( isset( $feedback_data['feedback_content'] ) ) {
+				$data['feedback_content'] = $feedback_data['feedback_content'];
+				$format[]                 = '%s';
+			}
+
+			if ( isset( $feedback_data['is_preferred'] ) ) {
+				$data['is_preferred'] = $feedback_data['is_preferred'] ? 1 : 0;
+				$format[]             = '%d';
+			}
+
+			// Do not allow updating created_by for security reasons.
+
+			if ( empty( $data ) ) {
+				$this->wpdb->query( 'ROLLBACK' );
+				return new WP_Error( 'no_data', 'No data provided for update.', array( 'status' => 400 ) );
+			}
+
+			// Update feedback.
+			$result = $this->wpdb->update(
+				$this->essay_feedback_table,
+				$data,
+				array( 'id' => $existing_feedback['id'] ),
+				$format,
+				array( '%d' )
+			);
+
+			if ( false === $result ) {
+				throw new \Exception( 'Failed to update essay feedback: ' . $this->wpdb->last_error );
+			}
+
+			// Get the updated feedback.
+			$feedback = $this->get_essay_feedbacks( array( 'feedback_id' => $existing_feedback['id'] ) );
+
+			if ( empty( $feedback ) ) {
+				throw new \Exception( 'Failed to retrieve essay feedback after update.' );
+			}
+
+			$this->wpdb->query( 'COMMIT' );
+			return $feedback[0]; // Return the first (and should be only) feedback.
+		} catch ( \Exception $e ) {
+			$this->wpdb->query( 'ROLLBACK' );
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
 	 * Get segment feedbacks with flexible query arguments.
 	 *
 	 * @param array $args {
@@ -1427,11 +1546,10 @@ class Ieltssci_Essay_DB {
 	}
 
 	/**
-	 * Create or update an essay feedback.
+	 * Create a new essay feedback.
 	 *
 	 * @param array $feedback_data {
-	 *     Required. Essay feedback data to create or update.
-	 *     @type int    $id               Optional. ID of the feedback to update. If not provided, a new feedback will be created.
+	 *     Required. Essay feedback data to create.
 	 *     @type int    $essay_id         Required. ID of the essay this feedback is for.
 	 *     @type string $feedback_criteria Required. Criteria for the feedback (e.g., 'coherence', 'lexical-resource', 'task-achievement', 'grammar').
 	 *     @type string $feedback_language Required. Language of the feedback (e.g., 'en', 'vi').
@@ -1442,10 +1560,10 @@ class Ieltssci_Essay_DB {
 	 *     @type bool   $is_preferred     Optional. Whether this feedback is the preferred default. Defaults to false.
 	 *     @type int    $created_by       Optional. User ID who created the feedback. Defaults to current user ID.
 	 * }
-	 * @return array|WP_Error Created or updated essay feedback data or error.
+	 * @return array|WP_Error Created essay feedback data or error.
 	 * @throws \Exception If there is a database error.
 	 */
-	public function create_update_essay_feedback( $feedback_data ) {
+	public function create_essay_feedback( $feedback_data ) {
 		// Validate required fields.
 		if ( empty( $feedback_data['essay_id'] ) ||
 			empty( $feedback_data['feedback_criteria'] ) ||
@@ -1468,7 +1586,7 @@ class Ieltssci_Essay_DB {
 				$feedback_data['created_by'] = get_current_user_id();
 			}
 
-			// Prepare data for insertion/update.
+			// Prepare data for insertion.
 			$data = array(
 				'essay_id'          => $feedback_data['essay_id'],
 				'feedback_criteria' => $feedback_data['feedback_criteria'],
@@ -1507,48 +1625,24 @@ class Ieltssci_Essay_DB {
 				$format[]                 = '%s';
 			}
 
-			// Determine if we're creating or updating.
-			if ( ! empty( $feedback_data['id'] ) ) {
-				// Update existing feedback.
-				$feedback_id = $feedback_data['id'];
+			// Create new feedback.
+			$result = $this->wpdb->insert(
+				$this->essay_feedback_table,
+				$data,
+				$format
+			);
 
-				// Check if feedback exists.
-				$existing_feedback = $this->get_essay_feedbacks( array( 'feedback_id' => $feedback_id ) );
-				if ( empty( $existing_feedback ) ) {
-					throw new \Exception( 'Essay feedback not found.' );
-				}
-
-				$result = $this->wpdb->update(
-					$this->essay_feedback_table,
-					$data,
-					array( 'id' => $feedback_id ),
-					$format,
-					array( '%d' )
-				);
-
-				if ( false === $result ) {
-					throw new \Exception( 'Failed to update essay feedback: ' . $this->wpdb->last_error );
-				}
-			} else {
-				// Create new feedback.
-				$result = $this->wpdb->insert(
-					$this->essay_feedback_table,
-					$data,
-					$format
-				);
-
-				if ( false === $result ) {
-					throw new \Exception( 'Failed to create essay feedback: ' . $this->wpdb->last_error );
-				}
-
-				$feedback_id = $this->wpdb->insert_id;
+			if ( false === $result ) {
+				throw new \Exception( 'Failed to create essay feedback: ' . $this->wpdb->last_error );
 			}
 
-			// Get the created/updated feedback.
+			$feedback_id = $this->wpdb->insert_id;
+
+			// Get the created feedback.
 			$feedback = $this->get_essay_feedbacks( array( 'feedback_id' => $feedback_id ) );
 
 			if ( empty( $feedback ) ) {
-				throw new \Exception( 'Failed to retrieve essay feedback after creation/update.' );
+				throw new \Exception( 'Failed to retrieve essay feedback after creation.' );
 			}
 
 			$this->wpdb->query( 'COMMIT' );
@@ -1560,11 +1654,10 @@ class Ieltssci_Essay_DB {
 	}
 
 	/**
-	 * Create or update a segment feedback.
+	 * Create a new segment feedback.
 	 *
 	 * @param array $feedback_data {
-	 *     Required. Segment feedback data to create or update.
-	 *     @type int    $id               Optional. ID of the feedback to update. If not provided, a new feedback will be created.
+	 *     Required. Segment feedback data to create.
 	 *     @type int    $segment_id       Required. ID of the segment this feedback is for.
 	 *     @type string $feedback_criteria Required. Criteria for the feedback (e.g., 'coherence', 'grammar', 'vocabulary', 'relevance').
 	 *     @type string $feedback_language Required. Language of the feedback (e.g., 'en', 'vi').
@@ -1575,10 +1668,10 @@ class Ieltssci_Essay_DB {
 	 *     @type bool   $is_preferred     Optional. Whether this feedback is the preferred default. Defaults to false.
 	 *     @type int    $created_by       Optional. User ID who created the feedback. Defaults to current user ID.
 	 * }
-	 * @return array|WP_Error Created or updated segment feedback data or error.
+	 * @return array|WP_Error Created segment feedback data or error.
 	 * @throws \Exception If there is a database error.
 	 */
-	public function create_update_segment_feedback( $feedback_data ) {
+	public function create_segment_feedback( $feedback_data ) {
 		// Validate required fields.
 		if ( empty( $feedback_data['segment_id'] ) ||
 			empty( $feedback_data['feedback_criteria'] ) ||
@@ -1601,7 +1694,7 @@ class Ieltssci_Essay_DB {
 				$feedback_data['created_by'] = get_current_user_id();
 			}
 
-			// Prepare data for insertion/update.
+			// Prepare data for insertion.
 			$data = array(
 				'segment_id'        => $feedback_data['segment_id'],
 				'feedback_criteria' => $feedback_data['feedback_criteria'],
@@ -1640,48 +1733,143 @@ class Ieltssci_Essay_DB {
 				$format[]                 = '%s';
 			}
 
-			// Determine if we're creating or updating.
-			if ( ! empty( $feedback_data['id'] ) ) {
-				// Update existing feedback.
-				$feedback_id = $feedback_data['id'];
+			// Create new feedback.
+			$result = $this->wpdb->insert(
+				$this->segment_feedback_table,
+				$data,
+				$format
+			);
 
-				// Check if feedback exists.
-				$existing_feedback = $this->get_segment_feedbacks( array( 'feedback_id' => $feedback_id ) );
-				if ( empty( $existing_feedback ) ) {
-					throw new \Exception( 'Segment feedback not found.' );
-				}
-
-				$result = $this->wpdb->update(
-					$this->segment_feedback_table,
-					$data,
-					array( 'id' => $feedback_id ),
-					$format,
-					array( '%d' )
-				);
-
-				if ( false === $result ) {
-					throw new \Exception( 'Failed to update segment feedback: ' . $this->wpdb->last_error );
-				}
-			} else {
-				// Create new feedback.
-				$result = $this->wpdb->insert(
-					$this->segment_feedback_table,
-					$data,
-					$format
-				);
-
-				if ( false === $result ) {
-					throw new \Exception( 'Failed to create segment feedback: ' . $this->wpdb->last_error );
-				}
-
-				$feedback_id = $this->wpdb->insert_id;
+			if ( false === $result ) {
+				throw new \Exception( 'Failed to create segment feedback: ' . $this->wpdb->last_error );
 			}
 
-			// Get the created/updated feedback.
+			$feedback_id = $this->wpdb->insert_id;
+
+			// Get the created feedback.
 			$feedback = $this->get_segment_feedbacks( array( 'feedback_id' => $feedback_id ) );
 
 			if ( empty( $feedback ) ) {
-				throw new \Exception( 'Failed to retrieve segment feedback after creation/update.' );
+				throw new \Exception( 'Failed to retrieve segment feedback after creation.' );
+			}
+
+			$this->wpdb->query( 'COMMIT' );
+			return $feedback[0]; // Return the first (and should be only) feedback.
+		} catch ( \Exception $e ) {
+			$this->wpdb->query( 'ROLLBACK' );
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Update an existing segment feedback.
+	 *
+	 * @param int|string $feedback_identifier Feedback ID.
+	 * @param array      $feedback_data {
+	 *     Required. Segment feedback data to update.
+	 *     @type int    $segment_id       Optional. ID of the segment this feedback is for.
+	 *     @type string $feedback_criteria Optional. Criteria for the feedback (e.g., 'coherence', 'grammar', 'vocabulary', 'relevance').
+	 *     @type string $feedback_language Optional. Language of the feedback (e.g., 'en', 'vi').
+	 *     @type string $source           Optional. Source of the feedback (e.g., 'ai', 'human', 'guided').
+	 *     @type string $cot_content      Optional. Chain of Thought content explaining the reasoning.
+	 *     @type string $score_content    Optional. Scoring content or numerical evaluation.
+	 *     @type string $feedback_content Optional. The actual feedback content.
+	 *     @type bool   $is_preferred     Optional. Whether this feedback is the preferred default.
+	 * }
+	 * @return array|WP_Error Updated segment feedback data or error.
+	 * @throws \Exception If there is a database error.
+	 */
+	public function update_segment_feedback( $feedback_identifier, $feedback_data ) {
+		if ( empty( $feedback_identifier ) ) {
+			return new WP_Error( 'missing_identifier', 'Missing feedback identifier.', array( 'status' => 400 ) );
+		}
+
+		$this->wpdb->query( 'START TRANSACTION' );
+
+		try {
+			// Get existing feedback.
+			$existing_feedback = $this->get_segment_feedbacks( array( 'feedback_id' => $feedback_identifier ) );
+			if ( empty( $existing_feedback ) ) {
+				$this->wpdb->query( 'ROLLBACK' );
+				return new WP_Error( 'feedback_not_found', 'Segment feedback not found.', array( 'status' => 404 ) );
+			}
+
+			$existing_feedback = $existing_feedback[0];
+
+			// Prepare update data - only include fields that are provided.
+			$data   = array();
+			$format = array();
+
+			if ( isset( $feedback_data['segment_id'] ) ) {
+				// Validate segment exists if updating segment_id.
+				$segment = $this->get_segments( array( 'segment_id' => $feedback_data['segment_id'] ) );
+				if ( empty( $segment ) ) {
+					throw new \Exception( 'Segment not found.' );
+				}
+				$data['segment_id'] = $feedback_data['segment_id'];
+				$format[]           = '%d';
+			}
+
+			if ( isset( $feedback_data['feedback_criteria'] ) ) {
+				$data['feedback_criteria'] = $feedback_data['feedback_criteria'];
+				$format[]                  = '%s';
+			}
+
+			if ( isset( $feedback_data['feedback_language'] ) ) {
+				$data['feedback_language'] = $feedback_data['feedback_language'];
+				$format[]                  = '%s';
+			}
+
+			if ( isset( $feedback_data['source'] ) ) {
+				$data['source'] = $feedback_data['source'];
+				$format[]       = '%s';
+			}
+
+			if ( isset( $feedback_data['cot_content'] ) ) {
+				$data['cot_content'] = $feedback_data['cot_content'];
+				$format[]            = '%s';
+			}
+
+			if ( isset( $feedback_data['score_content'] ) ) {
+				$data['score_content'] = $feedback_data['score_content'];
+				$format[]              = '%s';
+			}
+
+			if ( isset( $feedback_data['feedback_content'] ) ) {
+				$data['feedback_content'] = $feedback_data['feedback_content'];
+				$format[]                 = '%s';
+			}
+
+			if ( isset( $feedback_data['is_preferred'] ) ) {
+				$data['is_preferred'] = $feedback_data['is_preferred'] ? 1 : 0;
+				$format[]             = '%d';
+			}
+
+			// Do not allow updating created_by for security reasons.
+
+			if ( empty( $data ) ) {
+				$this->wpdb->query( 'ROLLBACK' );
+				return new WP_Error( 'no_data', 'No data provided for update.', array( 'status' => 400 ) );
+			}
+
+			// Update feedback.
+			$result = $this->wpdb->update(
+				$this->segment_feedback_table,
+				$data,
+				array( 'id' => $existing_feedback['id'] ),
+				$format,
+				array( '%d' )
+			);
+
+			if ( false === $result ) {
+				throw new \Exception( 'Failed to update segment feedback: ' . $this->wpdb->last_error );
+			}
+
+			// Get the updated feedback.
+			$feedback = $this->get_segment_feedbacks( array( 'feedback_id' => $existing_feedback['id'] ) );
+
+			if ( empty( $feedback ) ) {
+				throw new \Exception( 'Failed to retrieve segment feedback after update.' );
 			}
 
 			$this->wpdb->query( 'COMMIT' );
@@ -1931,7 +2119,7 @@ class Ieltssci_Essay_DB {
 										'created_by'       => $user_id,
 									);
 
-									$new_feedback = $this->create_update_segment_feedback( $new_feedback_data );
+									$new_feedback = $this->create_segment_feedback( $new_feedback_data );
 									if ( is_wp_error( $new_feedback ) ) {
 										throw new \Exception( 'Failed to create segment feedback copy: ' . $new_feedback->get_error_message() );
 									}
@@ -1966,7 +2154,7 @@ class Ieltssci_Essay_DB {
 							'created_by'        => $user_id,
 						);
 
-						$new_feedback = $this->create_update_essay_feedback( $new_feedback_data );
+						$new_feedback = $this->create_essay_feedback( $new_feedback_data );
 						if ( is_wp_error( $new_feedback ) ) {
 							throw new \Exception( 'Failed to create essay feedback copy: ' . $new_feedback->get_error_message() );
 						}

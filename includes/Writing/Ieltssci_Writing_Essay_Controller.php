@@ -111,9 +111,9 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 		// Register route for updating essay feedback.
 		register_rest_route(
 			$this->namespace,
-			'/' . $this->rest_base . '/(?P<uuid>[a-zA-Z0-9-]+)/feedback',
+			'/' . $this->rest_base . '/feedback/(?P<uuid>[a-zA-Z0-9-]+)',
 			array(
-				'methods'             => WP_REST_Server::CREATABLE,
+				'methods'             => WP_REST_Server::EDITABLE,
 				'callback'            => array( $this, 'update_essay_feedback' ),
 				'permission_callback' => array( $this, 'update_essay_feedback_permissions_check' ),
 				'args'                => $this->get_essay_feedback_args(),
@@ -123,9 +123,9 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 		// Register route for updating segment feedback.
 		register_rest_route(
 			$this->namespace,
-			'/' . $this->rest_base . '/(?P<uuid>[a-zA-Z0-9-]+)/segment-feedback',
+			'/' . $this->rest_base . '/segment-feedback/(?P<uuid>[a-zA-Z0-9-]+)',
 			array(
-				'methods'             => WP_REST_Server::CREATABLE,
+				'methods'             => WP_REST_Server::EDITABLE,
 				'callback'            => array( $this, 'update_segment_feedback' ),
 				'permission_callback' => array( $this, 'update_segment_feedback_permissions_check' ),
 				'args'                => $this->get_segment_feedback_args(),
