@@ -84,10 +84,10 @@ class Ieltssci_Essay_DB {
 	}
 
 	/**
-	 * Create a new essay or update an existing one based on UUID.
+	 * Create a new essay.
 	 *
 	 * @param array $essay_data Essay data.
-	 * @return array|WP_Error Created/updated essay data or error.
+	 * @return array|WP_Error Created essay data or error.
 	 * @throws \Exception If there is a database error.
 	 */
 	public function create_essay( $essay_data ) {
@@ -102,11 +102,11 @@ class Ieltssci_Essay_DB {
 			$uuid = ! empty( $essay_data['uuid'] ) ? $essay_data['uuid'] : wp_generate_uuid4();
 
 			// Check if an essay with this UUID already exists.
-			$existing_essay = null;
 			if ( ! empty( $essay_data['uuid'] ) ) {
 				$existing_essays = $this->get_essays( array( 'uuid' => $uuid ) );
 				if ( ! empty( $existing_essays ) && ! is_wp_error( $existing_essays ) ) {
-					$existing_essay = $existing_essays[0];
+					$this->wpdb->query( 'ROLLBACK' );
+					return new WP_Error( 'essay_exists', 'Essay with this UUID already exists.', array( 'status' => 409 ) );
 				}
 			}
 
@@ -135,40 +135,113 @@ class Ieltssci_Essay_DB {
 				'%d', // created_by.
 			);
 
-			$essay_id = null;
+			// Create new essay.
+			$result = $this->wpdb->insert(
+				$this->essays_table,
+				$data,
+				$format
+			);
 
-			if ( $existing_essay ) {
-				// Update existing essay.
-				$result = $this->wpdb->update(
-					$this->essays_table,
-					$data,
-					array( 'id' => $existing_essay['id'] ),
-					$format,
-					array( '%d' ) // id format.
-				);
-
-				if ( false === $result ) {
-					throw new \Exception( 'Failed to update essay: ' . $this->wpdb->last_error );
-				}
-
-				$essay_id = $existing_essay['id'];
-			} else {
-				// Create new essay.
-				$result = $this->wpdb->insert(
-					$this->essays_table,
-					$data,
-					$format
-				);
-
-				if ( false === $result ) {
-					throw new \Exception( 'Failed to create essay: ' . $this->wpdb->last_error );
-				}
-
-				$essay_id = $this->wpdb->insert_id;
+			if ( false === $result ) {
+				throw new \Exception( 'Failed to create essay: ' . $this->wpdb->last_error );
 			}
 
-			// Get the created/updated essay.
+			$essay_id = $this->wpdb->insert_id;
+
+			// Get the created essay.
 			$essay = $this->get_essays( array( 'id' => $essay_id ) )[0];
+
+			$this->wpdb->query( 'COMMIT' );
+			return $essay;
+		} catch ( \Exception $e ) {
+			$this->wpdb->query( 'ROLLBACK' );
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Update an existing essay.
+	 *
+	 * @param int|string $essay_identifier Essay ID or UUID.
+	 * @param array      $essay_data Essay data to update.
+	 * @return array|WP_Error Updated essay data or error.
+	 * @throws \Exception If there is a database error.
+	 */
+	public function update_essay( $essay_identifier, $essay_data ) {
+		$this->wpdb->query( 'START TRANSACTION' );
+
+		try {
+			// Get existing essay.
+			$existing_essay = null;
+			if ( is_numeric( $essay_identifier ) ) {
+				$existing_essays = $this->get_essays( array( 'id' => (int) $essay_identifier ) );
+			} else {
+				$existing_essays = $this->get_essays( array( 'uuid' => $essay_identifier ) );
+			}
+
+			if ( empty( $existing_essays ) || is_wp_error( $existing_essays ) ) {
+				$this->wpdb->query( 'ROLLBACK' );
+				return new WP_Error( 'essay_not_found', 'Essay not found.', array( 'status' => 404 ) );
+			}
+
+			$existing_essay = $existing_essays[0];
+
+			// Prepare update data - only include fields that are provided.
+			$data   = array();
+			$format = array();
+
+			if ( isset( $essay_data['original_id'] ) ) {
+				$data['original_id'] = $essay_data['original_id'];
+				$format[]            = '%d';
+			}
+
+			if ( isset( $essay_data['ocr_image_ids'] ) ) {
+				$data['ocr_image_ids'] = ! empty( $essay_data['ocr_image_ids'] ) ? wp_json_encode( $essay_data['ocr_image_ids'] ) : null;
+				$format[]              = '%s';
+			}
+
+			if ( isset( $essay_data['chart_image_ids'] ) ) {
+				$data['chart_image_ids'] = ! empty( $essay_data['chart_image_ids'] ) ? wp_json_encode( $essay_data['chart_image_ids'] ) : null;
+				$format[]                = '%s';
+			}
+
+			if ( isset( $essay_data['essay_type'] ) ) {
+				$data['essay_type'] = $essay_data['essay_type'];
+				$format[]           = '%s';
+			}
+
+			if ( isset( $essay_data['question'] ) ) {
+				$data['question'] = $essay_data['question'];
+				$format[]         = '%s';
+			}
+
+			if ( isset( $essay_data['essay_content'] ) ) {
+				$data['essay_content'] = $essay_data['essay_content'];
+				$format[]              = '%s';
+			}
+
+			// Don't allow updating UUID or created_by for security reasons.
+
+			if ( empty( $data ) ) {
+				$this->wpdb->query( 'ROLLBACK' );
+				return new WP_Error( 'no_data', 'No data provided for update.', array( 'status' => 400 ) );
+			}
+
+			// Update existing essay.
+			$result = $this->wpdb->update(
+				$this->essays_table,
+				$data,
+				array( 'id' => $existing_essay['id'] ),
+				$format,
+				array( '%d' ) // id format.
+			);
+
+			if ( false === $result ) {
+				throw new \Exception( 'Failed to update essay: ' . $this->wpdb->last_error );
+			}
+
+			// Get the updated essay.
+			$essay = $this->get_essays( array( 'id' => $existing_essay['id'] ) )[0];
 
 			$this->wpdb->query( 'COMMIT' );
 			return $essay;
@@ -1736,7 +1809,7 @@ class Ieltssci_Essay_DB {
 	 *
 	 * This function creates a copy of an existing essay including its segments,
 	 * segment feedback, and essay feedback. The new essay will reference the original
-	 * essay via the original_id field.
+	 * essay via the original_id field. A new UUID is always generated for the forked essay.
 	 *
 	 * @param int   $essay_id    ID of the essay to fork.
 	 * @param int   $user_id     ID of the user creating the fork. If null, uses current user.
@@ -1744,7 +1817,6 @@ class Ieltssci_Essay_DB {
 	 *     @var bool $copy_segments        Whether to copy segments. Default true.
 	 *     @var bool $copy_segment_feedback Whether to copy segment feedback. Default true.
 	 *     @var bool $copy_essay_feedback  Whether to copy essay feedback. Default true.
-	 *     @var bool $generate_new_uuid    Whether to generate a new UUID. Default true.
 	 *
 	 * @return array|WP_Error Array containing the new essay ID and related data, or WP_Error on failure.
 	 * @throws \Exception If there is a database error.
@@ -1768,7 +1840,6 @@ class Ieltssci_Essay_DB {
 			'copy_segments'         => true,
 			'copy_segment_feedback' => true,
 			'copy_essay_feedback'   => true,
-			'generate_new_uuid'     => true,
 		);
 		$options  = wp_parse_args( $options, $defaults );
 
@@ -1784,8 +1855,9 @@ class Ieltssci_Essay_DB {
 			$original_essay = $original_essay[0];
 
 			// 5. Create a copy of the essay.
+			// Always generate a new UUID for forked essays to ensure uniqueness.
 			$new_essay_data = array(
-				'uuid'            => $options['generate_new_uuid'] ? wp_generate_uuid4() : $original_essay['uuid'],
+				'uuid'            => wp_generate_uuid4(),
 				'original_id'     => $original_essay['id'],
 				'ocr_image_ids'   => $original_essay['ocr_image_ids'],
 				'chart_image_ids' => $original_essay['chart_image_ids'],

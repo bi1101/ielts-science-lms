@@ -98,6 +98,12 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 						),
 					),
 				),
+				array(
+					'methods'             => WP_REST_Server::EDITABLE,
+					'callback'            => array( $this, 'update_essay' ),
+					'permission_callback' => array( $this, 'update_essay_permissions_check' ),
+					'args'                => $this->get_essay_update_args(),
+				),
 				'schema' => array( $this, 'get_item_schema' ),
 			)
 		);
@@ -500,6 +506,18 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 	}
 
 	/**
+	 * Check if user has permission to update essay.
+	 *
+	 * Only checks that the user is logged in. The ownership check happens in the callback.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return bool Whether the user has permission.
+	 */
+	public function update_essay_permissions_check( WP_REST_Request $request ) {
+		return is_user_logged_in();
+	}
+
+	/**
 	 * Get arguments for the create essay endpoint.
 	 *
 	 * @return array Argument definitions.
@@ -523,6 +541,85 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 			'question'        => array(
 				'required'          => true,
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_textarea_field',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param ) && ! empty( $param );
+				},
+			),
+			'essay_content'   => array(
+				'required'          => false,
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_textarea_field',
+				'validate_callback' => function ( $param ) {
+					// Allow empty string or null for essay_content.
+					return is_null( $param ) || is_string( $param );
+				},
+			),
+			'original_id'     => array(
+				'required'          => false,
+				'type'              => 'integer',
+				'validate_callback' => function ( $param ) {
+					return is_numeric( $param ) && $param > 0;
+				},
+			),
+			'ocr_image_ids'   => array(
+				'required'          => false,
+				'type'              => 'array',
+				'validate_callback' => function ( $param ) {
+					if ( ! is_array( $param ) ) {
+						return false;
+					}
+					foreach ( $param as $id ) {
+						if ( ! is_numeric( $id ) || $id <= 0 ) {
+							return false;
+						}
+					}
+					return true;
+				},
+			),
+			'chart_image_ids' => array(
+				'required'          => false,
+				'type'              => 'array',
+				'validate_callback' => function ( $param ) {
+					if ( ! is_array( $param ) ) {
+						return false;
+					}
+					foreach ( $param as $id ) {
+						if ( ! is_numeric( $id ) || $id <= 0 ) {
+							return false;
+						}
+					}
+					return true;
+				},
+			),
+		);
+	}
+
+	/**
+	 * Get arguments for the update essay endpoint.
+	 *
+	 * @return array Argument definitions.
+	 */
+	public function get_essay_update_args() {
+		return array(
+			'uuid'            => array(
+				'required'          => true,
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param ) && ! empty( $param );
+				},
+			),
+			'essay_type'      => array(
+				'required'          => false,
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param ) && ! empty( $param );
+				},
+			),
+			'question'        => array(
+				'required'          => false,
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_textarea_field',
 				'validate_callback' => function ( $param ) {
@@ -653,6 +750,98 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 
 		// Prepare the response using the inherited method.
 		$response = $this->prepare_item_for_response( $essays[0], $request );
+
+		return $response;
+	}
+
+	/**
+	 * Update essay endpoint.
+	 *
+	 * Updates an existing essay with the provided data.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response or error.
+	 */
+	public function update_essay( WP_REST_Request $request ) {
+		$uuid = $request->get_param( 'uuid' );
+
+		// Get the essay to check ownership.
+		$essays = $this->essay_service->get_essays( array( 'uuid' => $uuid ) );
+
+		if ( is_wp_error( $essays ) ) {
+			return $essays; // Return the WP_Error directly from the DB layer.
+		}
+
+		if ( empty( $essays ) ) {
+			return new WP_Error(
+				'essay_not_found',
+				__( 'Essay not found.', 'ielts-science-lms' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$essay = $essays[0];
+
+		// Check if current user can update this essay (must be owner or admin).
+		$current_user_id = get_current_user_id();
+		$is_owner        = $current_user_id === (int) $essay['created_by'];
+		$is_admin        = current_user_can( 'manage_options' );
+
+		if ( ! $is_owner && ! $is_admin ) {
+			return new WP_Error(
+				'essay_not_owned',
+				__( 'You can only update essays that you created or if you are an administrator.', 'ielts-science-lms' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		// Prepare update data - only include fields that are provided.
+		$essay_data = array();
+
+		if ( $request->has_param( 'essay_type' ) ) {
+			$essay_data['essay_type'] = $request->get_param( 'essay_type' );
+		}
+
+		if ( $request->has_param( 'question' ) ) {
+			$essay_data['question'] = $request->get_param( 'question' );
+		}
+
+		if ( $request->has_param( 'essay_content' ) ) {
+			$essay_data['essay_content'] = $request->get_param( 'essay_content' );
+		}
+
+		if ( $request->has_param( 'original_id' ) ) {
+			$essay_data['original_id'] = $request->get_param( 'original_id' );
+		}
+
+		if ( $request->has_param( 'ocr_image_ids' ) ) {
+			$essay_data['ocr_image_ids'] = $request->get_param( 'ocr_image_ids' );
+		}
+
+		if ( $request->has_param( 'chart_image_ids' ) ) {
+			$essay_data['chart_image_ids'] = $request->get_param( 'chart_image_ids' );
+		}
+
+		$result = $this->essay_service->update_essay( $uuid, $essay_data );
+
+		if ( is_wp_error( $result ) ) {
+			return $result; // Return the WP_Error directly from the DB layer.
+		}
+
+		// Prepare the response.
+		$response = $this->prepare_item_for_response( $result, $request );
+
+		/**
+		 * Fires after an essay is updated via REST API.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param array           $result  The updated essay data.
+		 * @param WP_REST_Request $request Request used to update the essay.
+		 */
+		do_action( 'ieltssci_rest_update_essay', $result, $request );
 
 		return $response;
 	}
