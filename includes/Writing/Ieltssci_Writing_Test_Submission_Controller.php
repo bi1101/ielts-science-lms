@@ -723,6 +723,23 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 		// Include meta data with consistent formatting.
 		$updated_submission['meta'] = $this->db->get_test_submission_meta( $submission_id );
 
+		// Add task submissions to the submission data before preparation.
+		$task_submissions = $this->db->get_task_submissions( array( 'test_submission_id' => $submission_id ) );
+		if ( ! is_wp_error( $task_submissions ) && ! empty( $task_submissions ) ) {
+			$updated_submission['task_submissions'] = array_map(
+				function ( $task ) {
+					return array(
+						'task_submission_id' => (int) $task['id'], // Ensure integer.
+						'task_id'            => (int) $task['task_id'], // Ensure integer.
+						'essay_id'           => (int) $task['essay_id'], // Ensure integer.
+					);
+				},
+				$task_submissions
+			);
+		} else {
+			$updated_submission['task_submissions'] = array();
+		}
+
 		// Prepare the response.
 		$response = $this->prepare_test_submission_for_response( $updated_submission, $request );
 
