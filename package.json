@@ -15,7 +15,9 @@
         "public/speaking/build/",
         "public/speaking/*.php",
         "public/writing/build/",
-        "public/writing/*.php"
+        "public/writing/*.php",
+        "public/dashboard/build/",
+        "public/dashboard/*.php"
     ],
     "scripts": {
         "submodules:update": "git submodule update --remote --merge",
