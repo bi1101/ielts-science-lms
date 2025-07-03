@@ -93,7 +93,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 				array(
 					'methods'             => WP_REST_Server::READABLE,
 					'callback'            => array( $this, 'get_test_submission' ),
-					'permission_callback' => array( $this, 'can_read' ),
+					'permission_callback' => '__return_true', // Allow public access to single submission.
 					'args'                => array(
 						'id' => array(
 							'description'       => 'Unique identifier (ID or UUID) for the test submission.',
@@ -337,15 +337,6 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 				'ieltssci_test_submission_not_found',
 				'Test submission not found.',
 				array( 'status' => 404 )
-			);
-		}
-
-		// Check if current user can access this submission.
-		if ( ! $this->can_access_submission( $submission, $request ) ) {
-			return new WP_Error(
-				'rest_forbidden',
-				'You cannot view this test submission.',
-				array( 'status' => 403 )
 			);
 		}
 
