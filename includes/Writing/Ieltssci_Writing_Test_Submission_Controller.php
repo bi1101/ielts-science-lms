@@ -896,7 +896,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 				// Add embeddable link to each essay using the collection endpoint with ID parameter.
 				$response->add_link(
 					'essay',
-					rest_url( $this->namespace . '/writing/essays' ) . '?id=' . $essay_id,
+					rest_url( $this->namespace . '/writing/essays/' . $essay_id ),
 					array(
 						'embeddable' => true,
 					)
