@@ -106,8 +106,8 @@ class Ieltssci_Core_Module {
 				);
 
 				if ( empty( $scheduled_actions ) ) {
-					// Schedule update to run in background (30 seconds later to ensure Action Scheduler is fully loaded).
-					as_schedule_single_action( time() + 30, 'ieltssci_process_db_update' );
+					// Schedule update to run in background (60 seconds later to ensure Action Scheduler is fully loaded).
+					as_schedule_single_action( time() + 60, 'ieltssci_process_db_update' );
 
 					// Add admin notice that updates are scheduled.
 					if ( is_admin() && current_user_can( 'manage_options' ) ) {
