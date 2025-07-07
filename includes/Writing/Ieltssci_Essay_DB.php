@@ -2025,9 +2025,9 @@ class Ieltssci_Essay_DB {
 
 		// 2. Set default options.
 		$defaults = array(
-			'copy_segments'         => true,
-			'copy_segment_feedback' => true,
-			'copy_essay_feedback'   => true,
+			'copy_segments'         => false,
+			'copy_segment_feedback' => false,
+			'copy_essay_feedback'   => false,
 		);
 		$options  = wp_parse_args( $options, $defaults );
 
