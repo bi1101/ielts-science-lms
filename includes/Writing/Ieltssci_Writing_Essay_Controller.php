@@ -131,6 +131,18 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 				'args'                => $this->get_segment_feedback_args(),
 			)
 		);
+
+		// Register route for forking an essay.
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->rest_base . '/fork/(?P<id>\d+)',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'fork_essay' ),
+				'permission_callback' => array( $this, 'fork_essay_permissions_check' ),
+				'args'                => $this->get_fork_essay_args(),
+			)
+		);
 	}
 
 	/**
@@ -518,6 +530,18 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 	}
 
 	/**
+	 * Check if user has permission to fork an essay.
+	 *
+	 * Only checks that the user is logged in. The ownership check happens in the callback.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return bool Whether the user has permission.
+	 */
+	public function fork_essay_permissions_check( WP_REST_Request $request ) {
+		return is_user_logged_in();
+	}
+
+	/**
 	 * Get arguments for the create essay endpoint.
 	 *
 	 * @return array Argument definitions.
@@ -671,6 +695,46 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 					}
 					return true;
 				},
+			),
+		);
+	}
+
+	/**
+	 * Get arguments for the fork essay endpoint.
+	 *
+	 * @return array Argument definitions.
+	 */
+	public function get_fork_essay_args() {
+		return array(
+			'id'                    => array(
+				'required'          => true,
+				'description'       => 'The ID of the essay to fork.',
+				'type'              => 'integer',
+				'validate_callback' => function ( $param ) {
+					return is_numeric( $param ) && $param > 0;
+				},
+				'sanitize_callback' => 'absint',
+			),
+			'copy_segments'         => array(
+				'required'          => false,
+				'description'       => 'Whether to copy segments from the original essay.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_segment_feedback' => array(
+				'required'          => false,
+				'description'       => 'Whether to copy segment feedback from the original essay.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_essay_feedback'   => array(
+				'required'          => false,
+				'description'       => 'Whether to copy essay feedback from the original essay.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
 			),
 		);
 	}
@@ -853,6 +917,123 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 		 * @param WP_REST_Request $request Request used to update the essay.
 		 */
 		do_action( 'ieltssci_rest_update_essay', $result, $request );
+
+		return $response;
+	}
+
+	/**
+	 * Fork essay endpoint.
+	 *
+	 * Creates a copy of an existing essay including its segments and feedback.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response or error.
+	 */
+	public function fork_essay( WP_REST_Request $request ) {
+		$essay_id = $request->get_param( 'id' );
+
+		// Get options from request body.
+		$options = array(
+			'copy_segments'         => $request->get_param( 'copy_segments' ) !== null ? $request->get_param( 'copy_segments' ) : true,
+			'copy_segment_feedback' => $request->get_param( 'copy_segment_feedback' ) !== null ? $request->get_param( 'copy_segment_feedback' ) : true,
+			'copy_essay_feedback'   => $request->get_param( 'copy_essay_feedback' ) !== null ? $request->get_param( 'copy_essay_feedback' ) : true,
+		);
+
+		// Get the essay to check if it exists.
+		$essays = $this->essay_service->get_essays( array( 'id' => (int) $essay_id ) );
+
+		if ( is_wp_error( $essays ) ) {
+			return $essays; // Return the WP_Error directly from the DB layer.
+		}
+
+		if ( empty( $essays ) ) {
+			return new WP_Error(
+				'essay_not_found',
+				__( 'Essay not found.', 'ielts-science-lms' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		// Anyone can fork any essay - no ownership check needed for forking.
+		// The new essay will be owned by the current user.
+
+		// Call the fork method in the database service.
+		$result = $this->essay_service->fork_essay( $essay_id, get_current_user_id(), $options );
+
+		if ( is_wp_error( $result ) ) {
+			return $result; // Return the WP_Error directly from the DB layer.
+		}
+
+		// Prepare the response data with detailed fork information.
+		$response_data = array(
+			'essay'            => $this->prepare_item_for_response( $result['essay'], $request )->data,
+			'copied_segments'  => array(),
+			'segment_feedback' => array(),
+			'essay_feedback'   => array(),
+		);
+
+		// Prepare segment information.
+		if ( ! empty( $result['copied_segments'] ) ) {
+			foreach ( $result['copied_segments'] as $original_id => $new_segment ) {
+				$response_data['copied_segments'][ $original_id ] = array(
+					'original_id' => $original_id,
+					'new_id'      => $new_segment['id'],
+					'type'        => $new_segment['type'],
+					'order'       => $new_segment['order'],
+					'title'       => $new_segment['title'],
+				);
+			}
+		}
+
+		// Prepare feedback information.
+		if ( ! empty( $result['segment_feedback'] ) ) {
+			foreach ( $result['segment_feedback'] as $feedback ) {
+				$response_data['segment_feedback'][] = array(
+					'id'                => $feedback['id'],
+					'segment_id'        => $feedback['segment_id'],
+					'feedback_criteria' => $feedback['feedback_criteria'],
+					'feedback_language' => $feedback['feedback_language'],
+					'source'            => $feedback['source'],
+				);
+			}
+		}
+
+		if ( ! empty( $result['essay_feedback'] ) ) {
+			foreach ( $result['essay_feedback'] as $feedback ) {
+				$response_data['essay_feedback'][] = array(
+					'id'                => $feedback['id'],
+					'essay_id'          => $feedback['essay_id'],
+					'feedback_criteria' => $feedback['feedback_criteria'],
+					'feedback_language' => $feedback['feedback_language'],
+					'source'            => $feedback['source'],
+				);
+			}
+		}
+
+		// Create response with 201 Created status.
+		$response = rest_ensure_response( $response_data );
+		$response->set_status( 201 );
+
+		// Add link to the original essay.
+		$response->add_link(
+			'original',
+			rest_url( $this->namespace . '/' . $this->rest_base . '/' . $essay_id ),
+			array(
+				'embeddable' => true,
+			)
+		);
+
+		/**
+		 * Fires after an essay is forked via REST API.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param array           $result  The fork result data.
+		 * @param WP_REST_Request $request Request used to fork the essay.
+		 */
+		do_action( 'ieltssci_rest_fork_essay', $result, $request );
 
 		return $response;
 	}
