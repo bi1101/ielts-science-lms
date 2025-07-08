@@ -1650,6 +1650,32 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			)
 		);
 
+		// Add embeddable link to the ocr images if available.
+		if ( ! empty( $essay['ocr_image_ids'] ) ) {
+			foreach ( $essay['ocr_image_ids'] as $image_id ) {
+				$response->add_link(
+					'ocr_image',
+					rest_url( 'wp/v2/media/' . $image_id ),
+					array(
+						'embeddable' => true,
+					)
+				);
+			}
+		}
+
+		// Add embeddable link to the chart images if available.
+		if ( ! empty( $essay['chart_image_ids'] ) ) {
+			foreach ( $essay['chart_image_ids'] as $image_id ) {
+				$response->add_link(
+					'chart_image',
+					rest_url( 'wp/v2/media/' . $image_id ),
+					array(
+						'embeddable' => true,
+					)
+				);
+			}
+		}
+
 		// Add embeddable link to the original essay if this is a fork.
 		if ( ! empty( $essay['original_id'] ) ) {
 			$response->add_link(
