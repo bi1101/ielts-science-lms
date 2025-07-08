@@ -1516,24 +1516,24 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			'type'       => 'object',
 			// In JSON Schema you can specify object properties in the properties attribute.
 			'properties' => array(
-				'id'                   => array(
+				'id'              => array(
 					'description' => 'Unique identifier for the essay.',
 					'type'        => 'integer',
 					'context'     => array( 'view', 'edit', 'embed' ),
 					'readonly'    => true,
 				),
-				'uuid'                 => array(
+				'uuid'            => array(
 					'description' => 'UUID for the essay.',
 					'type'        => 'string',
 					'format'      => 'uuid',
 					'context'     => array( 'view', 'edit', 'embed' ),
 				),
-				'original_id'          => array(
+				'original_id'     => array(
 					'description' => 'ID of the original essay if this is a fork.',
 					'type'        => 'integer',
 					'context'     => array( 'view', 'edit', 'embed' ),
 				),
-				'ocr_image_ids'        => array(
+				'ocr_image_ids'   => array(
 					'description' => 'Array of OCR image attachment IDs.',
 					'type'        => 'array',
 					'items'       => array(
@@ -1541,7 +1541,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 					),
 					'context'     => array( 'view', 'edit', 'embed' ),
 				),
-				'chart_image_ids'      => array(
+				'chart_image_ids' => array(
 					'description' => 'Array of chart image attachment IDs.',
 					'type'        => 'array',
 					'items'       => array(
@@ -1549,49 +1549,37 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 					),
 					'context'     => array( 'view', 'edit', 'embed' ),
 				),
-				'essay_type'           => array(
+				'essay_type'      => array(
 					'description' => 'Type of the essay (e.g., task-1, task-2).',
 					'type'        => 'string',
 					'context'     => array( 'view', 'edit', 'embed' ),
 				),
-				'question'             => array(
+				'question'        => array(
 					'description' => 'The essay question or prompt.',
 					'type'        => 'string',
 					'context'     => array( 'view', 'edit', 'embed' ),
 				),
-				'essay_content'        => array(
+				'essay_content'   => array(
 					'description' => 'The main content of the essay.',
 					'type'        => 'string',
 					'context'     => array( 'view', 'edit', 'embed' ),
 				),
-				'created_by'           => array(
+				'created_by'      => array(
 					'description' => 'ID of the user who created the essay.',
 					'type'        => 'integer',
 					'context'     => array( 'view', 'edit', 'embed' ),
 				),
-				'created_at'           => array(
+				'created_at'      => array(
 					'description' => 'Creation timestamp in ISO 8601 format.',
 					'type'        => 'string',
 					'format'      => 'date-time',
 					'context'     => array( 'view', 'edit', 'embed' ),
 					'readonly'    => true,
 				),
-				'updated_at'           => array(
+				'updated_at'      => array(
 					'description' => 'Last update timestamp in ISO 8601 format.',
 					'type'        => 'string',
 					'format'      => 'date-time',
-					'context'     => array( 'view', 'edit', 'embed' ),
-					'readonly'    => true,
-				),
-				'creator_username'     => array(
-					'description' => 'Username of the essay creator.',
-					'type'        => 'string',
-					'context'     => array( 'view', 'edit', 'embed' ),
-					'readonly'    => true,
-				),
-				'creator_display_name' => array(
-					'description' => 'Display name of the essay creator.',
-					'type'        => 'string',
 					'context'     => array( 'view', 'edit', 'embed' ),
 					'readonly'    => true,
 				),
@@ -1625,15 +1613,6 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			'created_at'      => ! empty( $essay['created_at'] ) ? mysql_to_rfc3339( $essay['created_at'] ) : null,
 			'updated_at'      => ! empty( $essay['updated_at'] ) ? mysql_to_rfc3339( $essay['updated_at'] ) : null,
 		);
-
-		// Add creator information if available.
-		if ( ! empty( $essay['creator_username'] ) ) {
-			$data['creator_username'] = $essay['creator_username'];
-		}
-
-		if ( ! empty( $essay['creator_display_name'] ) ) {
-			$data['creator_display_name'] = $essay['creator_display_name'];
-		}
 
 		// Add context-based field filtering.
 		$data = $this->filter_response_by_context( $data, 'view' );
