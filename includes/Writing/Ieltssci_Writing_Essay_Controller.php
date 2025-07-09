@@ -1119,7 +1119,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 
 		// Add link to the original essay.
 		$response->add_link(
-			'original',
+			'original-essay',
 			rest_url( $this->namespace . '/' . $this->rest_base . '/' . $essay_id ),
 			array(
 				'embeddable' => true,
@@ -1759,7 +1759,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 		// Add embeddable link to the original essay if this is a fork.
 		if ( ! empty( $essay['original_id'] ) ) {
 			$response->add_link(
-				'original',
+				'original-essay',
 				rest_url( $this->namespace . '/' . $this->rest_base . '/' . $essay['original_id'] ),
 				array(
 					'embeddable' => true,
