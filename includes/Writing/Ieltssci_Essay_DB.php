@@ -2115,7 +2115,6 @@ class Ieltssci_Essay_DB {
 										'cot_content'      => $feedback['cot_content'],
 										'score_content'    => $feedback['score_content'],
 										'feedback_content' => $feedback['feedback_content'],
-										'is_preferred'     => $feedback['is_preferred'],
 										'created_by'       => $user_id,
 									);
 
@@ -2150,7 +2149,6 @@ class Ieltssci_Essay_DB {
 							'cot_content'       => $feedback['cot_content'],
 							'score_content'     => $feedback['score_content'],
 							'feedback_content'  => $feedback['feedback_content'],
-							'is_preferred'      => $feedback['is_preferred'],
 							'created_by'        => $user_id,
 						);
 
