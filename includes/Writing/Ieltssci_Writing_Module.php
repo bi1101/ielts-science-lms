@@ -116,6 +116,8 @@ class Ieltssci_Writing_Module {
 						$script_type = 'writing-task-practice';
 					} elseif ( 'writing_test_practice' === $page_key ) {
 						$script_type = 'writing-test-practice';
+					} elseif ( 'writing_practice' === $page_key ) {
+						$script_type = 'writing-practice';
 					} elseif ( 'result_writing_test' === $page_key ) {
 						$script_type = 'result-writing-test';
 					}
@@ -607,6 +609,7 @@ class Ieltssci_Writing_Module {
 			'result_writing_test',
 			'writing_task_practice',
 			'writing_test_practice',
+			'writing_practice',
 		);
 
 		foreach ( $uuid_pages as $page_key ) {
@@ -659,6 +662,7 @@ class Ieltssci_Writing_Module {
 				'evaluation_history'    => __( 'Evaluation History', 'ielts-science-lms' ),
 				'writing_task_practice' => __( 'Writing Task Practice', 'ielts-science-lms' ),
 				'writing_test_practice' => __( 'Writing Test Practice', 'ielts-science-lms' ),
+				'writing_practice'      => __( 'Writing Practice', 'ielts-science-lms' ),
 			),
 		);
 
