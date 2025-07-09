@@ -137,13 +137,114 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			$this->namespace,
 			'/' . $this->rest_base . '/fork/(?P<id>\d+)',
 			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => array( $this, 'fork_essay' ),
-				'permission_callback' => array( $this, 'fork_essay_permissions_check' ),
-				'args'                => $this->get_fork_essay_args(),
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'fork_essay' ),
+					'permission_callback' => array( $this, 'fork_essay_permissions_check' ),
+					'args'                => $this->get_fork_essay_args(),
+				),
+				'schema' => array( $this, 'get_fork_essay_schema' ),
 			)
 		);
 	}
+
+	/**
+	 * Get the JSON schema for the fork essay endpoint.
+	 *
+	 * @return array The schema for the fork essay response.
+	 */
+	public function get_fork_essay_schema() {
+		// Get the essay item schema properties for reuse.
+		$essay_properties = $this->get_item_schema();
+		$essay_properties = isset( $essay_properties['properties'] ) ? $essay_properties['properties'] : array();
+
+		return array(
+			'$schema'    => 'http://json-schema.org/draft-04/schema#',
+			'title'      => 'fork_essay',
+			'type'       => 'object',
+			'properties' => array(
+				'essay'            => array(
+					'description' => 'The newly forked essay object.',
+					'type'        => 'object',
+					'properties'  => $essay_properties,
+				),
+				'copied_segments'  => array(
+					'description'          => 'Mapping of original segment IDs to new segment data.',
+					'type'                 => 'object',
+					'additionalProperties' => array(
+						'type'       => 'object',
+						'properties' => array(
+							'original_id' => array(
+								'type' => 'integer',
+							),
+							'new_id'      => array(
+								'type' => 'integer',
+							),
+							'type'        => array(
+								'type' => 'string',
+							),
+							'order'       => array(
+								'type' => 'integer',
+							),
+							'title'       => array(
+								'type' => 'string',
+							),
+						),
+					),
+				),
+				'segment_feedback' => array(
+					'description' => 'Array of copied segment feedback.',
+					'type'        => 'array',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'id'                => array(
+								'type' => 'integer',
+							),
+							'segment_id'        => array(
+								'type' => 'integer',
+							),
+							'feedback_criteria' => array(
+								'type' => 'string',
+							),
+							'feedback_language' => array(
+								'type' => 'string',
+							),
+							'source'            => array(
+								'type' => 'string',
+							),
+						),
+					),
+				),
+				'essay_feedback'   => array(
+					'description' => 'Array of copied essay feedback.',
+					'type'        => 'array',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'id'                => array(
+								'type' => 'integer',
+							),
+							'essay_id'          => array(
+								'type' => 'integer',
+							),
+							'feedback_criteria' => array(
+								'type' => 'string',
+							),
+							'feedback_language' => array(
+								'type' => 'string',
+							),
+							'source'            => array(
+								'type' => 'string',
+							),
+						),
+					),
+				),
+			),
+			'required'   => array( 'essay' ),
+		);
+	}
+
 
 	/**
 	 * Check if user has permission to get essays list.
