@@ -319,17 +319,6 @@ class Ieltssci_Core_Module {
 			wp_dequeue_style( 'buddyboss_legacy' );
 			wp_dequeue_style( 'redux-extendify-styles' );
 
-			// Dequeue styles with handle matching 'elementor-post-*'.
-			global $wp_styles;
-			if ( isset( $wp_styles->registered ) ) {
-				foreach ( $wp_styles->registered as $handle => $style ) {
-					// Dequeue if handle starts with 'elementor-post-'.
-					if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
-						wp_dequeue_style( $handle ); // Dequeue matching style.
-					}
-				}
-			}
-
 			// Dequeue JavaScripts.
 			wp_dequeue_script( 'boss-fitvids-js' );
 			wp_dequeue_script( 'boss-jssocials-js' );
