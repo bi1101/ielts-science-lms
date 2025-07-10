@@ -37,7 +37,7 @@ class Ieltssci_Database_Schema {
 	 *
 	 * @var string
 	 */
-	private $db_version = '0.0.7'; // Updated version number for adding test and task submission tables.
+	private $db_version = '0.0.8'; // Updated version number for adding essays meta table.
 
 	/**
 	 * WordPress database object.
@@ -83,6 +83,7 @@ class Ieltssci_Database_Schema {
 			$this->create_role_rate_limit_rule_table();
 			$this->create_api_key_table();
 			$this->create_essays_table();
+			$this->create_essays_meta_table();
 			$this->create_segment_table();
 			$this->create_segment_feedback_table();
 			$this->create_essay_feedback_table();
@@ -142,6 +143,10 @@ class Ieltssci_Database_Schema {
 
 			if ( version_compare( $current_version, '0.0.7', '<' ) ) {
 				$this->update_to_0_0_7();
+			}
+
+			if ( version_compare( $current_version, '0.0.8', '<' ) ) {
+				$this->update_to_0_0_8();
 			}
 
 			// All updates successful, update the stored version.
@@ -249,6 +254,16 @@ class Ieltssci_Database_Schema {
 		$this->create_writing_task_submissions_table();
 		$this->create_writing_test_submission_meta_table();
 		$this->create_writing_task_submission_meta_table();
+	}
+
+	/**
+	 * Update schema to version 0.0.8.
+	 * Adds essays meta table.
+	 *
+	 * @throws \Exception On SQL error.
+	 */
+	private function update_to_0_0_8() {
+		$this->create_essays_meta_table();
 	}
 
 	/**
@@ -439,6 +454,33 @@ class Ieltssci_Database_Schema {
 			created_by bigint(20) UNSIGNED NOT NULL,
 			PRIMARY KEY (id),
 			UNIQUE KEY uuid (uuid)
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
+	 * Creates the essays meta table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_essays_meta_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'essay_meta';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			meta_id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			essay_id bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+			meta_key varchar(255) DEFAULT NULL,
+			meta_value longtext,
+			PRIMARY KEY (meta_id),
+			KEY essay_id (essay_id),
+			KEY meta_key (meta_key(191)),
+			CONSTRAINT fk_essay_meta_essay
+				FOREIGN KEY (essay_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "essays(id)
+				ON DELETE CASCADE
 		) $charset_collate";
 
 		return $this->execute_sql( $sql );

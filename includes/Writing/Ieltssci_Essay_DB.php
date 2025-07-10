@@ -50,6 +50,13 @@ class Ieltssci_Essay_DB {
 	private $essays_table;
 
 	/**
+	 * Essays meta table name.
+	 *
+	 * @var string
+	 */
+	private $essays_meta_table;
+
+	/**
 	 * Segment table name.
 	 *
 	 * @var string
@@ -78,9 +85,24 @@ class Ieltssci_Essay_DB {
 		$this->wpdb = $wpdb;
 
 		$this->essays_table           = $this->wpdb->prefix . self::TABLE_PREFIX . 'essays';
+		$this->essays_meta_table      = $this->wpdb->prefix . self::TABLE_PREFIX . 'essay_meta';
 		$this->segment_table          = $this->wpdb->prefix . self::TABLE_PREFIX . 'segment';
 		$this->segment_feedback_table = $this->wpdb->prefix . self::TABLE_PREFIX . 'segment_feedback';
 		$this->essay_feedback_table   = $this->wpdb->prefix . self::TABLE_PREFIX . 'essay_feedback';
+
+		// Register meta tables with WordPress metadata API.
+		$this->register_meta_tables();
+	}
+
+	/**
+	 * Registers custom meta tables with WordPress metadata API.
+	 *
+	 * Following WordPress pattern for custom meta tables as described in:
+	 * https://www.ibenic.com/working-with-custom-tables-in-wordpress-meta-tables/
+	 */
+	private function register_meta_tables() {
+		// Register essay meta table.
+		$this->wpdb->ieltssci_essaymeta = $this->essays_meta_table;
 	}
 
 	/**
