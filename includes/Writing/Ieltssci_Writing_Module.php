@@ -34,7 +34,7 @@ class Ieltssci_Writing_Module {
 		new Ieltssci_Writing_Test_Submission_Controller(); // Register REST controller for writing test submissions.
 		// Initialize the writing module.
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_writing_assets' ) );
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_writing_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_writing_assets' ), 100 );
 		add_filter( 'ieltssci_lms_module_pages_data', array( $this, 'provide_module_pages_data' ) );
 
 		// Add custom rewrite rules for UUID child slugs.
@@ -129,15 +129,55 @@ class Ieltssci_Writing_Module {
 		// Check for writing task/test pages and archives.
 		if ( ! $should_enqueue ) {
 			if ( is_singular( 'writing-task' ) ) {
+				// Dequeue styles with handle matching 'elementor-post-*'.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
 				$should_enqueue = true;
 				$script_type    = 'writing-task-single';
 			} elseif ( is_singular( 'writing-test' ) ) {
+				// Dequeue styles with handle matching 'elementor-post-*'.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
 				$should_enqueue = true;
 				$script_type    = 'writing-test-single';
 			} elseif ( is_post_type_archive( 'writing-task' ) || ( is_home() && get_option( 'page_for_posts' ) && get_post_type( get_option( 'page_for_posts' ) ) === 'writing-task' ) ) {
+				// Dequeue styles with handle matching 'elementor-post-*'.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
 				$should_enqueue = true;
 				$script_type    = 'writing-task-archive';
 			} elseif ( is_post_type_archive( 'writing-test' ) || ( is_home() && get_option( 'page_for_posts' ) && get_post_type( get_option( 'page_for_posts' ) ) === 'writing-test' ) ) {
+				// Dequeue styles with handle matching 'elementor-post-*'.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
 				$should_enqueue = true;
 				$script_type    = 'writing-test-archive';
 			}

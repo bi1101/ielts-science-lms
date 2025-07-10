@@ -27,7 +27,7 @@ class Ieltssci_Dashboard_Module {
 	public function __construct() {
 		// Initialize the dashboard module.
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_dashboard_assets' ) );
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_dashboard_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_dashboard_assets' ), 100 );
 		add_filter( 'ieltssci_lms_module_pages_data', array( $this, 'provide_module_pages_data' ) );
 
 		// Add custom rewrite rules for UUID child slugs.
@@ -98,6 +98,16 @@ class Ieltssci_Dashboard_Module {
 		}
 
 		if ( $should_enqueue ) {
+
+			global $wp_styles;
+			if ( isset( $wp_styles->registered ) ) {
+				foreach ( $wp_styles->registered as $handle => $style ) {
+					// Dequeue if handle starts with 'elementor-post-'.
+					if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+						wp_dequeue_style( $handle ); // Dequeue matching style.
+					}
+				}
+			}
 			// Define the handle for the index script and style.
 			$script_handle  = 'ielts-science-dashboard-index';
 			$style_handle   = 'ielts-science-dashboard-index-css';
