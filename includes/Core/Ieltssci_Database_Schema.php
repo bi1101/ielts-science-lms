@@ -471,14 +471,14 @@ class Ieltssci_Database_Schema {
 
 		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
 			meta_id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-			essay_id bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+			ieltssci_essay_id bigint(20) UNSIGNED NOT NULL DEFAULT 0,
 			meta_key varchar(255) DEFAULT NULL,
 			meta_value longtext,
 			PRIMARY KEY (meta_id),
-			KEY essay_id (essay_id),
+			KEY ieltssci_essay_id (ieltssci_essay_id),
 			KEY meta_key (meta_key(191)),
 			CONSTRAINT fk_essay_meta_essay
-				FOREIGN KEY (essay_id)
+				FOREIGN KEY (ieltssci_essay_id)
 				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "essays(id)
 				ON DELETE CASCADE
 		) $charset_collate";
