@@ -294,6 +294,7 @@ class Ieltssci_Essay_DB {
 	 *     @type int          $per_page     Number of essays to return per page. Default 10.
 	 *     @type int          $page         Page number. Default 1.
 	 *     @type bool         $count        If true, return only the count. Default false.
+	 *     @type array|bool   $include_meta Array of meta keys to include in results. If false, no meta included, if true all are included. Default false.
 	 * }
 	 * @return array|int|WP_Error Essays data, count, or error.
 	 * @throws \Exception If there is a database error.
@@ -301,19 +302,20 @@ class Ieltssci_Essay_DB {
 	public function get_essays( $args = array() ) {
 		try {
 			$defaults = array(
-				'id'          => null,
-				'uuid'        => null,
-				'original_id' => null,
-				'essay_type'  => null,
-				'created_by'  => null,
-				'search'      => null,
-				'date_query'  => null,
-				'include'     => array(),
-				'orderby'     => 'id',
-				'order'       => 'DESC',
-				'per_page'    => 10,
-				'page'        => 1,
-				'count'       => false,
+				'id'           => null,
+				'uuid'         => null,
+				'original_id'  => null,
+				'essay_type'   => null,
+				'created_by'   => null,
+				'search'       => null,
+				'date_query'   => null,
+				'include'      => array(),
+				'orderby'      => 'id',
+				'order'        => 'DESC',
+				'per_page'     => 10,
+				'page'         => 1,
+				'count'        => false,
+				'include_meta' => false, // Add support for include_meta.
 			);
 
 			$args            = wp_parse_args( $args, $defaults );
@@ -460,7 +462,7 @@ class Ieltssci_Essay_DB {
 					throw new \Exception( $this->wpdb->last_error );
 				}
 
-				// Process array fields for each result.
+				// Process array fields and meta for each result.
 				foreach ( $results as &$essay ) {
 					if ( ! empty( $essay['ocr_image_ids'] ) ) {
 						$essay['ocr_image_ids'] = json_decode( $essay['ocr_image_ids'], true );
@@ -483,12 +485,126 @@ class Ieltssci_Essay_DB {
 					if ( isset( $essay['updated_at'] ) ) {
 						$essay['updated_at'] = get_date_from_gmt( $essay['updated_at'] );
 					}
+
+					// Include meta data if requested.
+					if ( $args['include_meta'] ) {
+						if ( is_array( $args['include_meta'] ) ) {
+							// Include specific meta keys.
+							$essay['meta'] = array();
+							foreach ( $args['include_meta'] as $meta_key ) {
+								$essay['meta'][ $meta_key ] = $this->get_essay_meta( $essay['id'], $meta_key );
+							}
+						} elseif ( true === $args['include_meta'] ) {
+							// Include all meta data.
+							$essay['meta'] = $this->get_essay_meta( $essay['id'] );
+						}
+					}
 				}
 
 				return $results;
 			}
 		} catch ( \Exception $e ) {
 			return new WP_Error( 'database_error', 'Failed to retrieve essays: ' . $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Adds meta data to an essay.
+	 *
+	 * @param int    $essay_id   The essay ID.
+	 * @param string $meta_key   The meta key.
+	 * @param mixed  $meta_value The meta value.
+	 * @param bool   $unique     Whether the meta key should be unique.
+	 * @return int|WP_Error Meta ID on success, WP_Error on failure.
+	 */
+	public function add_essay_meta( $essay_id, $meta_key, $meta_value, $unique = false ) {
+		$essay_id = absint( $essay_id );
+		if ( ! $essay_id ) {
+			return new WP_Error( 'invalid_essay_id', 'Invalid essay ID.', array( 'status' => 400 ) );
+		}
+		try {
+			$result = add_metadata( 'ieltssci_essay', $essay_id, $meta_key, $meta_value, $unique );
+
+			if ( false === $result ) {
+				return new WP_Error( 'meta_add_failed', 'Failed to add essay meta.', array( 'status' => 500 ) );
+			}
+			return $result;
+		} catch ( \Exception $e ) {
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Updates meta data for an essay.
+	 *
+	 * @param int    $essay_id   The essay ID.
+	 * @param string $meta_key   The meta key.
+	 * @param mixed  $meta_value The new meta value.
+	 * @param mixed  $prev_value Optional. Previous value to check before updating.
+	 * @return bool|WP_Error True on success, WP_Error on failure.
+	 */
+	public function update_essay_meta( $essay_id, $meta_key, $meta_value, $prev_value = '' ) {
+		$essay_id = absint( $essay_id );
+		if ( ! $essay_id ) {
+			return new WP_Error( 'invalid_essay_id', 'Invalid essay ID.', array( 'status' => 400 ) );
+		}
+		try {
+			$result = update_metadata( 'ieltssci_essay', $essay_id, $meta_key, $meta_value, $prev_value );
+			if ( false === $result ) {
+				return new WP_Error( 'meta_update_failed', 'Failed to update essay meta.', array( 'status' => 500 ) );
+			}
+			return true;
+		} catch ( \Exception $e ) {
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Retrieves meta data for an essay.
+	 *
+	 * @param int    $essay_id The essay ID.
+	 * @param string $key      Optional. The meta key to retrieve. If empty, returns all meta.
+	 * @param bool   $single   Whether to return a single value.
+	 * @return mixed|WP_Error The meta value(s) on success, WP_Error on failure.
+	 */
+	public function get_essay_meta( $essay_id, $key = '', $single = false ) {
+		$essay_id = absint( $essay_id );
+		if ( ! $essay_id ) {
+			return new WP_Error( 'invalid_essay_id', 'Invalid essay ID.', array( 'status' => 400 ) );
+		}
+		try {
+			$result = get_metadata( 'ieltssci_essay', $essay_id, $key, $single );
+			// WordPress get_metadata returns false for invalid object_id, but we want to return empty for consistency.
+			if ( false === $result && ! empty( $key ) && $single ) {
+				return '';
+			}
+			return $result;
+		} catch ( \Exception $e ) {
+			return new WP_Error( 'database_error', 'Failed to retrieve essay meta: ' . $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Deletes meta data for an essay.
+	 *
+	 * @param int    $essay_id   The essay ID.
+	 * @param string $meta_key   The meta key to delete.
+	 * @param mixed  $meta_value Optional. Value to match before deleting.
+	 * @return bool|WP_Error True on success, WP_Error on failure.
+	 */
+	public function delete_essay_meta( $essay_id, $meta_key, $meta_value = '' ) {
+		$essay_id = absint( $essay_id );
+		if ( ! $essay_id ) {
+			return new WP_Error( 'invalid_essay_id', 'Invalid essay ID.', array( 'status' => 400 ) );
+		}
+		try {
+			$result = delete_metadata( 'ieltssci_essay', $essay_id, $meta_key, $meta_value );
+			if ( false === $result ) {
+				return new WP_Error( 'meta_delete_failed', 'Failed to delete essay meta.', array( 'status' => 500 ) );
+			}
+			return true;
+		} catch ( \Exception $e ) {
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
 		}
 	}
 
