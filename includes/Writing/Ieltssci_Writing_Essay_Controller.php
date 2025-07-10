@@ -651,6 +651,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 		return array(
 			'uuid'            => array(
 				'required'          => false,
+				'description'       => 'UUID for the essay. If not provided, one will be generated.',
 				'type'              => 'string',
 				'validate_callback' => function ( $param ) {
 					return is_string( $param ) && ! empty( $param );
@@ -658,6 +659,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 			'essay_type'      => array(
 				'required'          => true,
+				'description'       => 'Type of the essay (e.g., task-1, task-2).',
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_text_field',
 				'validate_callback' => function ( $param ) {
@@ -666,6 +668,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 			'question'        => array(
 				'required'          => true,
+				'description'       => 'The essay question or prompt.',
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_textarea_field',
 				'validate_callback' => function ( $param ) {
@@ -674,6 +677,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 			'essay_content'   => array(
 				'required'          => false,
+				'description'       => 'The main content of the essay.',
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_textarea_field',
 				'validate_callback' => function ( $param ) {
@@ -683,6 +687,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 			'original_id'     => array(
 				'required'          => false,
+				'description'       => 'ID of the original essay if this is a fork.',
 				'type'              => 'integer',
 				'validate_callback' => function ( $param ) {
 					return is_numeric( $param ) && $param > 0;
@@ -690,6 +695,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 			'ocr_image_ids'   => array(
 				'required'          => false,
+				'description'       => 'Array of OCR image attachment IDs.',
 				'type'              => 'array',
 				'validate_callback' => function ( $param ) {
 					if ( ! is_array( $param ) ) {
@@ -705,6 +711,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 			'chart_image_ids' => array(
 				'required'          => false,
+				'description'       => 'Array of chart image attachment IDs.',
 				'type'              => 'array',
 				'validate_callback' => function ( $param ) {
 					if ( ! is_array( $param ) ) {
@@ -716,6 +723,18 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 						}
 					}
 					return true;
+				},
+			),
+			'meta'            => array(
+				'required'          => false,
+				'description'       => 'Essay meta data as key-value pairs.',
+				'type'              => 'object',
+				'validate_callback' => function ( $param ) {
+					return is_array( $param ) || is_object( $param );
+				},
+				'sanitize_callback' => function ( $param ) {
+					// Ensure it's an associative array.
+					return (array) $param;
 				},
 			),
 		);
@@ -730,6 +749,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 		return array(
 			'identifier'      => array(
 				'required'          => true,
+				'description'       => 'Essay identifier (ID or UUID).',
 				'type'              => 'string',
 				'validate_callback' => function ( $param ) {
 					return is_string( $param ) && ! empty( $param );
@@ -737,6 +757,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 			'essay_type'      => array(
 				'required'          => false,
+				'description'       => 'Type of the essay (e.g., task-1, task-2).',
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_text_field',
 				'validate_callback' => function ( $param ) {
@@ -745,6 +766,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 			'question'        => array(
 				'required'          => false,
+				'description'       => 'The essay question or prompt.',
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_textarea_field',
 				'validate_callback' => function ( $param ) {
@@ -753,6 +775,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 			'essay_content'   => array(
 				'required'          => false,
+				'description'       => 'The main content of the essay.',
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_textarea_field',
 				'validate_callback' => function ( $param ) {
@@ -762,6 +785,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 			'original_id'     => array(
 				'required'          => false,
+				'description'       => 'ID of the original essay if this is a fork.',
 				'type'              => 'integer',
 				'validate_callback' => function ( $param ) {
 					return is_numeric( $param ) && $param > 0;
@@ -769,6 +793,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 			'ocr_image_ids'   => array(
 				'required'          => false,
+				'description'       => 'Array of OCR image attachment IDs.',
 				'type'              => 'array',
 				'validate_callback' => function ( $param ) {
 					if ( ! is_array( $param ) ) {
@@ -784,6 +809,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 			'chart_image_ids' => array(
 				'required'          => false,
+				'description'       => 'Array of chart image attachment IDs.',
 				'type'              => 'array',
 				'validate_callback' => function ( $param ) {
 					if ( ! is_array( $param ) ) {
@@ -795,6 +821,18 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 						}
 					}
 					return true;
+				},
+			),
+			'meta'            => array(
+				'required'          => false,
+				'description'       => 'Essay meta data as key-value pairs.',
+				'type'              => 'object',
+				'validate_callback' => function ( $param ) {
+					return is_array( $param ) || is_object( $param );
+				},
+				'sanitize_callback' => function ( $param ) {
+					// Ensure it's an associative array.
+					return (array) $param;
 				},
 			),
 		);
@@ -868,6 +906,24 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			return $result; // Return the WP_Error directly from the DB layer.
 		}
 
+		// Handle meta data if provided.
+		$meta_data = $request['meta'];
+		if ( ! empty( $meta_data ) && is_array( $meta_data ) ) {
+			foreach ( $meta_data as $meta_key => $meta_value ) {
+				$meta_result = $this->essay_service->add_essay_meta( $result['id'], $meta_key, $meta_value );
+				if ( is_wp_error( $meta_result ) ) {
+					// Log the error but don't fail the whole request.
+					error_log( 'Failed to add meta data for essay ' . $result['id'] . ': ' . $meta_result->get_error_message() );
+				}
+			}
+		}
+
+		// Add meta data to the result for the response.
+		$essay_meta = $this->essay_service->get_essay_meta( $result['id'] );
+		if ( ! is_wp_error( $essay_meta ) && ! empty( $essay_meta ) ) {
+			$result['meta'] = $essay_meta;
+		}
+
 		// Prepare the response.
 		$response = $this->prepare_item_for_response( $result, $request );
 
@@ -902,9 +958,19 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 
 		// Determine if identifier is numeric (ID) or string (UUID).
 		if ( is_numeric( $identifier ) ) {
-			$essays = $this->essay_service->get_essays( array( 'id' => (int) $identifier ) );
+			$essays = $this->essay_service->get_essays(
+				array(
+					'id'           => (int) $identifier,
+					'include_meta' => true, // Include meta data by default for single essay requests.
+				)
+			);
 		} else {
-			$essays = $this->essay_service->get_essays( array( 'uuid' => $identifier ) );
+			$essays = $this->essay_service->get_essays(
+				array(
+					'uuid'         => $identifier,
+					'include_meta' => true, // Include meta data by default for single essay requests.
+				)
+			);
 		}
 
 		if ( is_wp_error( $essays ) ) {
@@ -1000,10 +1066,45 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			$essay_data['chart_image_ids'] = $request->get_param( 'chart_image_ids' );
 		}
 
-		$result = $this->essay_service->update_essay( $identifier, $essay_data );
+		// Check if there's either essay data or meta data to update.
+		$meta_data = $request['meta'];
+		if ( empty( $essay_data ) && ( empty( $meta_data ) || ! is_array( $meta_data ) ) ) {
+			return new WP_Error(
+				'no_data_to_update',
+				__( 'No essay data or meta data provided for update.', 'ielts-science-lms' ),
+				array( 'status' => 400 )
+			);
+		}
 
-		if ( is_wp_error( $result ) ) {
-			return $result; // Return the WP_Error directly from the DB layer.
+		// Only update essay data if there are fields to update.
+		if ( ! empty( $essay_data ) ) {
+			$result = $this->essay_service->update_essay( $identifier, $essay_data );
+
+			if ( is_wp_error( $result ) ) {
+				return $result; // Return the WP_Error directly from the DB layer.
+			}
+		} else {
+			// No essay data to update, just use the existing essay data.
+			$result = $essay;
+		}
+
+		// Handle meta data if provided.
+		$meta_data = $request['meta'];
+		if ( ! empty( $meta_data ) && is_array( $meta_data ) ) {
+			foreach ( $meta_data as $meta_key => $meta_value ) {
+				// Use update_essay_meta which handles both adding and updating.
+				$meta_result = $this->essay_service->update_essay_meta( $result['id'], $meta_key, $meta_value );
+				if ( is_wp_error( $meta_result ) ) {
+					// Log the error but don't fail the whole request.
+					error_log( 'Failed to update meta data for essay ' . $result['id'] . ': ' . $meta_result->get_error_message() );
+				}
+			}
+		}
+
+		// Add meta data to the result for the response.
+		$essay_meta = $this->essay_service->get_essay_meta( $result['id'] );
+		if ( ! is_wp_error( $essay_meta ) && ! empty( $essay_meta ) ) {
+			$result['meta'] = $essay_meta;
 		}
 
 		// Prepare the response.
@@ -1684,6 +1785,13 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 					'context'     => array( 'view', 'edit', 'embed' ),
 					'readonly'    => true,
 				),
+				'meta'            => array(
+					'description'          => 'Essay meta data fields.',
+					'type'                 => 'object',
+					'context'              => array( 'view', 'edit', 'embed' ),
+					'readonly'             => true,
+					'additionalProperties' => true,
+				),
 			),
 		);
 
@@ -1714,6 +1822,11 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			'created_at'      => ! empty( $essay['created_at'] ) ? mysql_to_rfc3339( $essay['created_at'] ) : null,
 			'updated_at'      => ! empty( $essay['updated_at'] ) ? mysql_to_rfc3339( $essay['updated_at'] ) : null,
 		);
+
+		// Include meta data if present.
+		if ( isset( $essay['meta'] ) ) {
+			$data['meta'] = $essay['meta'];
+		}
 
 		// Add context-based field filtering.
 		$data = $this->filter_response_by_context( $data, 'view' );
