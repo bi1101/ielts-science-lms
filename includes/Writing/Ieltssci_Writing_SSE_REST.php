@@ -195,6 +195,22 @@ class Ieltssci_Writing_SSE_REST {
 		$guide_feedback = $request->get_param( 'guide_feedback' );
 		$refetch        = $request->get_param( 'refetch' );
 
+		// If refetch is requested, check permission.
+		if ( $refetch ) {
+			// Get essay by UUID.
+
+			$essay_db = new Ieltssci_Essay_DB();
+			$essays   = $essay_db->get_essays( array( 'uuid' => $uuid ) );
+			if ( empty( $essays ) || is_wp_error( $essays ) ) {
+				return new \WP_Error( 'no_essay', 'Essay not found.', array( 'status' => 403 ) );
+			}
+			$essay           = $essays[0];
+			$current_user_id = get_current_user_id();
+			if ( (int) $essay['created_by'] !== (int) $current_user_id && ! current_user_can( 'manage_options' ) ) {
+				return new \WP_Error( 'forbidden', 'You do not have permission to regenerate this essay feedback because you are not the owner.', array( 'status' => 403 ) );
+			}
+		}
+
 		// Check rate limits before setting headers.
 		$rate_limiter = new Ieltssci_RateLimit();
 		$rate_check   = $rate_limiter->check_rate_limit( 'essay_feedback', $uuid, $feed_id );
@@ -264,6 +280,21 @@ class Ieltssci_Writing_SSE_REST {
 		$guide_score    = $request->get_param( 'guide_score' );
 		$guide_feedback = $request->get_param( 'guide_feedback' );
 		$refetch        = $request->get_param( 'refetch' );
+
+		// If refetch is requested, check permission.
+		if ( $refetch ) {
+
+			$essay_db = new Ieltssci_Essay_DB();
+			$essays   = $essay_db->get_essays( array( 'uuid' => $uuid ) );
+			if ( empty( $essays ) || is_wp_error( $essays ) ) {
+				return new \WP_Error( 'no_essay', 'Essay not found.', array( 'status' => 403 ) );
+			}
+			$essay           = $essays[0];
+			$current_user_id = get_current_user_id();
+			if ( (int) $essay['created_by'] !== (int) $current_user_id && ! current_user_can( 'manage_options' ) ) {
+				return new \WP_Error( 'forbidden', 'You do not have permission to regenerate this essay feedback because you are not the owner.', array( 'status' => 403 ) );
+			}
+		}
 
 		// Check rate limits before setting headers.
 		$rate_limiter = new Ieltssci_RateLimit();
