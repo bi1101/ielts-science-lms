@@ -55,6 +55,7 @@ class Ieltssci_Core_Module {
 		// Add template overrides for writing tasks and tests.
 		add_filter( 'single_template', array( $this, 'override_writing_post_templates' ) );
 		add_filter( 'archive_template', array( $this, 'override_writing_archive_templates' ) );
+		add_action( 'ieltssci_process_db_update', array( $this, 'process_db_update' ) );
 	}
 
 	/**
@@ -113,11 +114,6 @@ class Ieltssci_Core_Module {
 					if ( is_admin() && current_user_can( 'manage_options' ) ) {
 						add_action( 'admin_notices', array( $this, 'display_update_scheduled_notice' ) );
 					}
-				}
-
-				// Register the action handler if not already done.
-				if ( ! has_action( 'ieltssci_process_db_update' ) ) {
-					add_action( 'ieltssci_process_db_update', array( $this, 'process_db_update' ) );
 				}
 			} else {
 				// Fallback to direct update if Action Scheduler isn't available.
