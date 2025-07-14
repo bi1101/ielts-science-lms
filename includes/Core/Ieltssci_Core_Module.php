@@ -56,6 +56,20 @@ class Ieltssci_Core_Module {
 		add_filter( 'single_template', array( $this, 'override_writing_post_templates' ) );
 		add_filter( 'archive_template', array( $this, 'override_writing_archive_templates' ) );
 		add_action( 'ieltssci_process_db_update', array( $this, 'process_db_update' ) );
+		add_filter(
+			'rest_endpoints',
+			function ( $endpoints ) {
+				if ( isset( $endpoints['/wp/v2/users/(?P<id>[\d]+)'] ) ) {
+					foreach ( $endpoints['/wp/v2/users/(?P<id>[\d]+)'] as &$endpoint ) {
+						if ( isset( $endpoint['permission_callback'] ) ) {
+							// Override permission callback to always return true.
+							$endpoint['permission_callback'] = '__return_true';
+						}
+					}
+				}
+				return $endpoints;
+			}
+		);
 	}
 
 	/**
