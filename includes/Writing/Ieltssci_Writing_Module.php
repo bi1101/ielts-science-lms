@@ -496,6 +496,7 @@ class Ieltssci_Writing_Module {
 				'woocommerce_urls'         => array(
 					'cart'     => class_exists( 'WooCommerce' ) ? wc_get_cart_url() : '#',
 					'checkout' => class_exists( 'WooCommerce' ) ? wc_get_checkout_url() : '#',
+					'shop'     => class_exists( 'WooCommerce' ) ? wc_get_page_permalink( 'shop' ) : '#',
 				),
 				// Footer data.
 				'footer_copyright_text'    => do_shortcode( buddyboss_theme_get_option( 'copyright_text' ) ),
