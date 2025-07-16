@@ -70,6 +70,17 @@ class Ieltssci_Core_Module {
 				return $endpoints;
 			}
 		);
+		// Remove has_published_posts restriction from user query to list all user when inviting to groups.
+		add_filter(
+			'rest_user_query',
+			function ( $args, $request ) {
+				// Remove the has_published_posts restriction for your use case.
+				unset( $args['has_published_posts'] );
+				return $args;
+			},
+			10,
+			2
+		);
 	}
 
 	/**
