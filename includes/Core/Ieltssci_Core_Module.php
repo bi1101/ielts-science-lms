@@ -70,12 +70,18 @@ class Ieltssci_Core_Module {
 				return $endpoints;
 			}
 		);
-		// Remove has_published_posts restriction from user query to list all user when inviting to groups.
 		add_filter(
 			'rest_user_query',
 			function ( $args, $request ) {
-				// Remove the has_published_posts restriction for your use case.
+				// Remove the has_published_posts restriction for list members to invite to groups.
 				unset( $args['has_published_posts'] );
+				// Allow searching by user_email for all REST API users.
+				if ( ! empty( $args['search'] ) ) {
+					// Always allow searching by user_email.
+					$args['search_columns'][] = 'user_email';
+					// Remove duplicates, just in case.
+					$args['search_columns'] = array_unique( $args['search_columns'] );
+				}
 				return $args;
 			},
 			10,
