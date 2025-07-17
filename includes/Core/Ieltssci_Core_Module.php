@@ -87,6 +87,13 @@ class Ieltssci_Core_Module {
 			10,
 			2
 		);
+		add_filter(
+			'groups_valid_status',
+			function ( $statuses ) {
+				$statuses[] = 'archived'; // Add the "archived" status.
+				return $statuses;
+			}
+		);
 	}
 
 	/**
