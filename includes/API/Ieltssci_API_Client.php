@@ -468,7 +468,7 @@ class Ieltssci_API_Client {
 		while ( ! feof( $handle ) && ! $done_received ) {
 			$chunk = fgets( $handle ); // Read a chunk from the stream.
 			if ( false === $chunk && ! feof( $handle ) ) {
-				usleep( 1000 ); // Sleep briefly to avoid CPU spinning.
+				usleep( 10000 ); // Sleep briefly to avoid CPU spinning.
 				continue;
 			}
 			if ( false !== $chunk ) {
