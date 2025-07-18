@@ -94,6 +94,19 @@ class Ieltssci_Core_Module {
 				return $statuses;
 			}
 		);
+		add_filter(
+			'bp_loggedin_user_id',
+			function ( $id ) {
+				// If BuddyBoss returns 0, try WordPress's get_current_user_id().
+				if ( 0 === (int) $id ) {
+					$wp_id = get_current_user_id();
+					if ( $wp_id ) {
+						return $wp_id;
+					}
+				}
+				return $id;
+			}
+		);
 	}
 
 	/**
