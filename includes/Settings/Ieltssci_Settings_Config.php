@@ -83,6 +83,10 @@ class Ieltssci_Settings_Config {
 					'value' => 'two-key-ai',
 				),
 				array(
+					'label' => 'GPT2 Shupremium',
+					'value' => 'gpt2-shupremium',
+				),
+				array(
 					'label' => 'Open AI',
 					'value' => 'open-ai',
 				),

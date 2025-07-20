@@ -70,6 +70,9 @@ class Ieltssci_API_Client {
 			case 'two-key-ai':
 					$settings['base_uri'] = 'https://two.keyai.shop/v1/';
 				break;
+			case 'gpt2-shupremium':
+				$settings['base_uri'] = 'https://gpt2.shupremium.com/v1/';
+				break;
 
 			case 'home-server':
 				$settings['base_uri'] = 'http://api3.ieltsscience.fun/v1/';
@@ -137,6 +140,12 @@ class Ieltssci_API_Client {
 					'Accept'        => $accept_header,
 				);
 			case 'two-key-ai':
+				return array(
+					'Authorization' => 'Bearer ' . $api_key['meta']['api-key'],
+					'Content-Type'  => 'application/json',
+					'Accept'        => $accept_header,
+				);
+			case 'gpt2-shupremium':
 				return array(
 					'Authorization' => 'Bearer ' . $api_key['meta']['api-key'],
 					'Content-Type'  => 'application/json',
@@ -289,6 +298,7 @@ class Ieltssci_API_Client {
 			case 'openai':
 			case 'open-key-ai':
 			case 'two-key-ai':
+			case 'gpt2-shupremium':
 				// Add guided JSON using response_format if available.
 				if ( ! empty( $guided_json ) ) {
 					$json_schema = json_decode( $guided_json, true );
@@ -357,6 +367,7 @@ class Ieltssci_API_Client {
 			case 'openai':
 			case 'open-key-ai':
 			case 'two-key-ai':
+			case 'gpt2-shupremium':
 				$chunk = json_decode( $data, true );
 				if ( JSON_ERROR_NONE === json_last_error() && isset( $chunk['choices'][0]['delta'] ) ) {
 					$delta = $chunk['choices'][0]['delta'];

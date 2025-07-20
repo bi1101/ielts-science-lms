@@ -220,7 +220,7 @@ class Ieltssci_Writing_Settings {
 
 		$default_model_options = $settings_config_instance->get_model_options(
 			array(
-				'open-key-ai' => array(
+				'open-key-ai'     => array(
 					array(
 						'label' => 'gpt-4o-mini',
 						'value' => 'gpt-4o-mini',
@@ -238,7 +238,7 @@ class Ieltssci_Writing_Settings {
 						'value' => 'gemini-2.0-flash-lite',
 					),
 				),
-				'two-key-ai'  => array(
+				'two-key-ai'      => array(
 					array(
 						'label' => 'gpt-4o-mini',
 						'value' => 'gpt-4o-mini',
@@ -256,7 +256,25 @@ class Ieltssci_Writing_Settings {
 						'value' => 'gemini-2.0-flash-lite',
 					),
 				),
-				'open-ai'     => array(
+				'gpt2-shupremium' => array(
+					array(
+						'label' => 'gpt-4o-mini',
+						'value' => 'gpt-4o-mini',
+					),
+					array(
+						'label' => 'gpt-4o',
+						'value' => 'gpt-4o',
+					),
+					array(
+						'label' => 'gemini-2.0-flash',
+						'value' => 'gemini-2.0-flash',
+					),
+					array(
+						'label' => 'gemini-2.0-flash-lite',
+						'value' => 'gemini-2.0-flash-lite',
+					),
+				),
+				'open-ai'         => array(
 					array(
 						'label' => 'gpt-4o-mini',
 						'value' => 'gpt-4o-mini',
@@ -266,7 +284,7 @@ class Ieltssci_Writing_Settings {
 						'value' => 'gpt-4o',
 					),
 				),
-				'google'      => array(
+				'google'          => array(
 					array(
 						'label' => 'gemini-1.5-flash',
 						'value' => 'gemini-1.5-flash',
@@ -284,7 +302,7 @@ class Ieltssci_Writing_Settings {
 						'value' => 'gemini-2.0-flash-lite',
 					),
 				),
-				'azure'       => array(
+				'azure'           => array(
 					array(
 						'label' => 'gpt-4o-mini',
 						'value' => 'gpt-4o-mini',
@@ -294,9 +312,9 @@ class Ieltssci_Writing_Settings {
 						'value' => 'gpt-4o',
 					),
 				),
-				'home-server' => array(),
-				'vllm'        => array(),
-				'slm'         => array(),
+				'home-server'     => array(),
+				'vllm'            => array(),
+				'slm'             => array(),
 			)
 		);
 
