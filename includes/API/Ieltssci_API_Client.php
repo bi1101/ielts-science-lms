@@ -890,7 +890,7 @@ class Ieltssci_API_Client {
 				$client,
 				$requests( $prompts ),
 				array(
-					'concurrency' => 5, // Process 5 requests at a time.
+					'concurrency' => 20, // Process 20 requests at a time.
 					'fulfilled'   => function ( $response, $index ) use ( &$responses_by_index, &$processed_count, $total_prompts, $step_type ) {
 						// Process successful response.
 						$body    = $response->getBody()->getContents();
