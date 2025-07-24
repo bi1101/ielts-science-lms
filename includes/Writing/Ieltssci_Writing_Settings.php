@@ -314,6 +314,7 @@ class Ieltssci_Writing_Settings {
 				),
 				'home-server'     => array(),
 				'vllm'            => array(),
+				'vllm2'           => array(),
 				'slm'             => array(),
 			)
 		);

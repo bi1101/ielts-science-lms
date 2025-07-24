@@ -83,6 +83,9 @@ class Ieltssci_API_Client {
 			case 'vllm':
 				$settings['base_uri'] = 'https://llm.ieltsscience.fun/v1/';
 				break;
+			case 'vllm2':
+				$settings['base_uri'] = 'https://llm2.ieltsscience.fun/v1/';
+				break;
 			case 'slm':
 				$settings['base_uri'] = 'https://slm.ieltsscience.fun/v1/';
 				break;
@@ -162,6 +165,7 @@ class Ieltssci_API_Client {
 					'Accept'       => $accept_header,
 				);
 			case 'vllm':
+			case 'vllm2':
 				return array(
 					'Content-Type'  => 'application/json',
 					'Accept'        => $accept_header,
@@ -250,6 +254,7 @@ class Ieltssci_API_Client {
 		switch ( $provider ) {
 			case 'vllm':
 			case 'slm':
+			case 'vllm2':
 				// Add guided generation parameters if available, with priority: JSON > Regex > Choice.
 				if ( ! empty( $guided_json ) ) {
 					$json_schema = json_decode( $guided_json, true );

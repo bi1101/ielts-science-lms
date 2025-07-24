@@ -107,6 +107,10 @@ class Ieltssci_Settings_Config {
 					'value' => 'vllm',
 				),
 				array(
+					'label' => 'VLLM2',
+					'value' => 'vllm2',
+				),
+				array(
 					'label' => 'SLM',
 					'value' => 'slm',
 				),
