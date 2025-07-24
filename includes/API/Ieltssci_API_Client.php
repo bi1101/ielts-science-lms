@@ -830,9 +830,10 @@ class Ieltssci_API_Client {
 	 * @param string $guided_regex Guided regex parameter.
 	 * @param string $guided_json Guided JSON parameter.
 	 * @param bool   $enable_thinking Whether to enable reasoning for vllm/slm.
-	 * @return string|WP_Error The concatenated responses from all API calls or WP_Error on failure.
+	 * @param string $return_format Optional. The format of the return value. 'string' for concatenated responses (default), 'array' for indexed array of responses.
+	 * @return string|array|WP_Error The concatenated responses from all API calls, indexed array of responses, or WP_Error on failure.
 	 */
-	public function make_parallel_api_calls( $api_provider, $model, $prompts, $temperature, $max_tokens, $feed, $step_type, $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false ) {
+	public function make_parallel_api_calls( $api_provider, $model, $prompts, $temperature, $max_tokens, $feed, $step_type, $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $return_format = 'string' ) {
 		try {
 			// Get client settings.
 			$client_settings = $this->get_client_settings( $api_provider );
@@ -1003,15 +1004,25 @@ class Ieltssci_API_Client {
 				// Sort responses by index to maintain original order.
 				ksort( $responses_by_index );
 
-				// Build the combined response.
-				foreach ( $responses_by_index as $index => $response ) {
-					$full_response .= $response;
+				// Return based on the requested format.
+				if ( 'array' === $return_format ) {
+					// Return the indexed array of responses.
+					$result = $responses_by_index;
+				} else {
+					// Build the combined response (default string format).
+					foreach ( $responses_by_index as $index => $response ) {
+						$full_response .= $response;
 
-					// Add separator if not the last response.
-					if ( $index < count( $prompts ) - 1 ) {
-						$full_response .= "\n\n---\n\n";
+						// Add separator if not the last response.
+						if ( $index < count( $prompts ) - 1 ) {
+							$full_response .= "\n\n---\n\n";
+						}
 					}
+					$result = $full_response;
 				}
+			} else {
+				// No successful responses.
+				$result = 'array' === $return_format ? array() : '';
 			}
 
 			// Final completion message.
@@ -1025,7 +1036,7 @@ class Ieltssci_API_Client {
 				)
 			);
 
-			return $full_response;
+			return $result;
 
 		} catch ( Exception $e ) {
 			// Send error message for overall process failure.
