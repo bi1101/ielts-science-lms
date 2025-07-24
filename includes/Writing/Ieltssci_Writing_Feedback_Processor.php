@@ -353,9 +353,9 @@ class Ieltssci_Writing_Feedback_Processor {
 		$enable_thinking    = isset( $config['general-setting']['enable_thinking'] ) ? $config['general-setting']['enable_thinking'] : false;
 
 		// Extract guided parameters from advanced settings.
-		$guided_choice = isset( $config['advanced-setting']['guided_choice'] ) ? $config['advanced-setting']['guided_choice'] : null;
-		$guided_regex  = isset( $config['advanced-setting']['guided_regex'] ) ? $config['advanced-setting']['guided_regex'] : null;
-		$guided_json   = isset( $config['advanced-setting']['guided_json'] ) ? $config['advanced-setting']['guided_json'] : null;
+		$guided_choice  = isset( $config['advanced-setting']['guided_choice'] ) ? $config['advanced-setting']['guided_choice'] : null;
+		$guided_regex   = isset( $config['advanced-setting']['guided_regex'] ) ? $config['advanced-setting']['guided_regex'] : null;
+		$guided_json    = isset( $config['advanced-setting']['guided_json'] ) ? $config['advanced-setting']['guided_json'] : null;
 		$guided_json_vi = isset( $config['advanced-setting']['guided_json_vi'] ) ? $config['advanced-setting']['guided_json_vi'] : null;
 
 		// Map step_type to the appropriate database column.
@@ -483,10 +483,10 @@ class Ieltssci_Writing_Feedback_Processor {
 		}
 
 		// Select prompt based on language parameter.
-		$selected_prompt = 'vi' === strtolower( $language ) ? $vietnamese_prompt : $english_prompt;
+		$selected_prompt = 'vi' === strtolower( $language ) && ! empty( $vietnamese_prompt ) ? $vietnamese_prompt : $english_prompt;
 
-		// Select guided JSON based on language parameter.
-		$selected_guided_json = 'vi' === strtolower( $language ) ? $guided_json_vi : $guided_json;
+		// Select guided JSON based on language parameter with fallback.
+		$selected_guided_json = 'vi' === strtolower( $language ) && ! empty( $guided_json_vi ) ? $guided_json_vi : $guided_json;
 
 		// Pre-process segment-specific variables if segment is provided.
 		if ( null !== $segment ) {
