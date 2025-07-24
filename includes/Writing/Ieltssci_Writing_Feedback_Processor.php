@@ -356,6 +356,7 @@ class Ieltssci_Writing_Feedback_Processor {
 		$guided_choice = isset( $config['advanced-setting']['guided_choice'] ) ? $config['advanced-setting']['guided_choice'] : null;
 		$guided_regex  = isset( $config['advanced-setting']['guided_regex'] ) ? $config['advanced-setting']['guided_regex'] : null;
 		$guided_json   = isset( $config['advanced-setting']['guided_json'] ) ? $config['advanced-setting']['guided_json'] : null;
+		$guided_json_vi = isset( $config['advanced-setting']['guided_json_vi'] ) ? $config['advanced-setting']['guided_json_vi'] : null;
 
 		// Map step_type to the appropriate database column.
 		switch ( $step_type ) {
@@ -484,6 +485,9 @@ class Ieltssci_Writing_Feedback_Processor {
 		// Select prompt based on language parameter.
 		$selected_prompt = 'vi' === strtolower( $language ) ? $vietnamese_prompt : $english_prompt;
 
+		// Select guided JSON based on language parameter.
+		$selected_guided_json = 'vi' === strtolower( $language ) ? $guided_json_vi : $guided_json;
+
 		// Pre-process segment-specific variables if segment is provided.
 		if ( null !== $segment ) {
 			// Replace segment-specific variables directly.
@@ -521,7 +525,7 @@ class Ieltssci_Writing_Feedback_Processor {
 			$this->send_message( $event_type, $message_data );
 
 			// Use API client for parallel API calls.
-			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
+			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $selected_guided_json, $enable_thinking );
 
 			// Check if result is a WP_Error.
 			if ( is_wp_error( $result ) ) {
@@ -588,7 +592,7 @@ class Ieltssci_Writing_Feedback_Processor {
 				$images,
 				$guided_choice,
 				$guided_regex,
-				$guided_json,
+				$selected_guided_json,
 				$enable_thinking,
 				'scoring' === $step_type ? $score_regex : null
 			);

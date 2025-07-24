@@ -333,6 +333,7 @@ class Ieltssci_Writing_Settings {
 			$settings_config_instance->create_field( 'guided_choice', 'text', 'Guided Choice', 'The output will be exactly one of the choices. Choices separate by `|` character', null ),
 			$settings_config_instance->create_field( 'guided_regex', 'text', 'Guided Regex', 'The output will follow the regex pattern.', null ),
 			$settings_config_instance->create_field( 'guided_json', 'textarea', 'Guided JSON', 'The output will follow the JSON schema. A valid schema must be provided.', null ),
+			$settings_config_instance->create_field( 'guided_json_vi', 'textarea', 'Guided JSON (Vietnamese)', 'The output will follow the JSON schema for Vietnamese language. A valid schema must be provided.', null ),
 		);
 
 		$common_sections = array(
@@ -351,6 +352,7 @@ class Ieltssci_Writing_Settings {
 					$settings_config_instance->create_field( 'guided_choice', 'text', 'Guided Choice', 'The output will be exactly one of the choices. Choices separate by `|` character', null ),
 					$settings_config_instance->create_field( 'guided_regex', 'text', 'Guided Regex', 'The output will follow the regex pattern.', null ),
 					$settings_config_instance->create_field( 'guided_json', 'textarea', 'Guided JSON', 'The output will follow the JSON schema. A valid schema must be provided.', null ),
+					$settings_config_instance->create_field( 'guided_json_vi', 'textarea', 'Guided JSON (Vietnamese)', 'The output will follow the JSON schema for Vietnamese language. A valid schema must be provided.', null ),
 				)
 			),
 		);
