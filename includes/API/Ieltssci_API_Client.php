@@ -68,7 +68,7 @@ class Ieltssci_API_Client {
 				$settings['base_uri'] = 'https://open.keyai.shop/v1/';
 				break;
 			case 'two-key-ai':
-					$settings['base_uri'] = 'https://two.keyai.shop/v1/';
+					$settings['base_uri'] = 'https://gpt5.shupremium.com/v1/';
 				break;
 			case 'gpt2-shupremium':
 				$settings['base_uri'] = 'https://gpt2.shupremium.com/v1/';
