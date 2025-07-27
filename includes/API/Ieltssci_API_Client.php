@@ -43,6 +43,21 @@ class Ieltssci_API_Client {
 	}
 
 	/**
+	 * Get the fallback provider for a given provider.
+	 *
+	 * @param string $current_provider The provider that just failed.
+	 * @return string|null The next provider to try, or null if no fallback is available.
+	 */
+	private function get_fallback_provider( $current_provider ) {
+		$fallback_chains = array(
+			'gpt2-shupremium' => 'two-key-ai',
+			'two-key-ai'      => 'google',
+		);
+
+		return isset( $fallback_chains[ $current_provider ] ) ? $fallback_chains[ $current_provider ] : null;
+	}
+
+	/**
 	 * Get client settings based on API provider
 	 *
 	 * @param string $provider API provider name.
@@ -683,12 +698,15 @@ class Ieltssci_API_Client {
 	 * @return array|WP_Error Array containing 'content' and 'reasoning_content' from the API, or WP_Error on failure. For scoring steps, returns an array with 'content' (score) and 'reasoning_content'.
 	 */
 	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $score_regex = null ) {
+		$current_provider = $api_provider;
+
+		do {
 		try {
 			// Get client settings.
-			$client_settings = $this->get_client_settings( $api_provider );
+				$client_settings = $this->get_client_settings( $current_provider );
 
 			// Get headers including API key.
-			$headers = $this->get_request_headers( $api_provider, true );
+				$headers = $this->get_request_headers( $current_provider, true );
 
 			// Combine settings and headers.
 			$client_settings['headers'] = $headers;
@@ -711,7 +729,7 @@ class Ieltssci_API_Client {
 			$client = new Client( $client_settings );
 
 			// Prepare request payload based on the API provider.
-			$payload = $this->get_request_payload( $api_provider, $model, $prompt, $temperature, $max_tokens, true, $images, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
+				$payload = $this->get_request_payload( $current_provider, $model, $prompt, $temperature, $max_tokens, true, $images, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
 
 			$endpoint = 'chat/completions';
 
@@ -735,7 +753,7 @@ class Ieltssci_API_Client {
 				return new WP_Error( 'stream_detach_failed', 'Failed to detach stream resource.' );
 			}
 
-			$full_response = $this->process_stream( $handle, $api_provider, $step_type );
+				$full_response = $this->process_stream( $handle, $current_provider, $step_type );
 			// If this is a scoring step and we have a score_regex, extract the score from the full response.
 			if ( 'scoring' === $step_type && ! empty( $score_regex ) ) {
 				// Extract score from the content using regex.
@@ -765,6 +783,19 @@ class Ieltssci_API_Client {
 			return $full_response;
 
 		} catch ( RequestException $e ) {
+				$fallback_provider = $this->get_fallback_provider( $current_provider );
+
+				if ( $fallback_provider ) {
+					$this->message_handler->send_message(
+						'API_FALLBACK',
+						array(
+							'message'           => "Provider '{$current_provider}' failed. Attempting fallback to '{$fallback_provider}'.",
+							'failed_provider'   => $current_provider,
+							'fallback_provider' => $fallback_provider,
+						)
+					);
+					$current_provider = $fallback_provider;
+				} else {
 			$error_message = $e->getMessage();
 			if ( $e->hasResponse() ) {
 				$error_message .= ' Response: ' . $e->getResponse()->getBody();
@@ -779,7 +810,21 @@ class Ieltssci_API_Client {
 				);
 
 				return new WP_Error( 'stream_api_request_failed', 'Streaming API request failed: ' . $error_message, array( 'status' => $e->getCode() ? $e->getCode() : 500 ) );
+				}
 		} catch ( Exception $e ) {
+				$fallback_provider = $this->get_fallback_provider( $current_provider );
+
+				if ( $fallback_provider ) {
+					$this->message_handler->send_message(
+						'API_FALLBACK',
+						array(
+							'message'           => "Provider '{$current_provider}' failed with general error. Attempting fallback to '{$fallback_provider}'.",
+							'failed_provider'   => $current_provider,
+							'fallback_provider' => $fallback_provider,
+						)
+					);
+					$current_provider = $fallback_provider;
+				} else {
 			$this->message_handler->send_error(
 				'stream_api_error',
 				array(
@@ -790,6 +835,8 @@ class Ieltssci_API_Client {
 
 			return new WP_Error( 'stream_api_general_error', 'An unexpected error occurred during streaming: ' . $e->getMessage(), array( 'status' => $e->getCode() ? $e->getCode() : 500 ) );
 		}
+	}
+		} while ( true );
 	}
 
 	/**
