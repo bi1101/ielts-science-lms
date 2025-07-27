@@ -374,6 +374,22 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			),
 		);
 
+		$params['meta_query'] = array(
+			'description' => __( 'Meta query for filtering essays by meta key and value. Example: {"key":"result_confirmed","value":"1"}', 'ielts-science-lms' ),
+			'type'        => 'object',
+			'properties'  => array(
+				'key'   => array(
+					'type'        => 'string',
+					'description' => __( 'Meta key to filter by.', 'ielts-science-lms' ),
+				),
+				'value' => array(
+					'type'        => 'string',
+					'description' => __( 'Meta value to filter by.', 'ielts-science-lms' ),
+				),
+			),
+			'required'    => false,
+		);
+
 		return $params;
 	}
 
@@ -403,6 +419,7 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			'per_page',
 			'page',
 			'include',
+			'meta_query',
 		);
 
 		foreach ( $direct_params as $param ) {

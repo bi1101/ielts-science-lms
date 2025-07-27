@@ -316,6 +316,7 @@ class Ieltssci_Essay_DB {
 				'page'         => 1,
 				'count'        => false,
 				'include_meta' => false, // Add support for include_meta.
+				'meta_query'   => null, // Add support for SQL-level meta filtering.
 			);
 
 			$args            = wp_parse_args( $args, $defaults );
@@ -329,6 +330,18 @@ class Ieltssci_Essay_DB {
 			$from = $this->essays_table . ' e';
 			if ( $include_creator && ! $args['count'] ) {
 				$from .= ' LEFT JOIN ' . $this->wpdb->users . ' u ON e.created_by = u.ID';
+			}
+
+			// SQL-level meta query support for a single meta key/value pair.
+			if ( ! empty( $args['meta_query'] ) && is_array( $args['meta_query'] ) ) {
+				$meta_key   = $args['meta_query']['key'] ?? '';
+				$meta_value = $args['meta_query']['value'] ?? null;
+				if ( '' !== $meta_key && null !== $meta_value ) {
+					$from            .= " INNER JOIN {$this->essays_meta_table} em ON em.ieltssci_essay_id = e.id";
+					$where[]          = 'em.meta_key = %s AND em.meta_value = %s';
+					$prepare_values[] = $meta_key;
+					$prepare_values[] = $meta_value;
+				}
 			}
 
 			$where          = array( '1=1' );
