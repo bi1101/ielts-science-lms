@@ -295,6 +295,7 @@ class Ieltssci_Essay_DB {
 	 *     @type int          $page         Page number. Default 1.
 	 *     @type bool         $count        If true, return only the count. Default false.
 	 *     @type array|bool   $include_meta Array of meta keys to include in results. If false, no meta included, if true all are included. Default false.
+	 *     @type array|null   $meta_query   SQL-level meta query to filter essays by meta key/value pair.
 	 * }
 	 * @return array|int|WP_Error Essays data, count, or error.
 	 * @throws \Exception If there is a database error.
