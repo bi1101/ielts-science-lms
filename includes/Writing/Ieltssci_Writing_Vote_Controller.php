@@ -137,7 +137,7 @@ class Ieltssci_Writing_Vote_Controller extends WP_REST_Controller {
 					'essay_content' => isset( $essay['essay_content'] ) ? $essay['essay_content'] : null,
 					'created_at'    => isset( $essay['created_at'] ) ? $essay['created_at'] : null,
 					'essay_type'    => isset( $essay['essay_type'] ) ? $essay['essay_type'] : null,
-					'essay_uuid'    => isset( $essay['uuid'] ) ? $essay['uuid'] : null,
+					// 'essay_uuid'    => isset( $essay['uuid'] ) ? $essay['uuid'] : null,
 					'ai_score'      => $final_score['score'],
 					'source'        => 'ai',
 				);
@@ -157,18 +157,18 @@ class Ieltssci_Writing_Vote_Controller extends WP_REST_Controller {
 				'question'      => isset( $essay['question'] ) ? $essay['question'] : null,
 				'essay_content' => isset( $essay['essay_content'] ) ? $essay['essay_content'] : null,
 				'created_at'    => isset( $essay['created_at'] ) ? $essay['created_at'] : null,
-				'essay_uuid'    => isset( $essay['uuid'] ) ? $essay['uuid'] : null,
+				// 'essay_uuid'    => isset( $essay['uuid'] ) ? $essay['uuid'] : null,
 				'essay_type'    => isset( $essay['essay_type'] ) ? $essay['essay_type'] : null,
 				'human_score'   => $final_score['score'],
 				'ai_score'      => $initial_score['score'],
 				'diff'          => $diff,
 			);
 
-			if ( abs( $diff ) <= 1.0 ) {
+			if ( abs( $diff ) < 1.0 ) {
 				$accurate_votes[] = $vote_data;
-			} elseif ( $diff > 1.0 ) {
+			} elseif ( $diff >= 1.0 ) {
 				$higher_votes[] = $vote_data;
-			} elseif ( $diff < -1.0 ) {
+			} elseif ( $diff <= -1.0 ) {
 				$lower_votes[] = $vote_data;
 			}
 		}
