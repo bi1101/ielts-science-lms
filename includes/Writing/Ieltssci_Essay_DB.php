@@ -333,6 +333,9 @@ class Ieltssci_Essay_DB {
 				$from .= ' LEFT JOIN ' . $this->wpdb->users . ' u ON e.created_by = u.ID';
 			}
 
+			$where          = array( '1=1' );
+			$prepare_values = array();
+
 			// SQL-level meta query support for a single meta key/value pair.
 			if ( ! empty( $args['meta_query'] ) && is_array( $args['meta_query'] ) ) {
 				$meta_key   = $args['meta_query']['key'] ?? '';
@@ -344,9 +347,6 @@ class Ieltssci_Essay_DB {
 					$prepare_values[] = $meta_value;
 				}
 			}
-
-			$where          = array( '1=1' );
-			$prepare_values = array();
 
 			// Process ID filter.
 			if ( ! is_null( $args['id'] ) ) {
