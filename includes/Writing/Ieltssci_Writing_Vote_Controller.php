@@ -132,11 +132,14 @@ class Ieltssci_Writing_Vote_Controller extends WP_REST_Controller {
 			if ( 'ai' === $final_score['source'] ) {
 				// If final score is from AI, consider it accurate.
 				$accurate_votes[] = array(
-					'essay_id'   => $essay['id'],
-					'essay_type' => isset( $essay['essay_type'] ) ? $essay['essay_type'] : null,
-					'essay_uuid' => isset( $essay['uuid'] ) ? $essay['uuid'] : null,
-					'ai_score'   => $final_score['score'],
-					'source'     => 'ai',
+					'essay_id'      => $essay['id'],
+					'question'      => isset( $essay['question'] ) ? $essay['question'] : null,
+					'essay_content' => isset( $essay['essay_content'] ) ? $essay['essay_content'] : null,
+					'created_at'    => isset( $essay['created_at'] ) ? $essay['created_at'] : null,
+					'essay_type'    => isset( $essay['essay_type'] ) ? $essay['essay_type'] : null,
+					'essay_uuid'    => isset( $essay['uuid'] ) ? $essay['uuid'] : null,
+					'ai_score'      => $final_score['score'],
+					'source'        => 'ai',
 				);
 				continue;
 			}
@@ -150,12 +153,15 @@ class Ieltssci_Writing_Vote_Controller extends WP_REST_Controller {
 			$diff = $initial_score['score'] - $final_score['score'];
 
 			$vote_data = array(
-				'essay_id'    => $essay['id'],
-				'essay_uuid'  => isset( $essay['uuid'] ) ? $essay['uuid'] : null,
-				'essay_type'  => isset( $essay['essay_type'] ) ? $essay['essay_type'] : null,
-				'human_score' => $final_score['score'],
-				'ai_score'    => $initial_score['score'],
-				'diff'        => $diff,
+				'essay_id'      => $essay['id'],
+				'question'      => isset( $essay['question'] ) ? $essay['question'] : null,
+				'essay_content' => isset( $essay['essay_content'] ) ? $essay['essay_content'] : null,
+				'created_at'    => isset( $essay['created_at'] ) ? $essay['created_at'] : null,
+				'essay_uuid'    => isset( $essay['uuid'] ) ? $essay['uuid'] : null,
+				'essay_type'    => isset( $essay['essay_type'] ) ? $essay['essay_type'] : null,
+				'human_score'   => $final_score['score'],
+				'ai_score'      => $initial_score['score'],
+				'diff'          => $diff,
 			);
 
 			if ( abs( $diff ) <= 1.0 ) {
