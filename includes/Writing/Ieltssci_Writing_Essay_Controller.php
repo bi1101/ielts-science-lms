@@ -132,6 +132,32 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			)
 		);
 
+		// Register route for getting essay feedbacks.
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->rest_base . '/feedbacks',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_essay_feedbacks' ),
+				'permission_callback' => array( $this, 'get_essay_feedbacks_permissions_check' ),
+				'args'                => $this->get_essay_feedbacks_collection_params(),
+				'schema'              => array( $this, 'get_essay_feedbacks_schema' ),
+			)
+		);
+
+		// Register route for getting specific essay feedback.
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->rest_base . '/feedback/(?P<uuid>[a-zA-Z0-9-]+)',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_essay_feedback' ),
+				'permission_callback' => '__return_true', // Accessible to anyone.
+				'args'                => $this->get_single_essay_feedback_args(),
+				'schema'              => array( $this, 'get_essay_feedback_schema' ),
+			)
+		);
+
 		// Register route for forking an essay.
 		register_rest_route(
 			$this->namespace,
@@ -1924,5 +1950,579 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 		}
 
 		return $status;
+	}
+
+	/**
+	 * Get essay feedbacks endpoint.
+	 *
+	 * Retrieves a collection of essay feedbacks based on provided parameters.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response object or error.
+	 */
+	public function get_essay_feedbacks( WP_REST_Request $request ) {
+		$args = array();
+
+		// Get parameters that can be directly passed to get_essay_feedbacks.
+		$direct_params = array(
+			'feedback_id',
+			'essay_id',
+			'source',
+			'feedback_criteria',
+			'feedback_language',
+			'created_by',
+			'date_from',
+			'date_to',
+			'orderby',
+			'order',
+			'number',
+			'offset',
+			'fields',
+			'count',
+		);
+
+		foreach ( $direct_params as $param ) {
+			$value = $request->get_param( $param );
+			if ( ! is_null( $value ) ) {
+				$args[ $param ] = $value;
+			}
+		}
+
+		// Handle date query parameters.
+		$after  = $request->get_param( 'after' );
+		$before = $request->get_param( 'before' );
+
+		if ( $after || $before ) {
+			$args['date_query'] = array();
+
+			if ( $after ) {
+				$args['date_query']['after'] = $after;
+			}
+
+			if ( $before ) {
+				$args['date_query']['before'] = $before;
+			}
+		}
+
+		// Apply access control based on user permissions.
+		$current_user_id = get_current_user_id();
+
+		// Non-administrators can only see their own feedbacks.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			$args['created_by'] = $current_user_id;
+		}
+
+		// Get feedbacks with current parameters.
+		$feedbacks = $this->essay_service->get_essay_feedbacks( $args );
+
+		if ( is_wp_error( $feedbacks ) ) {
+			return $feedbacks;
+		}
+
+		// Handle empty results properly.
+		if ( empty( $feedbacks ) ) {
+			return rest_ensure_response( array() );
+		}
+
+		// Build response.
+		$response = rest_ensure_response( $feedbacks );
+
+		return $response;
+	}
+
+	/**
+	 * Check if user has permission to get essay feedbacks.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return bool Whether the user has permission.
+	 */
+	public function get_essay_feedbacks_permissions_check( WP_REST_Request $request ) {
+		return is_user_logged_in();
+	}
+
+	/**
+	 * Get specific essay feedback endpoint.
+	 *
+	 * Retrieves the first feedback that has content in the specified step field.
+	 * This endpoint is publicly accessible to anyone.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response object or error.
+	 */
+	public function get_essay_feedback( WP_REST_Request $request ) {
+		$uuid              = $request->get_param( 'uuid' );
+		$feedback_criteria = $request->get_param( 'feedback_criteria' );
+		$feedback_language = $request->get_param( 'feedback_language' );
+		$source            = $request->get_param( 'source' );
+		$step              = $request->get_param( 'step' );
+		$orderby           = $request->get_param( 'orderby' );
+		$order             = $request->get_param( 'order' );
+
+		// Validate step parameter.
+		$valid_steps = array( 'cot_content', 'score_content', 'feedback_content' );
+		if ( ! in_array( $step, $valid_steps, true ) ) {
+			return new WP_Error(
+				'invalid_step',
+				sprintf( 'Invalid step parameter. Must be one of: %s', implode( ', ', $valid_steps ) ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// Get essay ID from UUID.
+		$essays = $this->essay_service->get_essays(
+			array(
+				'uuid'     => $uuid,
+				'per_page' => 1,
+				'fields'   => array( 'id', 'created_by' ),
+			)
+		);
+
+		if ( is_wp_error( $essays ) ) {
+			return $essays;
+		}
+
+		if ( empty( $essays ) ) {
+			return new WP_Error(
+				'essay_not_found',
+				'Essay not found.',
+				array( 'status' => 404 )
+			);
+		}
+
+		$essay = $essays[0];
+
+		// Build arguments for feedback query.
+		$args = array(
+			'essay_id'          => $essay['id'],
+			'feedback_criteria' => $feedback_criteria,
+			'fields'            => array( $step, 'essay_id', 'id', 'feedback_criteria', 'feedback_language', 'source', 'created_at', 'created_by' ),
+			'orderby'           => $orderby ? $orderby : 'created_at',
+			'order'             => $order ? $order : 'DESC',
+			'number'            => 100, // Get more results to find the first with content.
+		);
+
+		if ( $feedback_language ) {
+			$args['feedback_language'] = $feedback_language;
+		}
+
+		if ( $source ) {
+			$args['source'] = $source;
+		}
+
+		// Get feedbacks.
+		$feedbacks = $this->essay_service->get_essay_feedbacks( $args );
+
+		if ( is_wp_error( $feedbacks ) ) {
+			return $feedbacks;
+		}
+
+		// Find the first feedback that has content in the required step field.
+		$matching_feedback = null;
+		if ( ! empty( $feedbacks ) ) {
+			foreach ( $feedbacks as $feedback ) {
+				if ( ! empty( $feedback[ $step ] ) ) {
+					$matching_feedback = $feedback;
+					break;
+				}
+			}
+		}
+
+		// Return empty response if no matching feedback found.
+		if ( ! $matching_feedback ) {
+			return rest_ensure_response( null );
+		}
+
+		// Build response.
+		$response = rest_ensure_response( $matching_feedback );
+
+		return $response;
+	}
+
+	/**
+	 * Get arguments for the essay feedback collection endpoint.
+	 *
+	 * @return array Argument definitions.
+	 */
+	public function get_essay_feedbacks_collection_params() {
+		$params = array();
+
+		$params['feedback_id'] = array(
+			'description'       => 'Feedback ID or array of IDs.',
+			'type'              => array( 'integer', 'array' ),
+			'items'             => array(
+				'type' => 'integer',
+			),
+			'validate_callback' => function ( $param ) {
+				if ( is_array( $param ) ) {
+					foreach ( $param as $id ) {
+						if ( ! is_numeric( $id ) || $id <= 0 ) {
+							return false;
+						}
+					}
+					return true;
+				}
+				return is_numeric( $param ) && $param > 0;
+			},
+		);
+
+		$params['essay_id'] = array(
+			'description'       => 'Essay ID or array of IDs.',
+			'type'              => array( 'integer', 'array' ),
+			'items'             => array(
+				'type' => 'integer',
+			),
+			'validate_callback' => function ( $param ) {
+				if ( is_array( $param ) ) {
+					foreach ( $param as $id ) {
+						if ( ! is_numeric( $id ) || $id <= 0 ) {
+							return false;
+						}
+					}
+					return true;
+				}
+				return is_numeric( $param ) && $param > 0;
+			},
+		);
+
+		$params['source'] = array(
+			'description'       => 'Feedback source or array of sources.',
+			'type'              => array( 'string', 'array' ),
+			'items'             => array(
+				'type' => 'string',
+			),
+			'sanitize_callback' => function ( $param ) {
+				if ( is_array( $param ) ) {
+					return array_map( 'sanitize_text_field', $param );
+				}
+				return sanitize_text_field( $param );
+			},
+		);
+
+		$params['feedback_criteria'] = array(
+			'description'       => 'Feedback criteria or array of criteria.',
+			'type'              => array( 'string', 'array' ),
+			'items'             => array(
+				'type' => 'string',
+			),
+			'sanitize_callback' => function ( $param ) {
+				if ( is_array( $param ) ) {
+					return array_map( 'sanitize_text_field', $param );
+				}
+				return sanitize_text_field( $param );
+			},
+		);
+
+		$params['feedback_language'] = array(
+			'description'       => 'Feedback language or array of languages.',
+			'type'              => array( 'string', 'array' ),
+			'items'             => array(
+				'type' => 'string',
+			),
+			'sanitize_callback' => function ( $param ) {
+				if ( is_array( $param ) ) {
+					return array_map( 'sanitize_text_field', $param );
+				}
+				return sanitize_text_field( $param );
+			},
+		);
+
+		$params['created_by'] = array(
+			'description'       => 'User ID or array of user IDs who created the feedbacks.',
+			'type'              => array( 'integer', 'array' ),
+			'items'             => array(
+				'type' => 'integer',
+			),
+			'validate_callback' => function ( $param ) {
+				if ( is_array( $param ) ) {
+					foreach ( $param as $id ) {
+						if ( ! is_numeric( $id ) || $id <= 0 ) {
+							return false;
+						}
+					}
+					return true;
+				}
+				return is_numeric( $param ) && $param > 0;
+			},
+		);
+
+		$params['date_from'] = array(
+			'description' => 'Get feedbacks after this date.',
+			'type'        => 'string',
+			'format'      => 'date-time',
+		);
+
+		$params['date_to'] = array(
+			'description' => 'Get feedbacks before this date.',
+			'type'        => 'string',
+			'format'      => 'date-time',
+		);
+
+		$params['after'] = array(
+			'description' => 'Get feedbacks after this date.',
+			'type'        => 'string',
+			'format'      => 'date-time',
+		);
+
+		$params['before'] = array(
+			'description' => 'Get feedbacks before this date.',
+			'type'        => 'string',
+			'format'      => 'date-time',
+		);
+
+		$params['orderby'] = array(
+			'description' => 'Field to order results by.',
+			'type'        => 'string',
+			'default'     => 'id',
+			'enum'        => array( 'id', 'essay_id', 'created_at' ),
+		);
+
+		$params['order'] = array(
+			'description' => 'Order direction.',
+			'type'        => 'string',
+			'default'     => 'DESC',
+			'enum'        => array( 'ASC', 'DESC' ),
+		);
+
+		$params['number'] = array(
+			'description'       => 'Number of feedbacks to return.',
+			'type'              => 'integer',
+			'default'           => 10,
+			'minimum'           => 1,
+			'maximum'           => 100,
+			'validate_callback' => function ( $param ) {
+				return is_numeric( $param ) && $param >= 1 && $param <= 100;
+			},
+		);
+
+		$params['offset'] = array(
+			'description'       => 'Offset for pagination.',
+			'type'              => 'integer',
+			'default'           => 0,
+			'minimum'           => 0,
+			'validate_callback' => function ( $param ) {
+				return is_numeric( $param ) && $param >= 0;
+			},
+		);
+
+		$params['fields'] = array(
+			'description' => 'Fields to return in the response.',
+			'type'        => array( 'string', 'array' ),
+			'default'     => 'all',
+			'items'       => array(
+				'type' => 'string',
+			),
+		);
+
+		$params['count'] = array(
+			'description'       => 'Whether to return only the count of results.',
+			'type'              => 'boolean',
+			'default'           => false,
+			'sanitize_callback' => 'rest_sanitize_boolean',
+		);
+
+		return $params;
+	}
+
+	/**
+	 * Get the JSON schema for the essay feedbacks endpoint.
+	 *
+	 * @return array The schema for the essay feedbacks response.
+	 */
+	public function get_essay_feedbacks_schema() {
+		return array(
+			'$schema' => 'http://json-schema.org/draft-04/schema#',
+			'title'   => 'essay_feedbacks',
+			'type'    => 'array',
+			'items'   => array(
+				'type'       => 'object',
+				'properties' => array(
+					'id'                => array(
+						'description' => 'Unique identifier for the feedback.',
+						'type'        => 'integer',
+						'context'     => array( 'view', 'edit' ),
+						'readonly'    => true,
+					),
+					'essay_id'          => array(
+						'description' => 'The ID of the essay this feedback belongs to.',
+						'type'        => 'integer',
+						'context'     => array( 'view', 'edit' ),
+					),
+					'feedback_criteria' => array(
+						'description' => 'The criteria for the feedback.',
+						'type'        => 'string',
+						'context'     => array( 'view', 'edit' ),
+					),
+					'feedback_language' => array(
+						'description' => 'The language of the feedback.',
+						'type'        => 'string',
+						'context'     => array( 'view', 'edit' ),
+					),
+					'source'            => array(
+						'description' => 'The source of the feedback.',
+						'type'        => 'string',
+						'context'     => array( 'view', 'edit' ),
+					),
+					'cot_content'       => array(
+						'description' => 'Chain of Thought content.',
+						'type'        => 'string',
+						'context'     => array( 'view', 'edit' ),
+					),
+					'score_content'     => array(
+						'description' => 'Score content.',
+						'type'        => 'string',
+						'context'     => array( 'view', 'edit' ),
+					),
+					'feedback_content'  => array(
+						'description' => 'The actual feedback content.',
+						'type'        => 'string',
+						'context'     => array( 'view', 'edit' ),
+					),
+					'created_at'        => array(
+						'description' => 'The date the feedback was created.',
+						'type'        => 'string',
+						'format'      => 'date-time',
+						'context'     => array( 'view', 'edit' ),
+						'readonly'    => true,
+					),
+					'created_by'        => array(
+						'description' => 'The ID of the user who created the feedback.',
+						'type'        => 'integer',
+						'context'     => array( 'view', 'edit' ),
+						'readonly'    => true,
+					),
+				),
+			),
+		);
+	}
+
+	/**
+	 * Get arguments for the specific essay feedback endpoint.
+	 *
+	 * @return array Argument definitions.
+	 */
+	public function get_single_essay_feedback_args() {
+		return array(
+			'uuid'              => array(
+				'required'          => true,
+				'description'       => 'The UUID of the essay.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_string( $param ) && ! empty( $param );
+				},
+				'sanitize_callback' => 'sanitize_text_field',
+			),
+			'feedback_criteria' => array(
+				'required'          => true,
+				'description'       => 'Filter by feedback criteria.',
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+			),
+			'feedback_language' => array(
+				'description'       => 'Filter by feedback language.',
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+			),
+			'source'            => array(
+				'description'       => 'Filter by feedback source.',
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+			),
+			'step'              => array(
+				'required'          => true,
+				'description'       => 'The step/field to retrieve content from.',
+				'type'              => 'string',
+				'enum'              => array( 'cot_content', 'score_content', 'feedback_content' ),
+				'validate_callback' => function ( $param ) {
+					$valid_steps = array( 'cot_content', 'score_content', 'feedback_content' );
+					return in_array( $param, $valid_steps, true );
+				},
+				'sanitize_callback' => 'sanitize_text_field',
+			),
+			'orderby'           => array(
+				'description' => 'Field to order results by.',
+				'type'        => 'string',
+				'default'     => 'created_at',
+				'enum'        => array( 'id', 'essay_id', 'created_at' ),
+			),
+			'order'             => array(
+				'description' => 'Order direction.',
+				'type'        => 'string',
+				'default'     => 'DESC',
+				'enum'        => array( 'ASC', 'DESC' ),
+			),
+		);
+	}
+
+	/**
+	 * Get the JSON schema for the specific essay feedback endpoint.
+	 *
+	 * @return array The schema for the essay feedback response.
+	 */
+	public function get_essay_feedback_schema() {
+		return array(
+			'$schema'    => 'http://json-schema.org/draft-04/schema#',
+			'title'      => 'essay_feedback',
+			'type'       => 'object',
+			'properties' => array(
+				'id'                => array(
+					'description' => 'Unique identifier for the feedback.',
+					'type'        => 'integer',
+					'context'     => array( 'view', 'edit' ),
+					'readonly'    => true,
+				),
+				'essay_id'          => array(
+					'description' => 'The ID of the essay this feedback belongs to.',
+					'type'        => 'integer',
+					'context'     => array( 'view', 'edit' ),
+				),
+				'feedback_criteria' => array(
+					'description' => 'The criteria for the feedback.',
+					'type'        => 'string',
+					'context'     => array( 'view', 'edit' ),
+				),
+				'feedback_language' => array(
+					'description' => 'The language of the feedback.',
+					'type'        => 'string',
+					'context'     => array( 'view', 'edit' ),
+				),
+				'source'            => array(
+					'description' => 'The source of the feedback.',
+					'type'        => 'string',
+					'context'     => array( 'view', 'edit' ),
+				),
+				'cot_content'       => array(
+					'description' => 'Chain of Thought content.',
+					'type'        => 'string',
+					'context'     => array( 'view', 'edit' ),
+				),
+				'score_content'     => array(
+					'description' => 'Score content.',
+					'type'        => 'string',
+					'context'     => array( 'view', 'edit' ),
+				),
+				'feedback_content'  => array(
+					'description' => 'The actual feedback content.',
+					'type'        => 'string',
+					'context'     => array( 'view', 'edit' ),
+				),
+				'created_at'        => array(
+					'description' => 'The date the feedback was created.',
+					'type'        => 'string',
+					'format'      => 'date-time',
+					'context'     => array( 'view', 'edit' ),
+					'readonly'    => true,
+				),
+				'created_by'        => array(
+					'description' => 'The ID of the user who created the feedback.',
+					'type'        => 'integer',
+					'context'     => array( 'view', 'edit' ),
+					'readonly'    => true,
+				),
+			),
+		);
 	}
 }
