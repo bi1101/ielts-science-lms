@@ -133,6 +133,13 @@ class Ieltssci_ApiKeys_Settings {
 				'multiKey' => true,
 				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your GPT2 Shupremium API key.' ) ),
 			),
+			'facebook'        => array(
+				'label'    => __( 'Facebook', 'ielts-science-lms' ),
+				'multiKey' => false,
+				'fields'   => array(
+					$settings_config_instance->create_field( 'app-id', 'text', 'App ID', 'Enter your Facebook App ID.' ),
+				),
+			),
 		);
 	}
 }
