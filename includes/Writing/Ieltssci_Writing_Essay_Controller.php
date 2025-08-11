@@ -1134,6 +1134,8 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 		// Handle meta data if provided.
 		$meta_data = $request['meta'];
 		if ( ! empty( $meta_data ) && is_array( $meta_data ) ) {
+			// Clear the writing votes cache whenever an essay is updated.
+			delete_transient( 'ielts_writing_votes_cache' ); // Clear cached votes result.
 			foreach ( $meta_data as $meta_key => $meta_value ) {
 				// Use update_essay_meta which handles both adding and updating.
 				$meta_result = $this->essay_service->update_essay_meta( $result['id'], $meta_key, $meta_value );

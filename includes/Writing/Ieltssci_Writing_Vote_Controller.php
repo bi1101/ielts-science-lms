@@ -86,6 +86,12 @@ class Ieltssci_Writing_Vote_Controller extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
 	 */
 	public function get_items( $request ) {
+		$cache_key = 'ielts_writing_votes_cache';
+		$cached    = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return rest_ensure_response( $cached ); // Return cached result if available.
+		}
+
 		$essay_db      = new \IeltsScienceLMS\Writing\Ieltssci_Essay_DB();
 		$score_service = new \IeltsScienceLMS\Writing\Ieltssci_Writing_Score();
 
@@ -105,22 +111,22 @@ class Ieltssci_Writing_Vote_Controller extends WP_REST_Controller {
 		$lower_votes    = array();
 
 		if ( is_wp_error( $essays ) || empty( $essays ) ) {
-			return rest_ensure_response(
-				array(
-					'accurate_votes' => array(
-						'count' => 0,
-						'votes' => array(),
-					),
-					'higher_votes'   => array(
-						'count' => 0,
-						'votes' => array(),
-					),
-					'lower_votes'    => array(
-						'count' => 0,
-						'votes' => array(),
-					),
-				)
+			$result = array(
+				'accurate_votes' => array(
+					'count' => 0,
+					'votes' => array(),
+				),
+				'higher_votes'   => array(
+					'count' => 0,
+					'votes' => array(),
+				),
+				'lower_votes'    => array(
+					'count' => 0,
+					'votes' => array(),
+				),
 			);
+			set_transient( $cache_key, $result, 10 * MINUTE_IN_SECONDS ); // Cache empty result for 10 minutes.
+			return rest_ensure_response( $result );
 		}
 
 		foreach ( $essays as $essay ) {
@@ -137,7 +143,6 @@ class Ieltssci_Writing_Vote_Controller extends WP_REST_Controller {
 					'essay_content' => isset( $essay['essay_content'] ) ? $essay['essay_content'] : null,
 					'created_at'    => isset( $essay['created_at'] ) ? $essay['created_at'] : null,
 					'essay_type'    => isset( $essay['essay_type'] ) ? $essay['essay_type'] : null,
-					// 'essay_uuid'    => isset( $essay['uuid'] ) ? $essay['uuid'] : null,
 					'ai_score'      => $final_score['score'],
 					'source'        => 'ai',
 				);
@@ -157,7 +162,6 @@ class Ieltssci_Writing_Vote_Controller extends WP_REST_Controller {
 				'question'      => isset( $essay['question'] ) ? $essay['question'] : null,
 				'essay_content' => isset( $essay['essay_content'] ) ? $essay['essay_content'] : null,
 				'created_at'    => isset( $essay['created_at'] ) ? $essay['created_at'] : null,
-				// 'essay_uuid'    => isset( $essay['uuid'] ) ? $essay['uuid'] : null,
 				'essay_type'    => isset( $essay['essay_type'] ) ? $essay['essay_type'] : null,
 				'human_score'   => $final_score['score'],
 				'ai_score'      => $initial_score['score'],
@@ -173,22 +177,23 @@ class Ieltssci_Writing_Vote_Controller extends WP_REST_Controller {
 			}
 		}
 
-		return rest_ensure_response(
-			array(
-				'accurate_votes' => array(
-					'count' => count( $accurate_votes ),
-					'votes' => $accurate_votes,
-				),
-				'higher_votes'   => array(
-					'count' => count( $higher_votes ),
-					'votes' => $higher_votes,
-				),
-				'lower_votes'    => array(
-					'count' => count( $lower_votes ),
-					'votes' => $lower_votes,
-				),
-			)
+		$result = array(
+			'accurate_votes' => array(
+				'count' => count( $accurate_votes ),
+				'votes' => $accurate_votes,
+			),
+			'higher_votes'   => array(
+				'count' => count( $higher_votes ),
+				'votes' => $higher_votes,
+			),
+			'lower_votes'    => array(
+				'count' => count( $lower_votes ),
+				'votes' => $lower_votes,
+			),
 		);
+
+		set_transient( $cache_key, $result, 5 * MINUTE_IN_SECONDS ); // Cache for 5 minutes.
+		return rest_ensure_response( $result );
 	}
 
 	/**
