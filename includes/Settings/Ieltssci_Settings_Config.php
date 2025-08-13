@@ -114,6 +114,10 @@ class Ieltssci_Settings_Config {
 					'label' => 'SLM',
 					'value' => 'slm',
 				),
+				array(
+					'label' => 'Lite LLM',
+					'value' => 'lite-llm',
+				),
 			)
 		);
 	}

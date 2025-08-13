@@ -316,6 +316,20 @@ class Ieltssci_Writing_Settings {
 				'vllm'            => array(),
 				'vllm2'           => array(),
 				'slm'             => array(),
+				'lite-llm'        => array(
+					array(
+						'label' => 'gpt-4o-mini',
+						'value' => 'gpt-4o-mini',
+					),
+					array(
+						'label' => 'gemini-2.0-flash',
+						'value' => 'gemini-2.0-flash',
+					),
+					array(
+						'label' => 'gemini-2.0-flash-lite',
+						'value' => 'gemini-2.0-flash-lite',
+					),
+				),
 			)
 		);
 

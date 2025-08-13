@@ -104,6 +104,9 @@ class Ieltssci_API_Client {
 			case 'slm':
 				$settings['base_uri'] = 'https://slm.ieltsscience.fun/v1/';
 				break;
+			case 'lite-llm':
+				$settings['base_uri'] = 'https://litellm.ieltsscience.fun/v1/'; // Lite LLM OpenAI compatible endpoint.
+				break;
 			default:
 				// Default to OpenAI.
 				$settings['base_uri'] = 'https://api.openai.com/v1/';
@@ -194,6 +197,14 @@ class Ieltssci_API_Client {
 					'Authorization' => $api_key ? 'Bearer ' . $api_key['meta']['api-key'] : '',
 				);
 
+			case 'lite-llm':
+				// Lite LLM is OpenAI compatible so we mirror OpenAI style headers.
+				return array(
+					'Authorization' => 'Bearer ' . $api_key['meta']['api-key'],
+					'Content-Type'  => 'application/json',
+					'Accept'        => $accept_header,
+				);
+
 			default:
 				// Default to OpenAI-style headers.
 				return array(
@@ -266,6 +277,29 @@ class Ieltssci_API_Client {
 		);
 
 		// Provider-specific configurations.
+		// Special handling: if model name starts with 'hosted_vllm', treat it like a vllm/slm backend regardless of provider.
+		if ( 0 === strpos( $model, 'hosted_vllm' ) ) {
+			// Add guided generation parameters if available, with priority: JSON > Regex > Choice.
+			if ( ! empty( $guided_json ) ) {
+				$json_schema = json_decode( $guided_json, true );
+				if ( JSON_ERROR_NONE === json_last_error() ) { // Only add if schema is valid.
+					$base_payload['guided_json'] = $json_schema;
+				}
+			} elseif ( ! empty( $guided_regex ) ) {
+				$base_payload['guided_regex'] = $guided_regex; // Add guided regex constraint.
+			} elseif ( ! empty( $guided_choice ) ) {
+				$choices_array = array_map( 'trim', explode( '|', $guided_choice ) );
+				if ( ! empty( $choices_array ) && ( count( $choices_array ) > 1 || ! empty( $choices_array[0] ) ) ) {
+					$base_payload['guided_choice'] = $choices_array; // Add guided choice list.
+				}
+			}
+
+			$base_payload['chat_template_kwargs'] = array( 'enable_thinking' => $enable_thinking ); // Enable thinking flag.
+
+			return $base_payload; // Return early for hosted_vllm models.
+		}
+
+		// Standard provider-specific configurations.
 		switch ( $provider ) {
 			case 'vllm':
 			case 'slm':
@@ -319,6 +353,7 @@ class Ieltssci_API_Client {
 			case 'open-key-ai':
 			case 'two-key-ai':
 			case 'gpt2-shupremium':
+			case 'lite-llm':
 				// Add guided JSON using response_format if available.
 				if ( ! empty( $guided_json ) ) {
 					$json_schema = json_decode( $guided_json, true );
@@ -388,6 +423,7 @@ class Ieltssci_API_Client {
 			case 'open-key-ai':
 			case 'two-key-ai':
 			case 'gpt2-shupremium':
+			case 'lite-llm':
 				$chunk = json_decode( $data, true );
 				if ( JSON_ERROR_NONE === json_last_error() && isset( $chunk['choices'][0]['delta'] ) ) {
 					$delta = $chunk['choices'][0]['delta'];
