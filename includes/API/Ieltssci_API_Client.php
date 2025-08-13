@@ -494,228 +494,6 @@ class Ieltssci_API_Client {
 	}
 
 	/**
-	 * Process a detached stream resource for streaming responses.
-	 *
-	 * @param resource $handle Stream resource.
-	 * @param string   $api_provider API provider name.
-	 * @param string   $step_type Step type for message handling.
-	 * @return array Array containing 'content' and 'reasoning_content' keys.
-	 */
-	private function process_stream( $handle, $api_provider, $step_type ) {
-		// Set stream to non-blocking mode for better responsiveness.
-		stream_set_blocking( $handle, false );
-
-		// Delegate streaming loop processing.
-		return $this->process_stream_loop( $handle, $api_provider, $step_type );
-	}
-
-	/**
-	 * Process the stream loop for streaming responses.
-	 *
-	 * @param resource $handle Stream resource.
-	 * @param string   $api_provider API provider name.
-	 * @param string   $step_type Step type for message handling.
-	 * @return array Array containing 'content' and 'reasoning_content' keys.
-	 */
-	private function process_stream_loop( $handle, $api_provider, $step_type ) {
-		// Buffer for accumulating parts of a line.
-		$line_accumulator = '';
-		// Flag to stop processing after [DONE] is received.
-		$done_received = false;
-		// Accumulated full response.
-		$full_response = '';
-		// Accumulated reasoning content.
-		$reasoning_response = '';
-		// Flag to track if chain-of-thought is active.
-		$cot_active = false;
-		// Flag to determine if we should stream content to client.
-		$is_scoring_step = 'scoring' === $step_type;
-
-		// Loop until done.
-		while ( ! feof( $handle ) && ! $done_received ) {
-			$chunk = fgets( $handle ); // Read a chunk from the stream.
-			if ( false === $chunk && ! feof( $handle ) ) {
-				usleep( 10000 ); // Sleep briefly to avoid CPU spinning.
-				continue;
-			}
-			if ( false !== $chunk ) {
-				$line_accumulator .= $chunk;
-			}
-
-			// Process complete lines.
-			while ( ( $newline_pos = strpos( $line_accumulator, "\n" ) ) !== false && ! $done_received ) {
-				$line_to_process  = substr( $line_accumulator, 0, $newline_pos + 1 );
-				$line_accumulator = substr( $line_accumulator, $newline_pos + 1 );
-				$line             = trim( $line_to_process );
-
-				if ( '' === $line ) {
-					continue;
-				}
-
-				if ( 0 === strpos( $line, 'data: ' ) ) {
-					$content_chunk = $this->extract_content( $api_provider, $line );
-
-					// Check if COT was active and has now ended.
-					// This happens if $cot_active is true AND (
-					// 1. The current chunk is an array but does NOT contain 'reasoning_content' OR
-					// 2. The current chunk is the main '[DONE]' signal.
-					// ).
-					if ( $cot_active &&
-						( ( is_array( $content_chunk ) && ! isset( $content_chunk['reasoning_content'] ) ) || '[DONE]' === $content_chunk ) ) {
-						$this->message_handler->send_message(
-							$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
-							array(
-								'content'   => '[DONE]',
-								'step_type' => $step_type,
-							)
-						);
-						$this->message_handler->send_done( $this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ) );
-						$cot_active = false;
-					}
-
-					if ( '[DONE]' === $content_chunk ) {
-						$done_received = true;
-						$this->message_handler->send_message(
-							$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-							array(
-								'content'   => '[DONE]',
-								'step_type' => $step_type,
-							)
-						);
-						break;
-					}
-
-					if ( ! is_null( $content_chunk ) && is_array( $content_chunk ) ) {
-						// Only process the normal content part for now.
-						if ( isset( $content_chunk['content'] ) && ! is_null( $content_chunk['content'] ) && '' !== $content_chunk['content'] ) {
-							$full_response .= $content_chunk['content'];
-
-							// For scoring steps, don't send content to client until the end.
-							// Only accumulate it in $full_response.
-							if ( ! $is_scoring_step ) {
-								$this->message_handler->send_message(
-									$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-									array(
-										'content'   => $content_chunk['content'],
-										'step_type' => $step_type,
-									)
-								);
-							}
-						}
-
-						// Send reasoning_content as a COT event if available.
-						if ( isset( $content_chunk['reasoning_content'] ) && ! is_null( $content_chunk['reasoning_content'] ) && '' !== $content_chunk['reasoning_content'] ) {
-							// Accumulate reasoning content in addition to sending it.
-							$reasoning_response .= $content_chunk['reasoning_content'];
-
-							$this->message_handler->send_message(
-								$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
-								array(
-									'content'   => $content_chunk['reasoning_content'],
-									'step_type' => $step_type,
-								)
-							);
-							$cot_active = true; // Mark COT as active.
-						}
-					}
-				}
-			}
-
-			// Process any remaining fragment at EOF.
-			if ( feof( $handle ) && ! $done_received && ! empty( trim( $line_accumulator ) ) ) {
-				$line = trim( $line_accumulator );
-				if ( 0 === strpos( $line, 'data: ' ) ) {
-					$content_chunk = $this->extract_content( $api_provider, $line );
-
-					// Check if COT was active and has now ended.
-					if ( $cot_active &&
-						( ( is_array( $content_chunk ) && ! isset( $content_chunk['reasoning_content'] ) ) || '[DONE]' === $content_chunk ) ) {
-						$this->message_handler->send_message(
-							$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
-							array(
-								'content'   => '[DONE]',
-								'step_type' => $step_type,
-							)
-						);
-						$this->message_handler->send_done( $this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ) );
-						$cot_active = false;
-					}
-
-					if ( '[DONE]' === $content_chunk ) {
-						$done_received = true;
-						$this->message_handler->send_message(
-							$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-							array(
-								'content'   => '[DONE]',
-								'step_type' => $step_type,
-							)
-						);
-					}
-
-					if ( ! is_null( $content_chunk ) && is_array( $content_chunk ) ) {
-						// Only process the normal content part for now.
-						if ( isset( $content_chunk['content'] ) && ! is_null( $content_chunk['content'] ) && '' !== $content_chunk['content'] ) {
-							$full_response .= $content_chunk['content'];
-
-							// For scoring steps, don't send content to client until the end.
-							// Only accumulate it in $full_response.
-							if ( ! $is_scoring_step ) {
-								$this->message_handler->send_message(
-									$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-									array(
-										'content'   => $content_chunk['content'],
-										'step_type' => $step_type,
-									)
-								);
-							}
-						}
-
-						// Send reasoning_content as a COT event if available.
-						if ( isset( $content_chunk['reasoning_content'] ) && ! is_null( $content_chunk['reasoning_content'] ) && '' !== $content_chunk['reasoning_content'] ) {
-							// Accumulate reasoning content in addition to sending it.
-							$reasoning_response .= $content_chunk['reasoning_content'];
-
-							$this->message_handler->send_message(
-								$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
-								array(
-									'content'   => $content_chunk['reasoning_content'],
-									'step_type' => $step_type,
-								)
-							);
-							$cot_active = true; // Mark COT as active.
-						}
-					}
-				}
-				$line_accumulator = '';
-				break;
-			}
-		}
-
-		// If COT was active when the stream ended, send a final COT [DONE].
-		if ( $cot_active ) {
-			$this->message_handler->send_message(
-				$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
-				array(
-					'content'   => '[DONE]',
-					'step_type' => $step_type,
-				)
-			);
-			$this->message_handler->send_done( $this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ) );
-		}
-
-		if ( is_resource( $handle ) ) {
-			fclose( $handle );
-		}
-
-		// Return both the full response and reasoning response.
-		return array(
-			'content'           => $full_response,
-			'reasoning_content' => $reasoning_response,
-		);
-	}
-
-
-	/**
 	 * Make an API call to the language model with streaming
 	 *
 	 * @param string $api_provider The API provider to use.
@@ -734,145 +512,181 @@ class Ieltssci_API_Client {
 	 * @return array|WP_Error Array containing 'content' and 'reasoning_content' from the API, or WP_Error on failure. For scoring steps, returns an array with 'content' (score) and 'reasoning_content'.
 	 */
 	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $score_regex = null ) {
-		$current_provider = $api_provider;
+		try {
+			$current_provider = $api_provider; // Single attempt only.
+			$client_settings  = $this->get_client_settings( $current_provider );
+			$headers_array    = $this->get_request_headers( $current_provider, true );
+			$payload          = $this->get_request_payload( $current_provider, $model, $prompt, $temperature, $max_tokens, true, $images, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
 
-		do {
-			try {
-				// Get client settings.
-				$client_settings = $this->get_client_settings( $current_provider );
+			$endpoint_url = rtrim( $client_settings['base_uri'], '/' ) . '/chat/completions';
 
-				// Get headers including API key.
-				$headers = $this->get_request_headers( $current_provider, true );
+			// Prepare headers for cURL.
+			$curl_headers = array();
+			foreach ( $headers_array as $k => $v ) {
+				$curl_headers[] = $k . ': ' . $v;
+			}
+			// Prevent "Expect: 100-continue" delays.
+			$curl_headers[] = 'Expect:';
 
-				// Combine settings and headers.
-				$client_settings['headers'] = $headers;
+			$ch = curl_init();
+			if ( false === $ch ) {
+				return new WP_Error( 'curl_init_failed', 'Failed to initialize cURL.' );
+			}
 
-				// Decider Function: Determines IF a request should be retried.
-				$decider = function ( $retries, $request, $response, $exception ) {
-					// 1. Limit the maximum number of retries.
-					if ( $retries >= 3 ) {  // Max retries.
-						return false;
-					}
+			// Streaming state variables mirroring process_stream_loop.
+			$line_accumulator    = '';
+			$done_received       = false;
+			$full_response       = '';
+			$reasoning_response  = '';
+			$cot_active          = false;
+			$is_scoring_step     = ( 'scoring' === $step_type );
+			$score_regex_pattern = $score_regex; // For later extraction after full content.
 
-					return true;
-				};
+			curl_setopt_array(
+				$ch,
+				array(
+					CURLOPT_URL            => $endpoint_url,
+					CURLOPT_POST           => true,
+					CURLOPT_HTTPHEADER     => $curl_headers,
+					CURLOPT_POSTFIELDS     => wp_json_encode( $payload ),
+					CURLOPT_RETURNTRANSFER => false, // We stream manually.
+					CURLOPT_WRITEFUNCTION  => function ( $curl, $data ) use ( &$line_accumulator, &$done_received, &$full_response, &$reasoning_response, &$cot_active, $current_provider, $step_type, $is_scoring_step ) {
+						// Append incoming chunk to accumulator.
+						$line_accumulator .= $data;
 
-				// Add handler stack with retry middleware.
-				$stack = HandlerStack::create();
-				$stack->push( Middleware::retry( $decider ) );
-				$client_settings['handler'] = $stack;
+						// Process complete lines.
+						while ( ( $newline_pos = strpos( $line_accumulator, "\n" ) ) !== false && ! $done_received ) {
+							$line_to_process  = substr( $line_accumulator, 0, $newline_pos + 1 );
+							$line_accumulator = substr( $line_accumulator, $newline_pos + 1 );
+							$line             = trim( $line_to_process );
+							if ( '' === $line ) {
+								continue;
+							}
+							if ( 0 === strpos( $line, 'data: ' ) ) {
+								$content_chunk = $this->extract_content( $current_provider, $line );
 
-				$client = new Client( $client_settings );
+								// Handle end of chain-of-thought when reasoning stops.
+								if ( $cot_active && ( ( is_array( $content_chunk ) && ! isset( $content_chunk['reasoning_content'] ) ) || '[DONE]' === $content_chunk ) ) {
+									$this->message_handler->send_message(
+										$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
+										array(
+											'content'   => '[DONE]',
+											'step_type' => $step_type,
+										)
+									);
+									$this->message_handler->send_done( $this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ) );
+									$cot_active = false;
+								}
 
-				// Prepare request payload based on the API provider.
-				$payload = $this->get_request_payload( $current_provider, $model, $prompt, $temperature, $max_tokens, true, $images, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
+								if ( '[DONE]' === $content_chunk ) {
+									$done_received = true;
+									$this->message_handler->send_message(
+										$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+										array(
+											'content'   => '[DONE]',
+											'step_type' => $step_type,
+										)
+									);
+									break; // Exit processing loop.
+								}
 
-				$endpoint = 'chat/completions';
+								if ( is_array( $content_chunk ) ) {
+									if ( isset( $content_chunk['content'] ) && '' !== $content_chunk['content'] ) {
+										$full_response .= $content_chunk['content'];
+										if ( ! $is_scoring_step ) { // Stream immediately unless scoring step.
+											$this->message_handler->send_message(
+												$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+												array(
+													'content' => $content_chunk['content'],
+													'step_type' => $step_type,
+												)
+											);
+										}
+									}
+									if ( isset( $content_chunk['reasoning_content'] ) && '' !== $content_chunk['reasoning_content'] ) {
+										$reasoning_response .= $content_chunk['reasoning_content'];
+										$this->message_handler->send_message(
+											$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
+											array(
+												'content' => $content_chunk['reasoning_content'],
+												'step_type' => $step_type,
+											)
+										);
+										$cot_active = true;
+									}
+								}
+							}
+						}
 
-				$response = $client->request(
-					'POST',
-					$endpoint,
+						return strlen( $data ); // Tell cURL we consumed the chunk.
+					},
+					CURLOPT_CONNECTTIMEOUT => isset( $client_settings['connect_timeout'] ) ? $client_settings['connect_timeout'] : 5,
+					CURLOPT_TIMEOUT        => isset( $client_settings['timeout'] ) ? $client_settings['timeout'] : 120,
+					CURLOPT_NOPROGRESS     => true,
+				)
+			);
+
+			// Execute streaming request.
+			$exec_result = curl_exec( $ch );
+			$curl_error  = curl_error( $ch );
+			$http_code   = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+			curl_close( $ch );
+
+			if ( false === $exec_result && ! empty( $curl_error ) ) {
+				$this->message_handler->send_error(
+					'stream_api_error',
 					array(
-						'json'           => $payload,
-						'stream'         => true,
-						'decode_content' => true,
+						'title'   => 'Streaming API Error',
+						'message' => $curl_error,
 					)
 				);
-
-				$stream = $response->getBody();
-
-				// Get a PHP stream resource from Guzzle's stream.
-				$handle = $stream->detach();
-
-				// Check if handle is a valid resource.
-				if ( ! is_resource( $handle ) ) {
-					return new WP_Error( 'stream_detach_failed', 'Failed to detach stream resource.' );
-				}
-
-				$full_response = $this->process_stream( $handle, $current_provider, $step_type );
-				// If this is a scoring step and we have a score_regex, extract the score from the full response.
-				if ( 'scoring' === $step_type && ! empty( $score_regex ) ) {
-					// Extract score from the content using regex.
-					$extracted_score = $this->extract_score_from_result( $full_response['content'], $score_regex );
-
-					// Create a result structure with score, content, and reasoning_content.
-					$result = array(
-						'content'           => $extracted_score,
-						'reasoning_content' => $full_response['reasoning_content'],
-					);
-
-					// Send both raw content and extracted score to frontend.
-					$this->message_handler->send_message(
-						$this->message_handler->transform_case( $step_type, 'snake_upper' ),
-						array(
-							'content'           => $extracted_score,
-							'raw_content'       => $full_response['content'],
-							'reasoning_content' => $full_response['reasoning_content'],
-							'regex_used'        => $score_regex,
-						)
-					);
-
-					// Return the result array with content, and reasoning_content.
-					return $result;
-				}
-
-				return $full_response;
-
-			} catch ( RequestException $e ) {
-				$fallback_provider = $this->get_fallback_provider( $current_provider );
-
-				if ( $fallback_provider ) {
-					$this->message_handler->send_message(
-						'API_FALLBACK',
-						array(
-							'message'           => "Provider '{$current_provider}' failed. Attempting fallback to '{$fallback_provider}'.",
-							'failed_provider'   => $current_provider,
-							'fallback_provider' => $fallback_provider,
-						)
-					);
-					$current_provider = $fallback_provider;
-				} else {
-					$error_message = $e->getMessage();
-					if ( $e->hasResponse() ) {
-						$error_message .= ' Response: ' . $e->getResponse()->getBody();
-					}
-
-					$this->message_handler->send_error(
-						'stream_api_error',
-						array(
-							'title'   => 'Streaming API Error',
-							'message' => $error_message,
-						)
-					);
-
-					return new WP_Error( 'stream_api_request_failed', 'Streaming API request failed: ' . $error_message, array( 'status' => $e->getCode() ? $e->getCode() : 500 ) );
-				}
-			} catch ( Exception $e ) {
-				$fallback_provider = $this->get_fallback_provider( $current_provider );
-
-				if ( $fallback_provider ) {
-					$this->message_handler->send_message(
-						'API_FALLBACK',
-						array(
-							'message'           => "Provider '{$current_provider}' failed with general error. Attempting fallback to '{$fallback_provider}'.",
-							'failed_provider'   => $current_provider,
-							'fallback_provider' => $fallback_provider,
-						)
-					);
-					$current_provider = $fallback_provider;
-				} else {
-					$this->message_handler->send_error(
-						'stream_api_error',
-						array(
-							'title'   => 'Streaming API Error',
-							'message' => $e->getMessage(),
-						)
-					);
-
-					return new WP_Error( 'stream_api_general_error', 'An unexpected error occurred during streaming: ' . $e->getMessage(), array( 'status' => $e->getCode() ? $e->getCode() : 500 ) );
-				}
+				return new WP_Error( 'stream_api_curl_error', 'cURL streaming failed: ' . $curl_error, array( 'status' => $http_code ? $http_code : 500 ) );
 			}
-		} while ( true );
+
+			// If COT was active but no explicit [DONE] received for reasoning, send final DONE.
+			if ( $cot_active ) {
+				$this->message_handler->send_message(
+					$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
+					array(
+						'content'   => '[DONE]',
+						'step_type' => $step_type,
+					)
+				);
+				$this->message_handler->send_done( $this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ) );
+			}
+
+			// For scoring step extract score now (content not streamed earlier).
+			if ( $is_scoring_step && ! empty( $score_regex_pattern ) ) {
+				$extracted_score = $this->extract_score_from_result( $full_response, $score_regex_pattern );
+				$this->message_handler->send_message(
+					$this->message_handler->transform_case( $step_type, 'snake_upper' ),
+					array(
+						'content'           => $extracted_score,
+						'raw_content'       => $full_response,
+						'reasoning_content' => $reasoning_response,
+						'regex_used'        => $score_regex_pattern,
+					)
+				);
+				return array(
+					'content'           => $extracted_score,
+					'reasoning_content' => $reasoning_response,
+				);
+			}
+
+			return array(
+				'content'           => $full_response,
+				'reasoning_content' => $reasoning_response,
+			);
+		} catch ( Exception $e ) {
+			$this->message_handler->send_error(
+				'stream_api_error',
+				array(
+					'title'   => 'Streaming API Error',
+					'message' => $e->getMessage(),
+				)
+			);
+			return new WP_Error( 'stream_api_general_error', 'An unexpected error occurred during streaming: ' . $e->getMessage(), array( 'status' => $e->getCode() ? $e->getCode() : 500 ) );
+		}
 	}
 
 	/**
