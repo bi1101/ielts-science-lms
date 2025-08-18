@@ -65,7 +65,7 @@ class Ieltssci_API_Client {
 	 */
 	private function get_client_settings( $provider ) {
 		$settings = array(
-			'connect_timeout' => 5,
+			'connect_timeout' => 120,
 			'timeout'         => 120,
 			'read_timeout'    => 120,
 		);
