@@ -687,30 +687,29 @@ class Ieltssci_Merge_Tags_Processor {
 			return array();
 		}
 
-		// Clean the text first.
-		$text = trim( $text );
+		// Normalize line endings to a single newline character.
+		$text = str_replace( array( "\r\n", "\r" ), "\n", $text );
 
-		// Normalize line endings.
-		$text = str_replace( "\r\n", "\n", $text );
-		$text = str_replace( "\r", "\n", $text );
+		// Split by single newline, mirroring the JS logic that uses split("\n").
+		$parts = explode( "\n", $text );
 
-		// Split by any combination of newlines and whitespace that could represent paragraph breaks.
-		$paragraphs = preg_split( '/(\n\s*\n|\n\s+)/', $text );
-
-		// For single-line paragraphs (when text uses just one \n between paragraphs).
-		if ( count( $paragraphs ) <= 1 && false !== strpos( $text, "\n" ) ) {
-			$paragraphs = explode( "\n", $text );
-		}
-
-		// Filter out empty paragraphs and trim each paragraph.
-		$paragraphs = array_filter( array_map( 'trim', $paragraphs ) );
+		// Trim each part and filter out only truly empty strings (preserve "0" content).
+		$trimmed    = array_map( 'trim', $parts );
+		$paragraphs = array_values(
+			array_filter(
+				$trimmed,
+				function ( $p ) {
+					return '' !== $p;
+				}
+			)
+		);
 
 		// Add paragraph numbering.
 		$numbered_paragraphs = array();
-		$i = 1;
+		$i                   = 1;
 		foreach ( $paragraphs as $paragraph ) {
 			$numbered_paragraphs[] = "Paragraph {$i}: {$paragraph}";
-			$i++;
+			++$i;
 		}
 
 		// Return indexed array (not associative).
