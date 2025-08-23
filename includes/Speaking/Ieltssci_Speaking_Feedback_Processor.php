@@ -250,10 +250,11 @@ class Ieltssci_Speaking_Feedback_Processor {
 		$enable_thinking   = isset( $config['general-setting']['enable_thinking'] ) ? $config['general-setting']['enable_thinking'] : false;
 
 		// Extract guided parameters from advanced settings.
-		$guided_choice = isset( $config['advanced-setting']['guided_choice'] ) ? $config['advanced-setting']['guided_choice'] : null;
-		$guided_regex  = isset( $config['advanced-setting']['guided_regex'] ) ? $config['advanced-setting']['guided_regex'] : null;
-		$guided_json   = isset( $config['advanced-setting']['guided_json'] ) ? $config['advanced-setting']['guided_json'] : null;
+		$guided_choice  = isset( $config['advanced-setting']['guided_choice'] ) ? $config['advanced-setting']['guided_choice'] : null;
+		$guided_regex   = isset( $config['advanced-setting']['guided_regex'] ) ? $config['advanced-setting']['guided_regex'] : null;
+		$guided_json    = isset( $config['advanced-setting']['guided_json'] ) ? $config['advanced-setting']['guided_json'] : null;
 		$guided_json_vi = isset( $config['advanced-setting']['guided_json_vi'] ) ? $config['advanced-setting']['guided_json_vi'] : null;
+		$storing_json   = isset( $config['advanced-setting']['storing_json'] ) ? $config['advanced-setting']['storing_json'] : null;
 
 		// Determine if the source should be 'human' based on guide content.
 		$source = 'ai';
@@ -354,8 +355,16 @@ class Ieltssci_Speaking_Feedback_Processor {
 
 			$this->send_message( $event_type, $message_data );
 
+			// If a storing_json schema is provided, we need an array of results to aggregate.
+			$return_format = ! empty( $storing_json ) ? 'array' : 'string';
+
 			// Use API client for parallel API calls.
-			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $selected_guided_json, $enable_thinking );
+			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $selected_guided_json, $enable_thinking, $return_format );
+
+			// If we need to aggregate the results, do so now.
+			if ( 'array' === $return_format && is_array( $result ) ) {
+				$result = $this->aggregate_parallel_json_results( $result, $storing_json );
+			}
 
 			// Check if result is a WP_Error.
 			if ( is_wp_error( $result ) ) {
@@ -742,5 +751,70 @@ class Ieltssci_Speaking_Feedback_Processor {
 		if ( is_callable( $this->message_callback ) ) {
 			call_user_func( $this->message_callback, $event_type, null, false, true );
 		}
+	}
+
+	/**
+	 * Aggregates parallel JSON results into a single structure based on a storing schema.
+	 *
+	 * This method implements a flexible aggregation system that works with various JSON schemas
+	 * that follow the pattern of merging arrays from multiple sources into a single parent array.
+	 *
+	 * Example:
+	 * - Input: Multiple JSON responses, each containing { "sentence": [array_of_sentences] }
+	 * - Output: Single JSON with { "essay": { "sentence": [merged_array_of_all_sentences] } }
+	 *
+	 * The system automatically detects the target array key from the storing_json schema
+	 * and merges all parallel results into the final structure.
+	 *
+	 * @param array  $results The array of JSON string results from parallel calls.
+	 * @param string $storing_json_schema The JSON schema for the final aggregated structure.
+	 * @return string|WP_Error The final aggregated JSON string, or an error.
+	 */
+	private function aggregate_parallel_json_results( $results, $storing_json_schema ) {
+		$storing_schema = json_decode( $storing_json_schema, true );
+		if ( json_last_error() !== JSON_ERROR_NONE ) {
+			return new WP_Error( 'json_error', 'Invalid storing_json schema provided.' );
+		}
+
+		// This logic is based on the example of merging 'sentence' arrays into an 'essay.sentence' array.
+		// It identifies the first array property in the storing schema as the target for aggregation.
+		$target_key      = null;
+		$parent_key      = null;
+		$final_structure = array();
+
+		// Find the key of the array we need to populate (e.g., 'sentence').
+		// This is a simplified discovery logic. For more complex schemas, this may need adjustment.
+		if ( isset( $storing_schema['properties'] ) ) {
+			$first_prop_key  = key( $storing_schema['properties'] );
+			$first_prop_val  = $storing_schema['properties'][ $first_prop_key ];
+			$final_structure = array( $first_prop_key => array() );
+			$parent_key      = $first_prop_key; // e.g., 'essay'.
+
+			if ( isset( $first_prop_val['properties'] ) ) {
+				foreach ( $first_prop_val['properties'] as $key => $prop ) {
+					if ( isset( $prop['type'] ) && 'array' === $prop['type'] ) {
+						$target_key                                    = $key; // e.g., 'sentence'.
+						$final_structure[ $parent_key ][ $target_key ] = array();
+						break;
+					}
+				}
+			}
+		}
+
+		if ( ! $target_key || ! $parent_key ) {
+			return new WP_Error( 'schema_error', 'Could not determine the target array key from the storing_json schema.' );
+		}
+
+		// Process each parallel result.
+		foreach ( $results as $json_string ) {
+			$decoded = json_decode( $json_string, true );
+			if ( json_last_error() === JSON_ERROR_NONE && isset( $decoded[ $target_key ] ) && is_array( $decoded[ $target_key ] ) ) {
+				// Merge the 'sentence' array from the current result into the final structure.
+				$final_structure[ $parent_key ][ $target_key ] = array_merge( $final_structure[ $parent_key ][ $target_key ], $decoded[ $target_key ] );
+			}
+		}
+
+		// Return the aggregated structure as a JSON string.
+		return wp_json_encode( $final_structure );
 	}
 }

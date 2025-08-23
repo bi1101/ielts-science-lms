@@ -321,6 +321,7 @@ class Ieltssci_Speaking_Settings {
 			$settings_config_instance->create_field( 'guided_regex', 'text', 'Guided Regex', 'The output will follow the regex pattern.', null ),
 			$settings_config_instance->create_field( 'guided_json', 'textarea', 'Guided JSON', 'The output will follow the JSON schema. A valid schema must be provided.', null ),
 			$settings_config_instance->create_field( 'guided_json_vi', 'textarea', 'Guided JSON (Vietnamese)', 'The output will follow the JSON schema for Vietnamese language. A valid schema must be provided.', null ),
+			$settings_config_instance->create_field( 'storing_json', 'textarea', 'Storing JSON Schema', 'Optional. The final JSON schema for aggregating parallel results. If provided, parallel responses will be merged into this structure.', null ),
 		);
 
 		// Common sections for most APIs.
