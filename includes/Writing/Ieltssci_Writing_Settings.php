@@ -344,6 +344,8 @@ class Ieltssci_Writing_Settings {
 		$common_advanced_fields = array(
 			$settings_config_instance->create_field( 'maxToken', 'number', 'Max Token', 'The maximum number of tokens to generate.', 2048 ),
 			$settings_config_instance->create_field( 'temperature', 'number', 'Temperature', 'The value used to module the next token probabilities.', 0.1 ),
+			$settings_config_instance->create_field( 'top_p', 'number', 'Top P', 'Float that controls the cumulative probability of the top tokens to consider. Must be in (0, 1]. Set to 1 to consider all tokens.', 0.8 ),
+			$settings_config_instance->create_field( 'top_k', 'number', 'Top K', 'Integer that controls the number of top tokens to consider. Set to -1 to consider all tokens.', 20 ),
 			$settings_config_instance->create_field( 'guided_choice', 'text', 'Guided Choice', 'The output will be exactly one of the choices. Choices separate by `|` character', null ),
 			$settings_config_instance->create_field( 'guided_regex', 'text', 'Guided Regex', 'The output will follow the regex pattern.', null ),
 			$settings_config_instance->create_field( 'guided_json', 'textarea', 'Guided JSON', 'The output will follow the JSON schema. A valid schema must be provided.', null ),
@@ -363,6 +365,8 @@ class Ieltssci_Writing_Settings {
 				array(
 					$settings_config_instance->create_field( 'maxToken', 'number', 'Max Token', 'The maximum number of tokens to generate.', 2048 ),
 					$settings_config_instance->create_field( 'temperature', 'number', 'Temperature', 'The value used to module the next token probabilities.', 0.1 ),
+					$settings_config_instance->create_field( 'top_p', 'number', 'Top P', 'Float that controls the cumulative probability of the top tokens to consider. Must be in (0, 1]. Set to 1 to consider all tokens.', 0.8 ),
+					$settings_config_instance->create_field( 'top_k', 'number', 'Top K', 'Integer that controls the number of top tokens to consider. Set to -1 to consider all tokens.', 20 ),
 					$settings_config_instance->create_field( 'scoreRegex', 'text', 'Score Regex', 'Regular expression to extract score from the model output.', '/\d+/' ),
 					$settings_config_instance->create_field( 'guided_choice', 'text', 'Guided Choice', 'The output will be exactly one of the choices. Choices separate by `|` character', null ),
 					$settings_config_instance->create_field( 'guided_regex', 'text', 'Guided Regex', 'The output will follow the regex pattern.', null ),

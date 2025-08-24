@@ -229,10 +229,12 @@ class Ieltssci_API_Client {
 	 * @param string $guided_regex Guided regex parameter.
 	 * @param string $guided_json Guided JSON parameter.
 	 * @param bool   $enable_thinking Whether to enable reasoning for vllm/slm.
+	 * @param float  $top_p Top P sampling parameter.
+	 * @param int    $top_k Top K sampling parameter.
 	 * @return array Request payload.
 	 * @throws Exception When API key is not found for the provider.
 	 */
-	private function get_request_payload( $provider, $model, $prompt, $temperature, $max_tokens, $stream = true, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false ) {
+	private function get_request_payload( $provider, $model, $prompt, $temperature, $max_tokens, $stream = true, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $top_p = 0.8, $top_k = 20 ) {
 		// Base message content.
 		$message_content = array();
 
@@ -275,6 +277,16 @@ class Ieltssci_API_Client {
 			'max_tokens'  => (int) $max_tokens,
 			'stream'      => (bool) $stream,
 		);
+
+		// Add top_p if it's not the default value (0.8).
+		if ( 0.8 !== (float) $top_p ) {
+			$base_payload['top_p'] = (float) $top_p;
+		}
+
+		// Add top_k if it's not the default value (20).
+		if ( 20 !== (int) $top_k ) {
+			$base_payload['top_k'] = (int) $top_k;
+		}
 
 		// Provider-specific configurations.
 		// Special handling: if model name starts with 'hosted_vllm', treat it like a vllm/slm backend regardless of provider.
@@ -509,14 +521,16 @@ class Ieltssci_API_Client {
 	 * @param string $guided_json Guided JSON parameter.
 	 * @param bool   $enable_thinking Whether to enable reasoning for vllm/slm.
 	 * @param string $score_regex Optional. Regex pattern to extract score from the response when step_type is 'scoring'.
+	 * @param float  $top_p Top P sampling parameter.
+	 * @param int    $top_k Top K sampling parameter.
 	 * @return array|WP_Error Array containing 'content' and 'reasoning_content' from the API, or WP_Error on failure. For scoring steps, returns an array with 'content' (score) and 'reasoning_content'.
 	 */
-	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $score_regex = null ) {
+	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $score_regex = null, $top_p = 0.8, $top_k = 20 ) {
 		try {
 			$current_provider = $api_provider; // Single attempt only.
 			$client_settings  = $this->get_client_settings( $current_provider );
 			$headers_array    = $this->get_request_headers( $current_provider, true );
-			$payload          = $this->get_request_payload( $current_provider, $model, $prompt, $temperature, $max_tokens, true, $images, $guided_choice, $guided_regex, $guided_json, $enable_thinking );
+			$payload          = $this->get_request_payload( $current_provider, $model, $prompt, $temperature, $max_tokens, true, $images, $guided_choice, $guided_regex, $guided_json, $enable_thinking, $top_p, $top_k );
 
 			$endpoint_url = rtrim( $client_settings['base_uri'], '/' ) . '/chat/completions';
 
@@ -728,9 +742,11 @@ class Ieltssci_API_Client {
 	 * @param string $guided_json Guided JSON parameter.
 	 * @param bool   $enable_thinking Whether to enable reasoning for vllm/slm.
 	 * @param string $return_format Optional. The format of the return value. 'string' for concatenated responses (default), 'array' for indexed array of responses.
+	 * @param float  $top_p Top P sampling parameter.
+	 * @param int    $top_k Top K sampling parameter.
 	 * @return string|array|WP_Error The concatenated responses from all API calls, indexed array of responses, or WP_Error on failure.
 	 */
-	public function make_parallel_api_calls( $api_provider, $model, $prompts, $temperature, $max_tokens, $feed, $step_type, $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $return_format = 'string' ) {
+	public function make_parallel_api_calls( $api_provider, $model, $prompts, $temperature, $max_tokens, $feed, $step_type, $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $return_format = 'string', $top_p = 0.8, $top_k = 20 ) {
 		$current_provider  = $api_provider;
 		$remaining_prompts = $prompts; // Prompts that still need to be processed.
 		$final_responses   = array(); // Successful responses from all attempts.
@@ -764,11 +780,11 @@ class Ieltssci_API_Client {
 				$processed_count    = 0;
 
 				// Generate request objects for remaining prompts.
-				$requests = function ( $prompts_to_process ) use ( $current_provider, $model, $temperature, $max_tokens, $guided_choice, $guided_regex, $guided_json, $enable_thinking ) {
+				$requests = function ( $prompts_to_process ) use ( $current_provider, $model, $temperature, $max_tokens, $guided_choice, $guided_regex, $guided_json, $enable_thinking, $top_p, $top_k ) {
 					foreach ( $prompts_to_process as $index => $prompt ) {
 						try {
 							// Prepare request payload for this prompt.
-							$payload = $this->get_request_payload( $current_provider, $model, $prompt, $temperature, $max_tokens, false, array(), $guided_choice, $guided_regex, $guided_json, $enable_thinking );
+							$payload = $this->get_request_payload( $current_provider, $model, $prompt, $temperature, $max_tokens, false, array(), $guided_choice, $guided_regex, $guided_json, $enable_thinking, $top_p, $top_k );
 
 							// Get headers including API key.
 							$headers = $this->get_request_headers( $current_provider, false );

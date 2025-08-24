@@ -359,6 +359,10 @@ class Ieltssci_Writing_Feedback_Processor {
 		$guided_json_vi = isset( $config['advanced-setting']['guided_json_vi'] ) ? $config['advanced-setting']['guided_json_vi'] : null;
 		$storing_json   = isset( $config['advanced-setting']['storing_json'] ) ? $config['advanced-setting']['storing_json'] : null;
 
+		// Extract sampling parameters from advanced settings.
+		$top_p = isset( $config['advanced-setting']['top_p'] ) ? (float) $config['advanced-setting']['top_p'] : 0.8;
+		$top_k = isset( $config['advanced-setting']['top_k'] ) ? (int) $config['advanced-setting']['top_k'] : 20;
+
 		// Map step_type to the appropriate database column.
 		switch ( $step_type ) {
 			case 'chain-of-thought':
@@ -529,7 +533,7 @@ class Ieltssci_Writing_Feedback_Processor {
 			$return_format = ! empty( $storing_json ) ? 'array' : 'string';
 
 			// Use API client for parallel API calls.
-			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $selected_guided_json, $enable_thinking, $return_format );
+			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $selected_guided_json, $enable_thinking, $return_format, $top_p, $top_k );
 
 			// If we need to aggregate the results, do so now.
 			if ( 'array' === $return_format && is_array( $result ) ) {
@@ -603,7 +607,9 @@ class Ieltssci_Writing_Feedback_Processor {
 				$guided_regex,
 				$selected_guided_json,
 				$enable_thinking,
-				'scoring' === $step_type ? $score_regex : null
+				'scoring' === $step_type ? $score_regex : null,
+				$top_p,
+				$top_k
 			);
 
 			// Check if result is a WP_Error.
