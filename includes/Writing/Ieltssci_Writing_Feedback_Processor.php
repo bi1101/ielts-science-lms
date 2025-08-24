@@ -363,6 +363,13 @@ class Ieltssci_Writing_Feedback_Processor {
 		$top_p = isset( $config['advanced-setting']['top_p'] ) ? (float) $config['advanced-setting']['top_p'] : 0.8;
 		$top_k = isset( $config['advanced-setting']['top_k'] ) ? (int) $config['advanced-setting']['top_k'] : 20;
 
+		// Override sampling parameters for refetch to avoid deterministic results.
+		if ( ! empty( $refetch ) && ( 'all' === $refetch || $step_type === $refetch ) ) {
+			$top_p       = 0.8;
+			$top_k       = 20;
+			$temperature = 1.0;
+		}
+
 		// Map step_type to the appropriate database column.
 		switch ( $step_type ) {
 			case 'chain-of-thought':
