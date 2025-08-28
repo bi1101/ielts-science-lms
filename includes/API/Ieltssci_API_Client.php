@@ -757,14 +757,24 @@ class Ieltssci_API_Client {
 				// Get client settings.
 				$client_settings = $this->get_client_settings( $current_provider );
 
-				// Decider Function: Determines IF a request should be retried.
+				// Decider Function (run every success/failure): Determines IF a request should be retried.
 				$decider = function ( $retries, $request, $response, $exception ) {
-					// 1. Limit the maximum number of retries.
-					if ( $retries >= 3 ) {  // Max retries.
+					// 1. Limit the maximum number of retries to prevent infinite loops.
+					if ( $retries >= 3 ) {
 						return false;
 					}
 
-					return true;
+					// 2. Retry on connection errors, which are safe to retry.
+					if ( $exception instanceof \GuzzleHttp\Exception\ConnectException ) {
+						return true;
+					}
+
+					// 3. Retry on server errors (5xx) or rate limiting (429), but not other client errors.
+					if ( $response && ( $response->getStatusCode() >= 500 || $response->getStatusCode() === 429 ) ) {
+						return true;
+					}
+
+					return false; // Do not retry for success/other failures.
 				};
 
 				// Add handler stack with retry middleware.
