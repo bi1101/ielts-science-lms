@@ -65,9 +65,9 @@ class Ieltssci_API_Client {
 	 */
 	private function get_client_settings( $provider ) {
 		$settings = array(
-			'connect_timeout' => 120,
-			'timeout'         => 120,
-			'read_timeout'    => 120,
+			'connect_timeout' => 600,
+			'timeout'         => 600,
+			'read_timeout'    => 600,
 		);
 
 		// Get the base URI for the provider.
@@ -634,7 +634,7 @@ class Ieltssci_API_Client {
 
 						return strlen( $data ); // Tell cURL we consumed the chunk.
 					},
-					CURLOPT_CONNECTTIMEOUT => isset( $client_settings['connect_timeout'] ) ? $client_settings['connect_timeout'] : 5,
+					CURLOPT_CONNECTTIMEOUT => isset( $client_settings['connect_timeout'] ) ? $client_settings['connect_timeout'] : 120,
 					CURLOPT_TIMEOUT        => isset( $client_settings['timeout'] ) ? $client_settings['timeout'] : 120,
 					CURLOPT_NOPROGRESS     => true,
 				)
