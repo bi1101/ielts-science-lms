@@ -40,10 +40,10 @@ class Ieltssci_LD_Integration {
 		new Ieltssci_Group_Course_Auto_Creator();
 
 		// Add custom Quiz field: Due date.
-		add_filter( 'learndash_settings_fields', array( $this, 'add_quiz_due_date_field' ), 10, 2 );
+		add_filter( 'learndash_settings_fields', array( $this, 'add_quiz_custom_field' ), 10, 2 );
 
 		// Save handler for the custom field.
-		add_action( 'save_post', array( $this, 'save_quiz_due_date' ), 20, 3 );
+		add_action( 'save_post', array( $this, 'save_quiz_custom_fields' ), 20, 3 );
 	}
 
 	/**
@@ -85,7 +85,7 @@ class Ieltssci_LD_Integration {
 	 *
 	 * @return array Modified fields array including our custom field when on Quiz Access Settings.
 	 */
-	public function add_quiz_due_date_field( $setting_option_fields, $settings_metabox_key ) {
+	public function add_quiz_custom_field( $setting_option_fields, $settings_metabox_key ) {
 		// We only want to add the field on the Quiz Access Settings metabox.
 		if ( 'learndash-quiz-access-settings' !== $settings_metabox_key ) {
 			return $setting_option_fields;
@@ -168,7 +168,7 @@ class Ieltssci_LD_Integration {
 	 * @param \WP_Post $post    Post object.
 	 * @param bool     $update  Whether this is an existing post being updated.
 	 */
-	public function save_quiz_due_date( $post_id, $post, $update ) {
+	public function save_quiz_custom_fields( $post_id, $post, $update ) {
 		// Bail on autosave or revisions.
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 			return;
