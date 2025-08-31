@@ -171,6 +171,37 @@ class Ieltssci_LD_Integration {
 			),
 		);
 
+		// Add close submission checkbox under due_date.
+		$close_submission_value = '';
+		if ( $post_id ) {
+			$close_submission_value = get_post_meta( $post_id, '_ielts_ld_quiz_close_submission_after_due_date', true ) ? 'on' : '';
+		}
+
+		$setting_option_fields['close_submission_after_due_date'] = array(
+			'name'           => 'close_submission_after_due_date',
+			'label'          => esc_html__( 'Close submission after due date', 'ielts-science-lms' ),
+			'type'           => 'checkbox',
+			'value'          => $close_submission_value,
+			'default'        => '',
+			'help_text'      => esc_html__( 'Automatically close quiz submissions after the due date.', 'ielts-science-lms' ),
+			'parent_setting' => 'deadline',
+			'options'        => array(
+				'on' => esc_html__( 'Close submissions after the due date.', 'ielts-science-lms' ),
+			),
+			'rest'           => array(
+				'show_in_rest' => LearnDash_REST_API::enabled(),
+				'rest_args'    => array(
+					'get_callback'    => array( $this, 'rest_get_quiz_close_submission' ),
+					'update_callback' => array( $this, 'rest_update_quiz_close_submission' ),
+					'schema'          => array(
+						'field_key' => 'close_submission_after_due_date',
+						'type'      => 'boolean',
+						'default'   => false,
+					),
+				),
+			),
+		);
+
 		return $setting_option_fields;
 	}
 
@@ -226,6 +257,15 @@ class Ieltssci_LD_Integration {
 			delete_post_meta( $post_id, '_ielts_ld_quiz_due_date' );
 		} else {
 			update_post_meta( $post_id, '_ielts_ld_quiz_due_date', $normalized );
+		}
+
+		// Handle close submission checkbox.
+		// phpcs:ignore WordPress.Security.NonceVerification
+		$close_submission_raw = isset( $_POST[ $metabox_key ]['close_submission_after_due_date'] ) ? sanitize_text_field( wp_unslash( $_POST[ $metabox_key ]['close_submission_after_due_date'] ) ) : '';
+		if ( 'on' === $close_submission_raw ) {
+			update_post_meta( $post_id, '_ielts_ld_quiz_close_submission_after_due_date', 'on' );
+		} else {
+			delete_post_meta( $post_id, '_ielts_ld_quiz_close_submission_after_due_date' );
 		}
 	}
 
@@ -401,6 +441,61 @@ class Ieltssci_LD_Integration {
 		}
 
 		update_post_meta( $post_id, '_ielts_ld_quiz_due_date', $ts );
+		return true;
+	}
+
+	/**
+	 * REST GET callback for close_submission_after_due_date field.
+	 *
+	 * @param array|\WP_Post   $object REST object or WP_Post.
+	 * @param string           $field_name Field name.
+	 * @param \WP_REST_Request $request Request instance.
+	 * @return bool Whether close submission is enabled.
+	 */
+	public function rest_get_quiz_close_submission( $object, $field_name, $request ) {
+		$post_id = is_array( $object ) ? (int) ( $object['id'] ?? 0 ) : ( ( $object instanceof \WP_Post ) ? (int) $object->ID : 0 );
+		if ( ! $post_id ) {
+			return false;
+		}
+
+		return (bool) get_post_meta( $post_id, '_ielts_ld_quiz_close_submission_after_due_date', true );
+	}
+
+	/**
+	 * REST UPDATE callback for close_submission_after_due_date field.
+	 *
+	 * @param mixed  $value Incoming value (boolean, string, or int).
+	 * @param mixed  $object Object being updated (array or WP_Post).
+	 * @param string $field_name Field name.
+	 * @return bool|\WP_Error True on success, WP_Error on failure.
+	 */
+	public function rest_update_quiz_close_submission( $value, $object, $field_name ) {
+		$post_id = is_array( $object ) ? (int) ( $object['id'] ?? 0 ) : ( ( $object instanceof \WP_Post ) ? (int) $object->ID : 0 );
+		if ( ! $post_id ) {
+			return new \WP_Error( 'invalid_post', __( 'Invalid post for close_submission_after_due_date update.', 'ielts-science-lms' ) );
+		}
+
+		// Only handle LearnDash quizzes.
+		if ( learndash_get_post_type_slug( 'quiz' ) !== get_post_type( $post_id ) ) {
+			return new \WP_Error( 'invalid_post_type', __( 'close_submission_after_due_date only applies to quizzes.', 'ielts-science-lms' ) );
+		}
+
+		$enabled = false;
+		if ( is_bool( $value ) ) {
+			$enabled = $value;
+		} elseif ( is_string( $value ) ) {
+			$val_l   = strtolower( $value );
+			$enabled = ( 'on' === $val_l ) || ( 'true' === $val_l ) || ( '1' === $val_l );
+		} elseif ( is_numeric( $value ) ) {
+			$enabled = ( 1 === (int) $value );
+		}
+
+		if ( $enabled ) {
+			update_post_meta( $post_id, '_ielts_ld_quiz_close_submission_after_due_date', 'on' );
+		} else {
+			delete_post_meta( $post_id, '_ielts_ld_quiz_close_submission_after_due_date' );
+		}
+
 		return true;
 	}
 
