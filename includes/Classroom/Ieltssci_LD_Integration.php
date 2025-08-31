@@ -44,6 +44,21 @@ class Ieltssci_LD_Integration {
 
 		// Save handler for the custom field.
 		add_action( 'save_post', array( $this, 'save_quiz_custom_fields' ), 20, 3 );
+
+		// Register external question metabox for sfwd-question.
+		add_action( 'add_meta_boxes', array( $this, 'register_external_question_metabox' ) );
+
+		// Save handler for external question metabox.
+		add_action( 'save_post_sfwd-question', array( $this, 'save_external_question_metabox' ), 10, 2 );
+
+		// Expose external question fields via LearnDash REST v2 (ldlms/v2/sfwd-question).
+		add_action( 'learndash_rest_register_fields', array( $this, 'register_questions_rest_fields' ), 10, 2 );
+
+		// Also register post meta for WP core REST exposure under meta.
+		add_action( 'init', array( $this, 'register_question_meta' ) );
+
+		// Intercept LD v2 question updates at REST pre-dispatch to ensure meta persistence.
+		add_filter( 'rest_pre_dispatch', array( $this, 'intercept_ld_questions_update' ), 10, 3 );
 	}
 
 	/**
@@ -386,6 +401,326 @@ class Ieltssci_LD_Integration {
 		}
 
 		update_post_meta( $post_id, '_ielts_ld_quiz_due_date', $ts );
+		return true;
+	}
+
+	/**
+	 * Register the External Question metabox on the LearnDash Question edit screen.
+	 */
+	public function register_external_question_metabox() {
+		$question_pt = function_exists( 'learndash_get_post_type_slug' ) ? learndash_get_post_type_slug( 'question' ) : 'sfwd-question';
+		add_meta_box(
+			'ieltssci_external_question',
+			esc_html__( 'External Question', 'ielts-science-lms' ),
+			array( $this, 'render_external_question_metabox' ),
+			$question_pt,
+			'normal',
+			'high'
+		);
+	}
+
+	/**
+	 * Render the External Question metabox fields.
+	 *
+	 * @param \WP_Post $post Current post object.
+	 */
+	public function render_external_question_metabox( $post ) {
+		wp_nonce_field( 'ieltssci_extq_save', 'ieltssci_extq_nonce' );
+
+		$enabled = (bool) get_post_meta( $post->ID, '_ielts_extq_enabled', true );
+		$ext_id  = (int) get_post_meta( $post->ID, '_ielts_extq_id', true );
+
+		?>
+		<p>
+			<label>
+				<input type="checkbox" id="ieltssci_extq_enabled" name="ieltssci_extq_enabled" value="1" <?php checked( $enabled ); ?> />
+				<?php esc_html_e( 'Enable External Question.', 'ielts-science-lms' ); ?>
+			</label>
+		</p>
+
+		<div id="external-item-id-container" style="margin-left:16px; display: <?php echo $enabled ? 'block' : 'none'; ?>;">
+			<p>
+				<label for="ieltssci_extq_id"><strong><?php esc_html_e( 'External Item ID', 'ielts-science-lms' ); ?></strong></label><br />
+				<input type="number" id="ieltssci_extq_id" name="ieltssci_extq_id" value="<?php echo esc_attr( $ext_id ); ?>" min="0" class="small-text" />
+			</p>
+		</div>
+		<script type="text/javascript">
+		document.addEventListener('DOMContentLoaded', function() {
+			var checkbox = document.getElementById('ieltssci_extq_enabled');
+			var container = document.getElementById('external-item-id-container');
+			if (checkbox && container) {
+				checkbox.addEventListener('change', function() {
+					container.style.display = this.checked ? 'block' : 'none';
+				});
+			}
+		});
+		</script>
+		<?php
+	}
+
+	/**
+	 * Save handler for External Question metabox.
+	 *
+	 * @param int      $post_id Post ID.
+	 * @param \WP_Post $post    Post object.
+	 */
+	public function save_external_question_metabox( $post_id, $post ) {
+		// Nonce and capability checks.
+		if ( ! isset( $_POST['ieltssci_extq_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['ieltssci_extq_nonce'] ) ), 'ieltssci_extq_save' ) ) {
+			return;
+		}
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		if ( wp_is_post_revision( $post_id ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+		$question_pt = function_exists( 'learndash_get_post_type_slug' ) ? learndash_get_post_type_slug( 'question' ) : 'sfwd-question';
+		if ( get_post_type( $post_id ) !== $question_pt ) {
+			return;
+		}
+
+		// Read and sanitize inputs.
+		$enabled = isset( $_POST['ieltssci_extq_enabled'] ) ? '1' : '0'; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Verified above.
+		$ext_id  = isset( $_POST['ieltssci_extq_id'] ) ? absint( $_POST['ieltssci_extq_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Verified above.
+
+		// Persist.
+		update_post_meta( $post_id, '_ielts_extq_enabled', $enabled );
+		if ( '1' === $enabled ) {
+			update_post_meta( $post_id, '_ielts_extq_id', $ext_id );
+		} else {
+			delete_post_meta( $post_id, '_ielts_extq_id' );
+		}
+	}
+
+	/**
+	 * Register LearnDash REST v2 fields for Questions to expose external question data.
+	 *
+	 * @param string                             $post_type  Post type being registered.
+	 * @param \LD_REST_Posts_Controller_V2|mixed $controller Controller instance.
+	 */
+	public function register_questions_rest_fields( $post_type, $controller ) {
+		$question_pt = function_exists( 'learndash_get_post_type_slug' ) ? learndash_get_post_type_slug( 'question' ) : 'sfwd-question';
+		if ( $post_type !== $question_pt ) {
+			return;
+		}
+
+		$register = function ( $field, $args ) use ( $question_pt ) {
+			\register_rest_field( $question_pt, $field, $args );
+		};
+
+		$register(
+			'external_enabled',
+			array(
+				'get_callback'    => array( $this, 'get_external_enabled_callback' ),
+				'update_callback' => array( $this, 'update_external_enabled_callback' ),
+				'schema'          => array(
+					'description' => __( 'Whether this question uses an external provider.', 'ielts-science-lms' ),
+					'type'        => 'boolean',
+					'context'     => array( 'view', 'edit' ),
+				),
+			)
+		);
+
+		$register(
+			'external_quiz_id',
+			array(
+				'get_callback'    => array( $this, 'get_external_quiz_id_callback' ),
+				'update_callback' => array( $this, 'update_external_quiz_id_callback' ),
+				'schema'          => array(
+					'description' => __( 'External question or quiz ID.', 'ielts-science-lms' ),
+					'type'        => 'integer',
+					'context'     => array( 'view', 'edit' ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Intercept LearnDash v2 sfwd-question update requests before dispatch.
+	 * Ensures our external fields are saved even if LD controllers skip callbacks.
+	 *
+	 * @param mixed            $result  Response to replace the requested version with. Default null to continue.
+	 * @param \WP_REST_Server  $server  Server instance.
+	 * @param \WP_REST_Request $request Request used to generate the response.
+	 * @return mixed Null to continue default handling or a response to short-circuit.
+	 */
+	public function intercept_ld_questions_update( $result, $server, $request ) {
+		$route  = $request->get_route();
+		$method = strtoupper( $request->get_method() );
+
+		// Only handle LearnDash v2 questions endpoint updates.
+		if ( false === strpos( $route, '/ldlms/v2/sfwd-question' ) ) {
+			return $result;
+		}
+		if ( ! in_array( $method, array( 'PUT', 'PATCH', 'POST' ), true ) ) {
+			return $result;
+		}
+
+		$post_id = 0;
+		// Extract post ID from route: /ldlms/v2/sfwd-question/{id}.
+		$route_parts = explode( '/', trim( $route, '/' ) );
+		if ( count( $route_parts ) >= 4 && is_numeric( end( $route_parts ) ) ) {
+			$post_id = absint( end( $route_parts ) );
+		}
+		if ( $post_id <= 0 ) {
+			return $result; // Invalid or missing ID.
+		}
+
+		// Use LearnDash's own permission check for updating an item.
+		if ( class_exists( 'LD_REST_Questions_Controller_V2' ) ) {
+			$controller = new \LD_REST_Questions_Controller_V2();
+			if ( method_exists( $controller, 'update_item_permissions_check' ) ) {
+				// The check requires the 'id' to be set on the request.
+				$request->set_param( 'id', $post_id );
+				if ( ! $controller->update_item_permissions_check( $request ) ) {
+					return $result; // Respect permissions from LD controller.
+				}
+			} elseif ( ! current_user_can( 'edit_post', $post_id ) ) {
+				// Fallback for older LD versions or if method signature changes.
+				return $result;
+			}
+		} elseif ( ! current_user_can( 'edit_post', $post_id ) ) {
+			// Fallback for older LD versions or if class not found.
+			return $result;
+		}
+
+		// Persist only if params present.
+		if ( $request->offsetExists( 'external_enabled' ) ) {
+			$val     = $request->get_param( 'external_enabled' );
+			$enabled = false;
+			if ( is_bool( $val ) ) {
+				$enabled = $val;
+			} elseif ( is_string( $val ) ) {
+				$enabled = in_array( strtolower( $val ), array( '1', 'true', 'on' ), true );
+			} elseif ( is_numeric( $val ) ) {
+				$enabled = ( 1 === (int) $val );
+			}
+			update_post_meta( $post_id, '_ielts_extq_enabled', $enabled ? '1' : '0' );
+		}
+
+		if ( $request->offsetExists( 'external_quiz_id' ) ) {
+			$ext_id = max( 0, absint( $request->get_param( 'external_quiz_id' ) ) );
+			if ( $ext_id > 0 ) {
+				update_post_meta( $post_id, '_ielts_extq_id', $ext_id );
+			} else {
+				delete_post_meta( $post_id, '_ielts_extq_id' );
+			}
+		}
+
+		return $result; // Continue to normal dispatch so response is built.
+	}
+
+	/**
+	 * Register question meta with show_in_rest for WordPress core REST API exposure.
+	 */
+	public function register_question_meta() {
+		$question_pt = function_exists( 'learndash_get_post_type_slug' ) ? learndash_get_post_type_slug( 'question' ) : 'sfwd-question';
+		$auth_cb     = function () {
+			return current_user_can( 'edit_posts' );
+		};
+		\register_post_meta(
+			$question_pt,
+			'_ielts_extq_enabled',
+			array(
+				'single'        => true,
+				'type'          => 'boolean',
+				'show_in_rest'  => true,
+				'auth_callback' => $auth_cb,
+			)
+		);
+		\register_post_meta(
+			$question_pt,
+			'_ielts_extq_id',
+			array(
+				'single'        => true,
+				'type'          => 'integer',
+				'show_in_rest'  => true,
+				'auth_callback' => $auth_cb,
+			)
+		);
+	}
+
+	/**
+	 * REST GET callback for external_enabled field.
+	 *
+	 * @param array            $post_arr  Post array from REST API.
+	 * @param string           $field_name Field name.
+	 * @param \WP_REST_Request $request   Request instance.
+	 * @return bool Whether external question is enabled.
+	 */
+	public function get_external_enabled_callback( $post_arr, $field_name, $request ) {
+		$post_id = isset( $post_arr['id'] ) ? absint( $post_arr['id'] ) : 0;
+		return (bool) get_post_meta( $post_id, '_ielts_extq_enabled', true );
+	}
+
+	/**
+	 * REST UPDATE callback for external_enabled field.
+	 *
+	 * @param mixed    $value Incoming value.
+	 * @param \WP_Post $post  Post object.
+	 * @param string   $field_name Field name.
+	 * @return bool|\WP_Error True on success, WP_Error on failure.
+	 */
+	public function update_external_enabled_callback( $value, $post, $field_name ) {
+		if ( ! $post instanceof \WP_Post ) {
+			return new \WP_Error( 'invalid_post', __( 'Invalid post in update callback.', 'ielts-science-lms' ) );
+		}
+		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+			return new \WP_Error( 'forbidden', __( 'You are not allowed to update this resource.', 'ielts-science-lms' ) );
+		}
+
+		$enabled = false;
+		if ( is_bool( $value ) ) {
+			$enabled = $value;
+		} elseif ( is_string( $value ) ) {
+			$enabled = in_array( strtolower( $value ), array( '1', 'true', 'on' ), true );
+		} elseif ( is_numeric( $value ) ) {
+			$enabled = ( 1 === (int) $value );
+		}
+
+		if ( $enabled ) {
+			update_post_meta( $post->ID, '_ielts_extq_enabled', '1' );
+		} else {
+			update_post_meta( $post->ID, '_ielts_extq_enabled', '0' );
+		}
+
+		return true;
+	}
+
+	/**
+	 * REST GET callback for external_quiz_id field.
+	 *
+	 * @param array            $post_arr  Post array from REST API.
+	 * @param string           $field_name Field name.
+	 * @param \WP_REST_Request $request   Request instance.
+	 * @return int External quiz ID.
+	 */
+	public function get_external_quiz_id_callback( $post_arr, $field_name, $request ) {
+		$post_id = isset( $post_arr['id'] ) ? absint( $post_arr['id'] ) : 0;
+		return (int) get_post_meta( $post_id, '_ielts_extq_id', true );
+	}
+
+	/**
+	 * REST UPDATE callback for external_quiz_id field.
+	 *
+	 * @param mixed    $value Incoming value.
+	 * @param \WP_Post $post  Post object.
+	 * @param string   $field_name Field name.
+	 * @return bool|\WP_Error True on success, WP_Error on failure.
+	 */
+	public function update_external_quiz_id_callback( $value, $post, $field_name ) {
+		if ( ! $post instanceof \WP_Post ) {
+			return new \WP_Error( 'invalid_post', __( 'Invalid post in update callback.', 'ielts-science-lms' ) );
+		}
+		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+			return new \WP_Error( 'forbidden', __( 'You are not allowed to update this resource.', 'ielts-science-lms' ) );
+		}
+
+		update_post_meta( $post->ID, '_ielts_extq_id', max( 0, absint( $value ) ) );
 		return true;
 	}
 }
