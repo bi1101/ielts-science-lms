@@ -527,8 +527,9 @@ class Ieltssci_LD_Integration {
 	public function render_external_question_metabox( $post ) {
 		wp_nonce_field( 'ieltssci_extq_save', 'ieltssci_extq_nonce' );
 
-		$enabled = (bool) get_post_meta( $post->ID, '_ielts_extq_enabled', true );
-		$ext_id  = (int) get_post_meta( $post->ID, '_ielts_extq_id', true );
+		$enabled  = (bool) get_post_meta( $post->ID, '_ielts_extq_enabled', true );
+		$ext_id   = (int) get_post_meta( $post->ID, '_ielts_extq_id', true );
+		$ext_type = (string) get_post_meta( $post->ID, '_ielts_extq_type', true );
 
 		?>
 		<p>
@@ -539,6 +540,10 @@ class Ieltssci_LD_Integration {
 		</p>
 
 		<div id="external-item-id-container" style="margin-left:16px; display: <?php echo $enabled ? 'block' : 'none'; ?>;">
+			<p>
+				<label for="ieltssci_extq_type"><strong><?php esc_html_e( 'External Quiz Type', 'ielts-science-lms' ); ?></strong></label><br />
+				<input type="text" id="ieltssci_extq_type" name="ieltssci_extq_type" value="<?php echo esc_attr( $ext_type ); ?>" />
+			</p>
 			<p>
 				<label for="ieltssci_extq_id"><strong><?php esc_html_e( 'External Item ID', 'ielts-science-lms' ); ?></strong></label><br />
 				<input type="number" id="ieltssci_extq_id" name="ieltssci_extq_id" value="<?php echo esc_attr( $ext_id ); ?>" min="0" class="small-text" />
@@ -584,15 +589,18 @@ class Ieltssci_LD_Integration {
 		}
 
 		// Read and sanitize inputs.
-		$enabled = isset( $_POST['ieltssci_extq_enabled'] ) ? '1' : '0'; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Verified above.
-		$ext_id  = isset( $_POST['ieltssci_extq_id'] ) ? absint( $_POST['ieltssci_extq_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Verified above.
+		$enabled  = isset( $_POST['ieltssci_extq_enabled'] ) ? '1' : '0'; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Verified above.
+		$ext_id   = isset( $_POST['ieltssci_extq_id'] ) ? absint( $_POST['ieltssci_extq_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Verified above.
+		$ext_type = isset( $_POST['ieltssci_extq_type'] ) ? sanitize_text_field( wp_unslash( $_POST['ieltssci_extq_type'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Verified above.
 
 		// Persist.
 		update_post_meta( $post_id, '_ielts_extq_enabled', $enabled );
 		if ( '1' === $enabled ) {
 			update_post_meta( $post_id, '_ielts_extq_id', $ext_id );
+			update_post_meta( $post_id, '_ielts_extq_type', $ext_type );
 		} else {
 			delete_post_meta( $post_id, '_ielts_extq_id' );
+			delete_post_meta( $post_id, '_ielts_extq_type' );
 		}
 	}
 
@@ -633,6 +641,19 @@ class Ieltssci_LD_Integration {
 				'schema'          => array(
 					'description' => __( 'External question or quiz ID.', 'ielts-science-lms' ),
 					'type'        => 'integer',
+					'context'     => array( 'view', 'edit' ),
+				),
+			)
+		);
+
+		$register(
+			'external_quiz_type',
+			array(
+				'get_callback'    => array( $this, 'get_external_quiz_type_callback' ),
+				'update_callback' => array( $this, 'update_external_quiz_type_callback' ),
+				'schema'          => array(
+					'description' => __( 'External quiz type.', 'ielts-science-lms' ),
+					'type'        => 'string',
 					'context'     => array( 'view', 'edit' ),
 				),
 			)
@@ -711,6 +732,11 @@ class Ieltssci_LD_Integration {
 			}
 		}
 
+		if ( $request->offsetExists( 'external_quiz_type' ) ) {
+			$ext_type = sanitize_text_field( $request->get_param( 'external_quiz_type' ) );
+			update_post_meta( $post_id, '_ielts_extq_type', $ext_type );
+		}
+
 		return $result; // Continue to normal dispatch so response is built.
 	}
 
@@ -738,6 +764,16 @@ class Ieltssci_LD_Integration {
 			array(
 				'single'        => true,
 				'type'          => 'integer',
+				'show_in_rest'  => true,
+				'auth_callback' => $auth_cb,
+			)
+		);
+		\register_post_meta(
+			$question_pt,
+			'_ielts_extq_type',
+			array(
+				'single'        => true,
+				'type'          => 'string',
 				'show_in_rest'  => true,
 				'auth_callback' => $auth_cb,
 			)
@@ -821,6 +857,39 @@ class Ieltssci_LD_Integration {
 		}
 
 		update_post_meta( $post->ID, '_ielts_extq_id', max( 0, absint( $value ) ) );
+		return true;
+	}
+
+	/**
+	 * REST GET callback for external_quiz_type field.
+	 *
+	 * @param array            $post_arr  Post array from REST API.
+	 * @param string           $field_name Field name.
+	 * @param \WP_REST_Request $request   Request instance.
+	 * @return string External quiz type.
+	 */
+	public function get_external_quiz_type_callback( $post_arr, $field_name, $request ) {
+		$post_id = isset( $post_arr['id'] ) ? absint( $post_arr['id'] ) : 0;
+		return (string) get_post_meta( $post_id, '_ielts_extq_type', true );
+	}
+
+	/**
+	 * REST UPDATE callback for external_quiz_type field.
+	 *
+	 * @param mixed    $value Incoming value.
+	 * @param \WP_Post $post  Post object.
+	 * @param string   $field_name Field name.
+	 * @return bool|\WP_Error True on success, WP_Error on failure.
+	 */
+	public function update_external_quiz_type_callback( $value, $post, $field_name ) {
+		if ( ! $post instanceof \WP_Post ) {
+			return new \WP_Error( 'invalid_post', __( 'Invalid post in update callback.', 'ielts-science-lms' ) );
+		}
+		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+			return new \WP_Error( 'forbidden', __( 'You are not allowed to update this resource.', 'ielts-science-lms' ) );
+		}
+
+		update_post_meta( $post->ID, '_ielts_extq_type', sanitize_text_field( $value ) );
 		return true;
 	}
 
