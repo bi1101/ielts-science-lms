@@ -12,6 +12,7 @@
 namespace IeltsScienceLMS\Classroom;
 
 use LearnDash_REST_API;
+use WpProQuiz_Model_QuestionMapper;
 
 /**
  * Class for handling LearnDash integrations.
@@ -59,6 +60,10 @@ class Ieltssci_LD_Integration {
 
 		// Intercept LD v2 question updates at REST pre-dispatch to ensure meta persistence.
 		add_filter( 'rest_pre_dispatch', array( $this, 'intercept_ld_questions_update' ), 10, 3 );
+
+		// Create/sync ProQuiz question on REST creation of LearnDash Question posts.
+		$question_pt = function_exists( 'learndash_get_post_type_slug' ) ? learndash_get_post_type_slug( 'question' ) : 'sfwd-question';
+		add_action( 'rest_after_insert_' . $question_pt, array( $this, 'rest_after_insert_question' ), 10, 3 );
 	}
 
 	/**
@@ -817,5 +822,269 @@ class Ieltssci_LD_Integration {
 
 		update_post_meta( $post->ID, '_ielts_extq_id', max( 0, absint( $value ) ) );
 		return true;
+	}
+
+	/**
+	 * REST after-insert handler for LearnDash Questions to create/sync the ProQuiz question.
+	 *
+	 * Ensures that when creating a question via REST, we also create the corresponding
+	 * WPProQuiz question entity, link it to the quiz, and sync LearnDash question meta.
+	 *
+	 * @param \WP_Post         $post     The inserted post object.
+	 * @param \WP_REST_Request $request  The REST request.
+	 * @param bool             $creating True when creating, false when updating.
+	 */
+	public function rest_after_insert_question( $post, $request, $creating ) {
+
+		$question_pt = function_exists( 'learndash_get_post_type_slug' ) ? learndash_get_post_type_slug( 'question' ) : 'sfwd-question';
+		if ( ! $creating || ! ( $post instanceof \WP_Post ) || $post->post_type !== $question_pt ) {
+			return; // Not a new LearnDash question.
+		}
+
+		// Avoid double processing if already linked to ProQuiz.
+		$question_post_id = (int) $post->ID;
+		$existing_pro_id  = (int) get_post_meta( $question_post_id, 'question_pro_id', true );
+		if ( $existing_pro_id > 0 ) {
+			return; // Already linked.
+		}
+
+		// Resolve quiz linkage: accept LD quiz post ID via 'quiz' or ProQuiz quiz ID via '_quizId'.
+		$quiz_wp_id  = (int) $request->get_param( 'quiz' );
+		$quiz_pro_id = 0;
+		if ( $quiz_wp_id > 0 ) {
+			$quiz_pro_id = (int) get_post_meta( $quiz_wp_id, 'quiz_pro_id', true );
+		}
+		if ( $quiz_pro_id <= 0 ) {
+			$quiz_pro_id = (int) $request->get_param( '_quizId' );
+		}
+		if ( $quiz_pro_id <= 0 ) {
+			return; // Cannot create ProQuiz question without its quiz id.
+		}
+
+		// Map fields.
+		$answer_type = (string) $request->get_param( 'question_type' );
+		if ( '' === $answer_type ) {
+			$answer_type = (string) $request->get_param( '_answerType' );
+		}
+		if ( '' === $answer_type ) {
+			$answer_type = 'single';
+		}
+
+		$points_total           = $this->to_int( $request->get_param( 'points_total' ), $request->get_param( '_points' ) );
+		$points_per_answer      = $this->to_bool( $request->get_param( 'points_per_answer' ), $request->get_param( '_answerPointsActivated' ) );
+		$points_show_in_message = $this->to_bool( $request->get_param( 'points_show_in_message' ), $request->get_param( '_showPointsInBox' ) );
+		$points_diff_modus      = $this->to_bool( $request->get_param( 'points_diff_modus' ), $request->get_param( '_answerPointsDiffModusActivated' ) );
+		$disable_correct        = $this->to_bool( $request->get_param( 'disable_correct' ), $request->get_param( '_disableCorrect' ) );
+		$correct_same           = $this->to_bool( $request->get_param( 'correct_same' ), $request->get_param( '_correctSameText' ) );
+		$hints_enabled          = $this->to_bool( $request->get_param( 'hints_enabled' ), $request->get_param( '_tipEnabled' ) );
+
+		$correct_msg   = $this->extract_text_field( $request->get_param( 'correct_message' ), $request->get_param( '_correctMsg' ) );
+		$incorrect_msg = $this->extract_text_field( $request->get_param( 'incorrect_message' ), $request->get_param( '_incorrectMsg' ) );
+		$tip_msg       = $this->extract_text_field( $request->get_param( 'hints_message' ), $request->get_param( '_tipMsg' ) );
+
+		$answer_data = $request->get_param( '_answerData' );
+		// Normalize incoming answer data to array if JSON string is provided (like V1 controller does).
+		if ( is_string( $answer_data ) ) {
+			$decoded = json_decode( $answer_data, true );
+			if ( json_last_error() === JSON_ERROR_NONE ) {
+				$answer_data = $decoded;
+			}
+		}
+		if ( empty( $answer_data ) ) {
+			$answer_data = $this->map_answers_to_proquiz( $request->get_param( 'answers' ) );
+		}
+
+		// If explicit question content is present via V1 style `_question`, prefer it.
+		$question_content = (string) $post->post_content;
+		$question_payload = $request->get_param( '_question' );
+		if ( is_string( $question_payload ) && '' !== $question_payload ) {
+			// Update the newly created post content to keep LD post aligned with ProQuiz data.
+			\wp_update_post(
+				array(
+					'ID'           => $question_post_id,
+					'post_content' => \wp_slash( $question_payload ),
+				)
+			);
+			$question_content = $question_payload;
+		}
+
+		// Recalculate points and sanitize answers via ProQuiz validator similar to V1 update flow.
+		// This makes sure provided points and answer flags are consistent with ProQuiz logic.
+		if ( class_exists( '\\WpProQuiz_Controller_Question' ) ) {
+			$validation_input = array(
+				'answerPointsActivated'          => (bool) $points_per_answer,
+				'answerPointsDiffModusActivated' => (bool) $points_diff_modus,
+				'disableCorrect'                 => (bool) $disable_correct,
+				'answerType'                     => $answer_type,
+				'points'                         => (int) $points_total,
+				'answerData'                     => is_array( $answer_data ) ? $answer_data : array(),
+			);
+
+			$validated_post = \WpProQuiz_Controller_Question::clearPost( $validation_input );
+
+			if ( is_array( $validated_post ) ) {
+				// Apply validated values back to our local variables.
+				if ( isset( $validated_post['points'] ) ) {
+					$points_total = (int) $validated_post['points'];
+				}
+				if ( isset( $validated_post['answerPointsActivated'] ) ) {
+					$points_per_answer = (bool) $validated_post['answerPointsActivated'];
+				}
+				if ( isset( $validated_post['answerData'] ) ) {
+					$answer_data = $validated_post['answerData'];
+				}
+			}
+		}
+
+		// Persist core LD question meta.
+		update_post_meta( $question_post_id, 'question_points', $points_total );
+		update_post_meta( $question_post_id, 'question_type', $answer_type );
+
+		$post_args = array(
+			'action'                          => 'new_step',
+			'_title'                          => $post->post_title,
+			'_quizId'                         => $quiz_pro_id,
+			'_answerType'                     => $answer_type,
+			'_points'                         => $points_total,
+			'_answerPointsActivated'          => $points_per_answer,
+			'_showPointsInBox'                => $points_show_in_message,
+			'_answerPointsDiffModusActivated' => $points_diff_modus,
+			'_disableCorrect'                 => $disable_correct,
+			'_correctMsg'                     => $correct_msg,
+			'_incorrectMsg'                   => $incorrect_msg,
+			'_correctSameText'                => $correct_same,
+			'_tipEnabled'                     => $hints_enabled,
+			'_tipMsg'                         => $tip_msg,
+			'_answerData'                     => is_array( $answer_data ) ? $answer_data : array(),
+			'_question'                       => $question_content,
+		);
+
+		if ( function_exists( 'learndash_update_pro_question' ) ) {
+			$question_pro_id = (int) learndash_update_pro_question( 0, $post_args );
+
+			if ( $question_pro_id > 0 ) {
+				update_post_meta( $question_post_id, 'question_pro_id', $question_pro_id );
+				if ( $quiz_wp_id > 0 ) {
+					update_post_meta( $question_post_id, 'quiz_id', $quiz_wp_id ); // Help LD REST 'quiz' field resolve consistently.
+				}
+				if ( function_exists( 'learndash_proquiz_sync_question_fields' ) ) {
+					learndash_proquiz_sync_question_fields( $question_post_id, $question_pro_id );
+				}
+
+				// Ensure the question is listed under the quiz mapping meta.
+				if ( $quiz_wp_id > 0 ) {
+					$quiz_questions = get_post_meta( $quiz_wp_id, 'ld_quiz_questions', true );
+					if ( ! is_array( $quiz_questions ) ) {
+						$quiz_questions = array();
+					}
+					$quiz_questions[ $question_post_id ] = $question_pro_id;
+					update_post_meta( $quiz_wp_id, 'ld_quiz_questions', $quiz_questions );
+				}
+
+				// Final pass: update ProQuiz model with our post args like V1 update_item does.
+				// This keeps ProQuiz in sync if validation adjusted points/answers above.
+				try {
+					if ( class_exists( '\\WpProQuiz_Model_QuestionMapper' ) ) {
+						$qm      = new WpProQuiz_Model_QuestionMapper();
+						$q_model = $qm->fetch( (int) $question_pro_id );
+						if ( $q_model ) {
+							$q_model->set_array_to_object( $post_args );
+							$qm->save( $q_model );
+						}
+					}
+				} catch ( \Throwable $e ) {
+					// Soft fail to avoid breaking the REST request, admin can re-save if needed.
+					error_log( 'Failed to create ProQuiz question: ' . $e->getMessage() );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Extract text from LD REST message fields that may be objects or strings.
+	 *
+	 * @param mixed $value    Primary value (object with raw/rendered or string).
+	 * @param mixed $fallback Fallback value if primary is empty.
+	 * @return string Extracted text value.
+	 */
+	private function extract_text_field( $value, $fallback = '' ) {
+		if ( is_array( $value ) && isset( $value['raw'] ) ) {
+			return (string) $value['raw'];
+		}
+		if ( is_string( $value ) && '' !== $value ) {
+			return $value;
+		}
+		return is_string( $fallback ) ? $fallback : '';
+	}
+
+	/**
+	 * Convert a value to boolean accepting common string/number representations.
+	 *
+	 * @param mixed $primary   Primary value.
+	 * @param mixed $secondary Secondary fallback value.
+	 * @return bool Boolean result.
+	 */
+	private function to_bool( $primary, $secondary = null ) {
+		$val = $primary;
+		if ( null === $val || '' === $val ) {
+			$val = $secondary;
+		}
+		if ( is_bool( $val ) ) {
+			return $val;
+		}
+		if ( is_numeric( $val ) ) {
+			return ( (int) $val ) === 1;
+		}
+		if ( is_string( $val ) ) {
+			$val_l = strtolower( $val );
+			return in_array( $val_l, array( '1', 'true', 'on', 'yes' ), true );
+		}
+		return false;
+	}
+
+	/**
+	 * Convert a value to integer with fallback.
+	 *
+	 * @param mixed $primary   Primary value.
+	 * @param mixed $secondary Secondary fallback value.
+	 * @return int Integer result.
+	 */
+	private function to_int( $primary, $secondary = null ) {
+		if ( is_numeric( $primary ) ) {
+			return (int) $primary;
+		}
+		if ( is_numeric( $secondary ) ) {
+			return (int) $secondary;
+		}
+		return 0;
+	}
+
+	/**
+	 * Map a generic answers payload to ProQuiz-style _answerData structure when possible.
+	 *
+	 * @param mixed $answers Answers value from REST request.
+	 * @return array Mapped _answerData array.
+	 */
+	private function map_answers_to_proquiz( $answers ) {
+		if ( ! is_array( $answers ) ) {
+			return array();
+		}
+		$mapped = array();
+		foreach ( $answers as $ans ) {
+			if ( ! is_array( $ans ) ) {
+				continue; // Skip invalid entries.
+			}
+			$mapped[] = array(
+				'_answer'             => isset( $ans['_answer'] ) ? $ans['_answer'] : ( ( isset( $ans['answer'] ) && is_string( $ans['answer'] ) ) ? $ans['answer'] : '' ),
+				'_points'             => isset( $ans['_points'] ) ? (int) $ans['_points'] : ( ( isset( $ans['points'] ) && is_numeric( $ans['points'] ) ) ? (int) $ans['points'] : 0 ),
+				'_sortString'         => isset( $ans['_sortString'] ) ? $ans['_sortString'] : ( isset( $ans['sortString'] ) ? $ans['sortString'] : '' ),
+				'_correct'            => isset( $ans['_correct'] ) ? (bool) $ans['_correct'] : ( isset( $ans['correct'] ) ? (bool) $ans['correct'] : false ),
+				'_html'               => isset( $ans['_html'] ) ? (bool) $ans['_html'] : ( isset( $ans['html'] ) ? (bool) $ans['html'] : null ),
+				'_graded'             => isset( $ans['_graded'] ) ? (bool) $ans['_graded'] : ( isset( $ans['graded'] ) ? (bool) $ans['graded'] : null ),
+				'_gradingProgression' => isset( $ans['_gradingProgression'] ) ? $ans['_gradingProgression'] : ( isset( $ans['gradingProgression'] ) ? $ans['gradingProgression'] : null ),
+				'_gradedType'         => isset( $ans['_gradedType'] ) ? $ans['_gradedType'] : ( isset( $ans['gradedType'] ) ? $ans['gradedType'] : null ),
+			);
+		}
+		return $mapped;
 	}
 }
