@@ -939,6 +939,148 @@ class Ieltssci_Submission_DB {
 	}
 
 	/**
+	 * Fork (duplicate) a task submission and optionally its related essay and meta.
+	 *
+	 * This creates a new task submission record with a new UUID. By default it will fork
+	 * the associated essay using Ieltssci_Essay_DB::fork_essay() and copy all task submission
+	 * meta. The new submission will reference either the forked essay or the original essay
+	 * depending on options. The new submission's user_id defaults to the current user if not
+	 * provided. Timestamps are reset; started_at will be set to now and completed_at will be null.
+	 *
+	 * @param int   $task_submission_id The ID of the task submission to fork.
+	 * @param int   $user_id            Optional. The user ID to own the fork. Defaults to current user.
+	 * @param array $options            Optional. Control cloning behavior.
+	 *     @var bool      $fork_essay              Whether to fork the related essay. Default true.
+	 *     @var bool      $copy_segments           When forking the essay, also copy segments. Default true.
+	 *     @var bool      $copy_segment_feedback   When forking the essay, also copy segment feedback. Default true.
+	 *     @var bool      $copy_essay_feedback     When forking the essay, also copy essay feedback. Default true.
+	 *     @var bool      $copy_meta               Copy task submission meta to the new submission. Default true.
+	 *     @var bool      $keep_status             Keep the original status. If false, set to 'in-progress'. Default false.
+	 *     @var int|null  $test_submission_id      Override parent test submission ID. Default keeps original value.
+	 * @return array|WP_Error Details of the forked submission (and essay if forked) or WP_Error on failure.
+	 * @throws Exception When database operations fail.
+	 */
+	public function fork_task_submission( $task_submission_id, $user_id = null, $options = array() ) {
+		// Validate input ID.
+		$task_submission_id = absint( $task_submission_id );
+		if ( ! $task_submission_id ) {
+			return new WP_Error( 'invalid_task_submission_id', 'Invalid task submission ID provided.', array( 'status' => 400 ) );
+		}
+
+		// Resolve user.
+		if ( null === $user_id ) {
+			$user_id = function_exists( 'get_current_user_id' ) ? get_current_user_id() : 0;
+			if ( ! $user_id ) {
+				return new WP_Error( 'no_user', 'No user ID provided and no current user.', array( 'status' => 400 ) );
+			}
+		}
+
+		// Defaults.
+		$defaults = array(
+			'fork_essay'            => true,
+			'copy_segments'         => true,
+			'copy_segment_feedback' => true,
+			'copy_essay_feedback'   => true,
+			'copy_meta'             => true,
+			'keep_status'           => true,
+			'test_submission_id'    => null,
+		);
+		$options  = wp_parse_args( $options, $defaults );
+
+		// Start transaction.
+		$this->wpdb->query( 'START TRANSACTION' );
+
+		try {
+			// Load original submission.
+			$original = $this->get_task_submission( $task_submission_id );
+			if ( is_wp_error( $original ) || empty( $original ) ) {
+				throw new Exception( is_wp_error( $original ) ? $original->get_error_message() : 'Original task submission not found.' );
+			}
+
+			// Optionally fork the essay.
+			$forked_essay = null;
+			$new_essay_id = intval( $original['essay_id'] );
+			if ( $options['fork_essay'] && ! empty( $original['essay_id'] ) ) {
+				$essay_db     = new Ieltssci_Essay_DB();
+				$essay_result = $essay_db->fork_essay(
+					$original['essay_id'],
+					$user_id,
+					array(
+						'copy_segments'         => (bool) $options['copy_segments'],
+						'copy_segment_feedback' => (bool) $options['copy_segment_feedback'],
+						'copy_essay_feedback'   => (bool) $options['copy_essay_feedback'],
+					)
+				);
+				if ( is_wp_error( $essay_result ) ) {
+					throw new Exception( 'Failed to fork essay: ' . $essay_result->get_error_message() );
+				}
+				$forked_essay = $essay_result;
+				if ( ! empty( $essay_result['essay'] ) && ! empty( $essay_result['essay']['id'] ) ) {
+					$new_essay_id = intval( $essay_result['essay']['id'] );
+				}
+			}
+
+			// Build new submission data.
+			$new_status = $options['keep_status'] ? $original['status'] : 'in-progress';
+			$insert     = array(
+				'user_id'  => absint( maybeint: $user_id ),
+				'task_id'  => absint( $original['task_id'] ),
+				'essay_id' => absint( $new_essay_id ),
+				'status'   => sanitize_text_field( $new_status ),
+				// Let add_task_submission set started_at and updated_at.
+			);
+
+			// Preserve or override parent test submission ID.
+			if ( isset( $options['test_submission_id'] ) && null !== $options['test_submission_id'] ) {
+				$insert['test_submission_id'] = absint( $options['test_submission_id'] );
+			} elseif ( ! empty( $original['test_submission_id'] ) ) {
+				$insert['test_submission_id'] = absint( $original['test_submission_id'] );
+			}
+
+			// Create the new task submission.
+			$new_submission_id = $this->add_task_submission( $insert );
+			if ( is_wp_error( $new_submission_id ) ) {
+				throw new Exception( 'Failed to create forked task submission: ' . $new_submission_id->get_error_message() );
+			}
+
+			// Copy meta if requested.
+			$copied_meta = array();
+			if ( $options['copy_meta'] ) {
+				$all_meta = $this->get_task_submission_meta( $task_submission_id );
+				if ( is_wp_error( $all_meta ) ) {
+					throw new Exception( 'Failed to read task submission meta: ' . $all_meta->get_error_message() );
+				}
+				if ( is_array( $all_meta ) ) {
+					foreach ( $all_meta as $meta_key => $values ) {
+						// get_metadata returns arrays of values for each key.
+						$values = is_array( $values ) ? $values : array( $values );
+						foreach ( $values as $v ) {
+							$add_result = $this->add_task_submission_meta( $new_submission_id, $meta_key, $v );
+							if ( is_wp_error( $add_result ) ) {
+								throw new Exception( 'Failed to copy task submission meta: ' . $add_result->get_error_message() );
+							}
+						}
+						$copied_meta[] = $meta_key;
+					}
+				}
+			}
+
+			// Load the newly created submission data for return.
+			$new_submission = $this->get_task_submission( $new_submission_id );
+
+			$this->wpdb->query( 'COMMIT' );
+			return array(
+				'task_submission'  => $new_submission,
+				'forked_essay'     => $forked_essay,
+				'copied_meta_keys' => $copied_meta,
+			);
+		} catch ( Exception $e ) {
+			$this->wpdb->query( 'ROLLBACK' );
+			return new WP_Error( 'fork_task_submission_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
 	 * Retrieves task submissions based on a set of arguments.
 	 *
 	 * @param array $args {

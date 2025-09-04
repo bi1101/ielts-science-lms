@@ -129,6 +129,21 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 				'schema' => array( $this, 'get_task_submission_schema' ),
 			)
 		);
+
+		// Register route for forking a task submission.
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->resource_task . '/fork/(?P<id>\d+)',
+			array(
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'fork_task_submission' ),
+					'permission_callback' => array( $this, 'fork_task_submission_permissions_check' ),
+					'args'                => $this->get_fork_task_submission_args(),
+				),
+				'schema' => array( $this, 'get_fork_task_submission_schema' ),
+			)
+		);
 	}
 
 	/**
@@ -1064,5 +1079,225 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 				),
 			),
 		);
+	}
+
+	/**
+	 * Check if user has permission to fork a task submission.
+	 *
+	 * Only checks that the user is logged in. The ownership check happens in the callback.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return bool Whether the user has permission.
+	 */
+	public function fork_task_submission_permissions_check( WP_REST_Request $request ) {
+		return is_user_logged_in();
+	}
+
+	/**
+	 * Get arguments for the fork task submission endpoint.
+	 *
+	 * @return array Argument definitions.
+	 */
+	public function get_fork_task_submission_args() {
+		return array(
+			'id'                    => array(
+				'required'          => true,
+				'description'       => 'The ID of the task submission to fork.',
+				'type'              => 'integer',
+				'validate_callback' => function ( $param ) {
+					return is_numeric( $param ) && $param > 0;
+				},
+				'sanitize_callback' => 'absint',
+			),
+			'fork_essay'            => array(
+				'required'          => false,
+				'description'       => 'Whether to fork the associated essay.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_segments'         => array(
+				'required'          => false,
+				'description'       => 'Whether to copy segments from the original essay.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_segment_feedback' => array(
+				'required'          => false,
+				'description'       => 'Whether to copy segment feedback from the original essay.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_essay_feedback'   => array(
+				'required'          => false,
+				'description'       => 'Whether to copy essay feedback from the original essay.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_meta'             => array(
+				'required'          => false,
+				'description'       => 'Whether to copy task submission meta data.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'keep_status'           => array(
+				'required'          => false,
+				'description'       => 'Whether to keep the original status or reset to in-progress.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'test_submission_id'    => array(
+				'required'          => false,
+				'description'       => 'Override the parent test submission ID.',
+				'type'              => 'integer',
+				'validate_callback' => function ( $param ) {
+					return is_numeric( $param ) && $param > 0;
+				},
+				'sanitize_callback' => 'absint',
+			),
+		);
+	}
+
+	/**
+	 * Get the JSON schema for the fork task submission endpoint.
+	 *
+	 * @return array The schema for the fork task submission response.
+	 */
+	public function get_fork_task_submission_schema() {
+		// Get the task submission item schema properties for reuse.
+		$task_submission_properties = $this->get_task_submission_schema();
+		$task_submission_properties = isset( $task_submission_properties['properties'] ) ? $task_submission_properties['properties'] : array();
+
+		return array(
+			'$schema'    => 'http://json-schema.org/draft-04/schema#',
+			'title'      => 'fork_task_submission',
+			'type'       => 'object',
+			'properties' => array(
+				'task_submission' => array(
+					'description' => 'The newly forked task submission object.',
+					'type'        => 'object',
+					'properties'  => $task_submission_properties,
+				),
+				'forked_essay'    => array(
+					'description' => 'Details of the forked essay if essay was forked.',
+					'type'        => 'object',
+					'properties'  => array(
+						'essay'            => array(
+							'type' => 'object',
+						),
+						'copied_segments'  => array(
+							'type' => 'object',
+						),
+						'segment_feedback' => array(
+							'type' => 'array',
+						),
+						'essay_feedback'   => array(
+							'type' => 'array',
+						),
+					),
+				),
+				'copied_meta_keys' => array(
+					'description' => 'Array of meta keys that were copied.',
+					'type'        => 'array',
+					'items'       => array(
+						'type' => 'string',
+					),
+				),
+			),
+			'required'   => array( 'task_submission' ),
+		);
+	}
+
+	/**
+	 * Fork task submission endpoint.
+	 *
+	 * Creates a copy of an existing task submission including its essay and meta data.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response or error.
+	 */
+	public function fork_task_submission( WP_REST_Request $request ) {
+		$task_submission_id = $request->get_param( 'id' );
+
+		// Get options from request body.
+		$options = array(
+			'fork_essay'            => $request->get_param( 'fork_essay' ) !== null ? $request->get_param( 'fork_essay' ) : true,
+			'copy_segments'         => $request->get_param( 'copy_segments' ) !== null ? $request->get_param( 'copy_segments' ) : true,
+			'copy_segment_feedback' => $request->get_param( 'copy_segment_feedback' ) !== null ? $request->get_param( 'copy_segment_feedback' ) : true,
+			'copy_essay_feedback'   => $request->get_param( 'copy_essay_feedback' ) !== null ? $request->get_param( 'copy_essay_feedback' ) : true,
+			'copy_meta'             => $request->get_param( 'copy_meta' ) !== null ? $request->get_param( 'copy_meta' ) : true,
+			'keep_status'           => $request->get_param( 'keep_status' ) !== null ? $request->get_param( 'keep_status' ) : true,
+			'test_submission_id'    => $request->get_param( 'test_submission_id' ),
+		);
+
+		// Get the task submission to check if it exists.
+		$task_submission = $this->db->get_task_submission( $task_submission_id );
+
+		if ( is_wp_error( $task_submission ) ) {
+			return $task_submission; // Return the WP_Error directly from the DB layer.
+		}
+
+		if ( ! $task_submission ) {
+			return new WP_Error(
+				'task_submission_not_found',
+				__( 'Task submission not found.', 'ielts-science-lms' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		// Check if user can access this submission.
+		if ( ! $this->can_access_submission( $task_submission, $request ) ) {
+			return new WP_Error(
+				'rest_forbidden',
+				__( 'You do not have permission to fork this task submission.', 'ielts-science-lms' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		// Call the fork method in the database service.
+		$result = $this->db->fork_task_submission( $task_submission_id, get_current_user_id(), $options );
+
+		if ( is_wp_error( $result ) ) {
+			return $result; // Return the WP_Error directly from the DB layer.
+		}
+
+		// Prepare the response data with detailed fork information.
+		$response_data = array(
+			'task_submission' => $this->prepare_task_submission_for_response( $result['task_submission'], $request )->data,
+			'forked_essay'    => $result['forked_essay'],
+			'copied_meta_keys' => $result['copied_meta_keys'],
+		);
+
+		// Create response with 201 Created status.
+		$response = rest_ensure_response( $response_data );
+		$response->set_status( 201 );
+
+		// Add link to the original task submission.
+		$response->add_link(
+			'original-task-submission',
+			rest_url( $this->namespace . '/' . $this->resource_task . '/' . $task_submission_id ),
+			array(
+				'embeddable' => true,
+			)
+		);
+
+		/**
+		 * Fires after a task submission is forked via REST API.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param array           $result  The fork result data.
+		 * @param WP_REST_Request $request Request used to fork the task submission.
+		 */
+		do_action( 'ieltssci_rest_fork_task_submission', $result, $request );
+
+		return $response;
 	}
 }
