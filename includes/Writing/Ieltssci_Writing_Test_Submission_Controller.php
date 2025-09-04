@@ -131,6 +131,21 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 				'schema' => array( $this, 'get_test_submission_schema' ),
 			)
 		);
+
+		// Register route for forking a test submission.
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->resource_test . '/fork/(?P<id>[0-9a-f-]+)',
+			array(
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'fork_test_submission' ),
+					'permission_callback' => array( $this, 'fork_test_submission_permissions_check' ),
+					'args'                => $this->get_fork_test_submission_args(),
+				),
+				'schema' => array( $this, 'get_fork_test_submission_schema' ),
+			)
+		);
 	}
 
 	/**
@@ -1223,5 +1238,230 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 		);
 
 		return $this->add_additional_fields_schema( $schema );
+	}
+
+	/**
+	 * Check permissions for forking a test submission.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param WP_REST_Request $request The REST request object.
+	 * @return bool Whether the user has permission.
+	 */
+	public function fork_test_submission_permissions_check( WP_REST_Request $request ) {
+		return is_user_logged_in();
+	}
+
+	/**
+	 * Get arguments for the fork test submission endpoint.
+	 *
+	 * @return array Argument definitions.
+	 */
+	public function get_fork_test_submission_args() {
+		return array(
+			'id'                    => array(
+				'required'          => true,
+				'description'       => 'The ID or UUID of the test submission to fork.',
+				'type'              => 'string',
+				'validate_callback' => function ( $param ) {
+					return is_numeric( $param ) || wp_is_uuid( $param );
+				},
+				'sanitize_callback' => function ( $param ) {
+					return is_numeric( $param ) ? absint( $param ) : sanitize_text_field( $param );
+				},
+			),
+			'fork_task_submissions' => array(
+				'required'          => false,
+				'description'       => 'Whether to fork the associated task submissions.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'fork_essays'           => array(
+				'required'          => false,
+				'description'       => 'Whether to fork the essays associated with task submissions.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_segments'         => array(
+				'required'          => false,
+				'description'       => 'Whether to copy segments from the original essays.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_segment_feedback' => array(
+				'required'          => false,
+				'description'       => 'Whether to copy segment feedback from the original essays.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_essay_feedback'   => array(
+				'required'          => false,
+				'description'       => 'Whether to copy essay feedback from the original essays.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_meta'             => array(
+				'required'          => false,
+				'description'       => 'Whether to copy test submission meta data.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'keep_status'           => array(
+				'required'          => false,
+				'description'       => 'Whether to keep the original status or reset to in-progress.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+		);
+	}
+
+	/**
+	 * Get the JSON schema for the fork test submission endpoint.
+	 *
+	 * @return array The schema for the fork test submission response.
+	 */
+	public function get_fork_test_submission_schema() {
+		// Get the test submission item schema properties for reuse.
+		$test_submission_properties = $this->get_test_submission_schema();
+		$test_submission_properties = isset( $test_submission_properties['properties'] ) ? $test_submission_properties['properties'] : array();
+
+		return array(
+			'$schema'    => 'http://json-schema.org/draft-04/schema#',
+			'title'      => 'fork_test_submission',
+			'type'       => 'object',
+			'properties' => array(
+				'test_submission'         => array(
+					'description' => 'The newly forked test submission object.',
+					'type'        => 'object',
+					'properties'  => $test_submission_properties,
+				),
+				'forked_task_submissions' => array(
+					'description' => 'Details of the forked task submissions.',
+					'type'        => 'array',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'task_submission' => array(
+								'type' => 'object',
+							),
+							'forked_essay'    => array(
+								'type' => 'object',
+							),
+						),
+					),
+				),
+				'copied_meta_keys'        => array(
+					'description' => 'Array of meta keys that were copied.',
+					'type'        => 'array',
+					'items'       => array(
+						'type' => 'string',
+					),
+				),
+			),
+			'required'   => array( 'test_submission' ),
+		);
+	}
+
+	/**
+	 * Fork test submission endpoint.
+	 *
+	 * Creates a copy of an existing test submission including its task submissions and essays.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response or error.
+	 */
+	public function fork_test_submission( WP_REST_Request $request ) {
+		$identifier = $request->get_param( 'id' );
+
+		// Get options from request body.
+		$options = array(
+			'copy_task_submissions' => $request->get_param( 'fork_task_submissions' ) !== null ? $request->get_param( 'fork_task_submissions' ) : true,
+			'fork_essay'            => $request->get_param( 'fork_essays' ) !== null ? $request->get_param( 'fork_essays' ) : true,
+			'copy_segments'         => $request->get_param( 'copy_segments' ) !== null ? $request->get_param( 'copy_segments' ) : true,
+			'copy_segment_feedback' => $request->get_param( 'copy_segment_feedback' ) !== null ? $request->get_param( 'copy_segment_feedback' ) : true,
+			'copy_essay_feedback'   => $request->get_param( 'copy_essay_feedback' ) !== null ? $request->get_param( 'copy_essay_feedback' ) : true,
+			'copy_meta'             => $request->get_param( 'copy_meta' ) !== null ? $request->get_param( 'copy_meta' ) : true,
+			'keep_status'           => $request->get_param( 'keep_status' ) !== null ? $request->get_param( 'keep_status' ) : true,
+			'copy_task_meta'        => $request->get_param( 'copy_meta' ) !== null ? $request->get_param( 'copy_meta' ) : true,
+			'keep_task_status'      => $request->get_param( 'keep_status' ) !== null ? $request->get_param( 'keep_status' ) : true,
+		);
+
+		// Determine if identifier is numeric ID or UUID and get submission.
+		if ( is_numeric( $identifier ) ) {
+			$test_submission = $this->db->get_test_submission( (int) $identifier );
+		} else {
+			// It's a UUID, query by UUID.
+			$submissions     = $this->db->get_test_submissions( array( 'uuid' => $identifier ) );
+			$test_submission = ! empty( $submissions ) ? $submissions[0] : null;
+		}
+
+		if ( is_wp_error( $test_submission ) ) {
+			return $test_submission; // Return the WP_Error directly from the DB layer.
+		}
+
+		if ( ! $test_submission ) {
+			return new WP_Error(
+				'test_submission_not_found',
+				__( 'Test submission not found.', 'ielts-science-lms' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		// Check if user can access this submission.
+		if ( ! $this->can_access_submission( $test_submission, $request ) ) {
+			return new WP_Error(
+				'rest_forbidden',
+				__( 'You do not have permission to fork this test submission.', 'ielts-science-lms' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		// Call the fork method in the database service.
+		$result = $this->db->fork_test_submission( $test_submission['id'], get_current_user_id(), $options );
+
+		if ( is_wp_error( $result ) ) {
+			return $result; // Return the WP_Error directly from the DB layer.
+		}
+
+		// Prepare the response data with detailed fork information.
+		$response_data = array(
+			'test_submission'         => $this->prepare_test_submission_for_response( $result['test_submission'], $request )->data,
+			'forked_task_submissions' => isset( $result['forked_tasks'] ) ? $result['forked_tasks'] : array(),
+			'copied_meta_keys'        => $result['copied_meta_keys'],
+		);
+
+		// Create response with 201 Created status.
+		$response = rest_ensure_response( $response_data );
+		$response->set_status( 201 );
+
+		// Add link to the original test submission.
+		$response->add_link(
+			'original-test-submission',
+			rest_url( $this->namespace . '/' . $this->resource_test . '/' . $test_submission['id'] ),
+			array(
+				'embeddable' => true,
+			)
+		);
+
+		/**
+		 * Fires after a test submission is forked via REST API.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param array           $result  The fork result data.
+		 * @param WP_REST_Request $request Request used to fork the test submission.
+		 */
+		do_action( 'ieltssci_rest_fork_test_submission', $result, $request );
+
+		return $response;
 	}
 }
