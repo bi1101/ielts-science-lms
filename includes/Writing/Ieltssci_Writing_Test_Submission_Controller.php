@@ -1348,11 +1348,20 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 					'items'       => array(
 						'type'       => 'object',
 						'properties' => array(
-							'task_submission' => array(
-								'type' => 'object',
+							'original_id' => array(
+								'description' => 'The original task submission ID.',
+								'type'        => 'string',
 							),
-							'forked_essay'    => array(
-								'type' => 'object',
+							'result'      => array(
+								'type'       => 'object',
+								'properties' => array(
+									'task_submission' => array(
+										'type' => 'object',
+									),
+									'forked_essay'    => array(
+										'type' => 'object',
+									),
+								),
 							),
 						),
 					),
