@@ -645,6 +645,11 @@ class Ieltssci_Merge_Tags_Processor {
 				}
 				return $paragraphs;
 
+			case 'paragraph_count':
+				// Count non-empty paragraphs using split_into_paragraphs().
+				$split_paragraphs = $this->split_into_paragraphs( $content );
+				return count( $split_paragraphs );
+
 			default:
 				// If no valid modifier is found, return the original content.
 				return $content;
