@@ -937,7 +937,35 @@ class Ieltssci_Writing_Settings {
 						'essay',
 						array( 'task-1', 'task-1-ocr' ),
 						array(
-							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step(
+								'chain-of-thought',
+								array(
+									$settings_config_instance->create_section(
+										'general-setting',
+										array(
+											$settings_config_instance->create_api_provider_field(),
+											$settings_config_instance->create_model_picker_field( 'apiProvider', $default_model_options ),
+											// Toggle to enable/disable multi-modal field.
+											$settings_config_instance->create_field( 'enableMultiModal', 'toggle', 'Enable Multi Modal Input', 'Enable Multi Modal input or not', false ),
+											$settings_config_instance->create_field(
+												'multiModalField',
+												'form-token',
+												'Multi Modal Field(s)',
+												'',
+												null,
+												array(),
+												'enableMultiModal',
+												array(
+													'suggestions' => array( 'ocr_image_ids', 'chart_image_ids' ),
+												)
+											),
+											$settings_config_instance->create_prompt_field( 'englishPrompt', 'English Prompt', 'Message sent to the model {|parameter_name|}', $writing_merge_tags ),
+											$settings_config_instance->create_prompt_field( 'vietnamesePrompt', 'Vietnamese Prompt', 'Message sent to the model {|parameter_name|}', $writing_merge_tags ),
+										)
+									),
+									$settings_config_instance->create_section( 'advanced-setting', $common_advanced_fields ),
+								)
+							),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
