@@ -1005,10 +1005,6 @@ class Ieltssci_LD_Integration {
 			}
 		}
 
-		// Persist core LD question meta.
-		update_post_meta( $question_post_id, 'question_points', $points_total );
-		update_post_meta( $question_post_id, 'question_type', $answer_type );
-
 		$post_args = array(
 			'action'                          => 'new_step',
 			'_title'                          => $post->post_title,
@@ -1067,6 +1063,9 @@ class Ieltssci_LD_Integration {
 				}
 			}
 		}
+		// Persist core LD question meta.
+		update_post_meta( $question_post_id, 'question_points', $points_total );
+		update_post_meta( $question_post_id, 'question_type', $answer_type );
 	}
 
 	/**
