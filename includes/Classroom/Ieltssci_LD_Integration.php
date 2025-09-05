@@ -13,6 +13,8 @@ namespace IeltsScienceLMS\Classroom;
 
 use LearnDash_REST_API;
 use WpProQuiz_Model_QuestionMapper;
+use WpProQuiz_Model_QuizMapper;
+use WP_REST_Request;
 
 /**
  * Class for handling LearnDash integrations.
@@ -64,6 +66,9 @@ class Ieltssci_LD_Integration {
 		// Create/sync ProQuiz question on REST creation of LearnDash Question posts.
 		$question_pt = function_exists( 'learndash_get_post_type_slug' ) ? learndash_get_post_type_slug( 'question' ) : 'sfwd-question';
 		add_action( 'rest_after_insert_' . $question_pt, array( $this, 'rest_after_insert_question' ), 10, 3 );
+
+		// Hook external writing task submission updates to create LD essays.
+		add_action( 'ieltssci_rest_update_task_submission', array( $this, 'on_rest_update_task_submission' ), 10, 3 );
 	}
 
 	/**
@@ -75,6 +80,160 @@ class Ieltssci_LD_Integration {
 		return function_exists( 'learndash_get_post_type_slug' ) &&
 				function_exists( 'learndash_update_setting' ) &&
 				function_exists( 'ld_update_course_group_access' );
+	}
+
+	/**
+	 * Handle IELTS Science external writing task submission updates and create LD Essay.
+	 *
+	 * This listens to the custom action `ieltssci_rest_update_task_submission` fired by our REST layer.
+	 * It extracts course/quiz/lesson/topic IDs from the submission meta, resolves the associated
+	 * LearnDash essay question, and creates a `sfwd-essays` post via `learndash_add_new_essay_response`.
+	 *
+	 * @param array           $updated_submission The updated submission data array.
+	 * @param array           $existing_submission The original submission data before update.
+	 * @param WP_REST_Request $request            Request used to update the submission.
+	 *
+	 * @return void
+	 */
+	public function on_rest_update_task_submission( $updated_submission, $existing_submission, $request ) {
+		if ( ! $this->is_learndash_active() ) {
+			return; // LearnDash not active; nothing to do.
+		}
+
+		// Extract submission ID from updated data.
+		$submission_id = isset( $updated_submission['id'] ) ? absint( $updated_submission['id'] ) : 0;
+		if ( $submission_id <= 0 ) {
+			return; // Invalid submission ID.
+		}
+
+		// Determine the student/user to attribute the essay to.
+		$user_id = isset( $updated_submission['user_id'] ) ? absint( $updated_submission['user_id'] ) : 0;
+		if ( $user_id <= 0 ) {
+			return; // Cannot create an essay without a user.
+		}
+
+		// Check if the submission status is completed.
+		if ( isset( $updated_submission['status'] ) && 'completed' !== $updated_submission['status'] ) {
+			return; // Only process completed submissions.
+		}
+
+		// Extract hierarchical context from submission meta.
+		$meta = isset( $updated_submission['meta'] ) && is_array( $updated_submission['meta'] ) ? $updated_submission['meta'] : array();
+
+		$course_id    = isset( $meta['course_id'] ) ? (int) $meta['course_id'][0] : 0;
+		$quiz_post_id = isset( $meta['quiz_id'] ) ? (int) $meta['quiz_id'][0] : 0;
+		$lesson_id    = isset( $meta['lesson_id'] ) ? (int) $meta['lesson_id'][0] : 0;
+		$topic_id     = isset( $meta['topic_id'] ) ? (int) $meta['topic_id'][0] : 0;
+
+		if ( $quiz_post_id <= 0 ) {
+			return; // Quiz is required to create an essay.
+		}
+
+		// Resolve the essay question to attach to using submission meta when available.
+		$question_post_id = isset( $meta['question_id'] ) ? (int) $meta['question_id'][0] : 0;
+
+		if ( $question_post_id <= 0 ) {
+			return; // question_id not included, submission not linked to LD.
+		}
+
+		// Ensure it is an essay question for safety.
+		$q_type_check = get_post_meta( $question_post_id, 'question_type', true );
+
+		if ( 'essay' !== $q_type_check ) {
+			return; // Provided question is not an essay question.
+		}
+
+		$question_pro_id = (int) get_post_meta( $question_post_id, 'question_pro_id', true );
+		if ( $question_pro_id <= 0 ) {
+			return; // Cannot proceed without ProQuiz question link.
+		}
+
+		$question_mapper = new WpProQuiz_Model_QuestionMapper();
+		$question_model  = $question_mapper->fetchById( $question_pro_id, null );
+		if ( ! ( $question_model instanceof \WpProQuiz_Model_Question ) ) {
+			return; // ProQuiz question not found.
+		}
+
+		// Derive the ProQuiz quiz model from the question to avoid post->pro mapping issues.
+		$quiz_mapper = new WpProQuiz_Model_QuizMapper();
+		$quiz_model  = $quiz_mapper->fetch( (int) $question_model->getQuizId() );
+		if ( ! ( $quiz_model instanceof \WpProQuiz_Model_Quiz ) ) {
+			return; // ProQuiz quiz not found.
+		}
+
+		// Retrieve essay content from the IELTS Science essays table via DB API.
+		$ext_essay_id = 0;
+		if ( isset( $updated_submission['essay_id'] ) && (int) $updated_submission['essay_id'] > 0 ) {
+			$ext_essay_id = (int) $updated_submission['essay_id'];
+		} elseif ( isset( $meta['essay_id'] ) && (int) $meta['essay_id'] > 0 ) {
+			$ext_essay_id = (int) $meta['essay_id'];
+		}
+
+		if ( $ext_essay_id <= 0 ) {
+			return; // No linked essay to pull content from.
+		}
+
+		$response_text = '';
+		try {
+			$essay_db = new \IeltsScienceLMS\Writing\Ieltssci_Essay_DB();
+			$essays   = $essay_db->get_essays(
+				array(
+					'id'       => $ext_essay_id,
+					'per_page' => 1,
+				)
+			);
+			if ( is_wp_error( $essays ) ) {
+				return; // Unable to fetch essay content.
+			}
+			// get_essays may return a single row or a list; normalize to array of rows.
+			if ( isset( $essays['id'] ) ) {
+				$essay_row = $essays;
+			} else {
+				$essay_row = is_array( $essays ) && ! empty( $essays ) ? reset( $essays ) : array();
+			}
+			if ( is_array( $essay_row ) ) {
+				$response_text = (string) ( $essay_row['essay_content'] ?? '' );
+			}
+		} catch ( \Throwable $e ) {
+			return; // Safety: if essay DB fails, bail.
+		}
+
+		$response_text = trim( (string) $response_text );
+		if ( '' === $response_text ) {
+			return; // Nothing to submit.
+		}
+
+		// Temporarily set current user to the student to ensure essay post_author is correct.
+		$current_user_id = get_current_user_id();
+		if ( $current_user_id !== $user_id ) {
+			wp_set_current_user( $user_id );
+		}
+
+		$post_data = array(
+			'quiz_id'   => $quiz_post_id,
+			'course_id' => $course_id,
+		);
+
+		// Create the LD Essay post.
+		$essay_id = \learndash_add_new_essay_response( $response_text, $question_model, $quiz_model, $post_data );
+
+		// Restore previous current user if changed.
+		if ( $current_user_id !== $user_id ) {
+			wp_set_current_user( $current_user_id );
+		}
+
+		if ( is_numeric( $essay_id ) && $essay_id > 0 ) {
+			// Ensure essay status is 'not_graded'.
+			wp_update_post(
+				array(
+					'ID'          => $essay_id,
+					'post_status' => 'not_graded',
+				)
+			);
+
+			// Link back to submission for traceability.
+			add_post_meta( $essay_id, '_ielts_submission_id', $submission_id, true );
+		}
 	}
 
 	/**
