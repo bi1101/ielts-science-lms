@@ -169,11 +169,12 @@ class Ieltssci_LD_Integration {
 		// Route to appropriate handler based on submission status.
 		switch ( $submission_status ) {
 			case 'completed':
-				$this->handle_completed_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model );
+				$this->handle_completed_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status );
 				break;
 
+			case 'not_graded':
 			case 'graded':
-				$this->handle_graded_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model );
+				$this->handle_graded_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status );
 				break;
 
 			default:
@@ -192,8 +193,9 @@ class Ieltssci_LD_Integration {
 	 * @param int    $quiz_post_id       The quiz post ID.
 	 * @param object $question_model    The ProQuiz question model.
 	 * @param object $quiz_model        The ProQuiz quiz model.
+	 * @param string $submission_status  The submission status.
 	 */
-	private function handle_completed_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model ) {
+	private function handle_completed_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status ) {
 		// Retrieve essay content from the IELTS Science essays table via DB API.
 		$ext_essay_id = 0;
 		if ( isset( $updated_submission['essay_id'] ) && (int) $updated_submission['essay_id'] > 0 ) {
@@ -279,8 +281,9 @@ class Ieltssci_LD_Integration {
 	 * @param int    $quiz_post_id       The quiz post ID.
 	 * @param object $question_model    The ProQuiz question model.
 	 * @param object $quiz_model        The ProQuiz quiz model.
+	 * @param string $submission_status  The submission status.
 	 */
-	private function handle_graded_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model ) {
+	private function handle_graded_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status ) {
 
 		// Find the external essay linked to this $updated_submission.
 		$ext_essay_id = 0;
@@ -351,6 +354,7 @@ class Ieltssci_LD_Integration {
 				$request    = new WP_REST_Request( WP_REST_Server::EDITABLE, '/ldlms/v2/essays/' . $essay_post_id );
 				$request->set_param( 'id', $essay_post_id );
 				$request->set_param( 'points_awarded', $percent_score );
+				$request->set_param( 'status', $submission_status );
 
 				$response = $controller->update_item( $request );
 				if ( is_wp_error( $response ) ) {
