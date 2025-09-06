@@ -15,6 +15,9 @@ use LearnDash_REST_API;
 use WpProQuiz_Model_QuestionMapper;
 use WpProQuiz_Model_QuizMapper;
 use WP_REST_Request;
+use IeltsScienceLMS\Writing\Ieltssci_Writing_Score;
+use LD_REST_Essays_Controller_V2;
+use WP_REST_Server;
 
 /**
  * Class for handling LearnDash integrations.
@@ -83,11 +86,12 @@ class Ieltssci_LD_Integration {
 	}
 
 	/**
-	 * Handle IELTS Science external writing task submission updates and create LD Essay.
+	 * Handle IELTS Science external writing task submission updates and create/update LD Essay.
 	 *
 	 * This listens to the custom action `ieltssci_rest_update_task_submission` fired by our REST layer.
 	 * It extracts course/quiz/lesson/topic IDs from the submission meta, resolves the associated
-	 * LearnDash essay question, and creates a `sfwd-essays` post via `learndash_add_new_essay_response`.
+	 * LearnDash essay question, and creates a `sfwd-essays` post via `learndash_add_new_essay_response`
+	 * for completed submissions, or updates existing essays for graded submissions.
 	 *
 	 * @param array           $updated_submission The updated submission data array.
 	 * @param array           $existing_submission The original submission data before update.
@@ -112,9 +116,10 @@ class Ieltssci_LD_Integration {
 			return; // Cannot create an essay without a user.
 		}
 
-		// Check if the submission status is completed.
-		if ( isset( $updated_submission['status'] ) && 'completed' !== $updated_submission['status'] ) {
-			return; // Only process completed submissions.
+		// Check if the submission status is completed or graded.
+		$submission_status = isset( $updated_submission['status'] ) ? $updated_submission['status'] : '';
+		if ( ! in_array( $submission_status, array( 'completed', 'graded' ), true ) ) {
+			return; // Only process completed or graded submissions.
 		}
 
 		// Extract hierarchical context from submission meta.
@@ -161,12 +166,40 @@ class Ieltssci_LD_Integration {
 			return; // ProQuiz quiz not found.
 		}
 
+		// Route to appropriate handler based on submission status.
+		switch ( $submission_status ) {
+			case 'completed':
+				$this->handle_completed_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model );
+				break;
+
+			case 'graded':
+				$this->handle_graded_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model );
+				break;
+
+			default:
+				// Status not handled, do nothing.
+				break;
+		}
+	}
+
+	/**
+	 * Handle completed submission by creating a new essay.
+	 *
+	 * @param array  $updated_submission The updated submission data.
+	 * @param int    $submission_id      The submission ID.
+	 * @param int    $user_id            The user ID.
+	 * @param int    $course_id          The course ID.
+	 * @param int    $quiz_post_id       The quiz post ID.
+	 * @param object $question_model    The ProQuiz question model.
+	 * @param object $quiz_model        The ProQuiz quiz model.
+	 */
+	private function handle_completed_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model ) {
 		// Retrieve essay content from the IELTS Science essays table via DB API.
 		$ext_essay_id = 0;
 		if ( isset( $updated_submission['essay_id'] ) && (int) $updated_submission['essay_id'] > 0 ) {
 			$ext_essay_id = (int) $updated_submission['essay_id'];
-		} elseif ( isset( $meta['essay_id'] ) && (int) $meta['essay_id'] > 0 ) {
-			$ext_essay_id = (int) $meta['essay_id'];
+		} elseif ( isset( $updated_submission['meta']['essay_id'] ) && (int) $updated_submission['meta']['essay_id'] > 0 ) {
+			$ext_essay_id = (int) $updated_submission['meta']['essay_id'];
 		}
 
 		if ( $ext_essay_id <= 0 ) {
@@ -233,6 +266,99 @@ class Ieltssci_LD_Integration {
 
 			// Link back to submission for traceability.
 			add_post_meta( $essay_id, '_ielts_submission_id', $submission_id, true );
+		}
+	}
+
+	/**
+	 * Handle graded submission by updating existing essay.
+	 *
+	 * @param array  $updated_submission The updated submission data.
+	 * @param int    $submission_id      The submission ID.
+	 * @param int    $user_id            The user ID.
+	 * @param int    $course_id          The course ID.
+	 * @param int    $quiz_post_id       The quiz post ID.
+	 * @param object $question_model    The ProQuiz question model.
+	 * @param object $quiz_model        The ProQuiz quiz model.
+	 */
+	private function handle_graded_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model ) {
+
+		// Find the external essay linked to this $updated_submission.
+		$ext_essay_id = 0;
+		if ( isset( $updated_submission['essay_id'] ) && (int) $updated_submission['essay_id'] > 0 ) {
+			$ext_essay_id = (int) $updated_submission['essay_id'];
+		}
+
+		if ( $ext_essay_id <= 0 ) {
+			return; // No linked essay.
+		}
+
+		// Retrieve essay data from the IELTS Science essays table.
+		$essay_db = new \IeltsScienceLMS\Writing\Ieltssci_Essay_DB();
+		$essays   = $essay_db->get_essays(
+			array(
+				'id'       => $ext_essay_id,
+				'per_page' => 1,
+			)
+		);
+
+		if ( is_wp_error( $essays ) || empty( $essays ) ) {
+			return; // Unable to fetch essay.
+		}
+
+		// Normalize to essay array.
+		if ( isset( $essays['id'] ) ) {
+			$essay = $essays;
+		} else {
+			$essay = is_array( $essays ) && ! empty( $essays ) ? reset( $essays ) : array();
+		}
+
+		if ( empty( $essay ) ) {
+			return; // No essay data.
+		}
+
+		// Get the overall score.
+		$writing_score = new Ieltssci_Writing_Score();
+		$score_data    = $writing_score->get_overall_score( $essay, 'final' );
+
+		if ( ! $score_data || ! isset( $score_data['score'] ) ) {
+			return; // Unable to calculate score.
+		}
+
+		$overall_score = $score_data['score'];
+
+		// Convert overall score to 0-100 scale for LearnDash grading consistency.
+		$percent_score = max( 0.0, min( 100.0, round( ( $overall_score / 9.0 ) * 100.0, 2 ) ) );
+
+		// Find the LD essay associated with this submission via meta linkage.
+		$essay_post_id = 0;
+		$essay_ids     = get_posts(
+			array(
+				'post_type'   => 'sfwd-essays',
+				'meta_key'    => '_ielts_submission_id',
+				'post_status' => 'not_graded',
+				'meta_value'  => $submission_id,
+			)
+		);
+
+		if ( is_array( $essay_ids ) && ! empty( $essay_ids ) ) {
+			$essay_post_id = $essay_ids[0]->ID;
+		}
+
+		// Update the LD Essay via REST controller with points_awarded using percent score.
+		if ( $essay_post_id > 0 && class_exists( '\LD_REST_Essays_Controller_V2' ) ) {
+			try {
+				$controller = new LD_REST_Essays_Controller_V2();
+				$request    = new WP_REST_Request( WP_REST_Server::EDITABLE, '/ldlms/v2/essays/' . $essay_post_id );
+				$request->set_param( 'id', $essay_post_id );
+				$request->set_param( 'points_awarded', $percent_score );
+
+				$response = $controller->update_item( $request );
+				if ( is_wp_error( $response ) ) {
+					return; // Failed to update essay via REST controller.
+				}
+			} catch ( \Throwable $e ) {
+				return; // Safety: controller update failed.
+			}
 		}
 	}
 
