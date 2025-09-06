@@ -197,7 +197,7 @@ class Ieltssci_Submission_DB {
 	 *     Data to update. Only provided fields will be updated.
 	 *     @type int    $test_id      Optional. ID of the test (from wp_posts where post_type='writing-test').
 	 *     @type int    $user_id      Optional. ID of the user who submitted the test.
-	 *     @type string $status       Optional. Submission status (e.g., 'in-progress', 'completed', 'graded').
+	 *     @type string $status       Optional. Submission status (e.g., 'in-progress', 'completed', 'not_graded', 'graded').
 	 *     @type string $started_at   Optional. Start timestamp in 'Y-m-d H:i:s' format.
 	 *     @type string $completed_at Optional. Completion timestamp in 'Y-m-d H:i:s' format.
 	 * }
@@ -971,7 +971,7 @@ class Ieltssci_Submission_DB {
 	 *     @type int    $test_submission_id Optional. ID of the parent test submission (from ieltssci_writing_test_submissions).
 	 *     @type int    $user_id            Optional. ID of the user who submitted the task.
 	 *     @type int    $task_id            Optional. ID of the writing task (from wp_posts where post_type='writing-task').
-	 *     @type string $status             Optional. Submission status (e.g., 'in-progress', 'completed', 'graded').
+	 *     @type string $status             Optional. Submission status (e.g., 'in-progress', 'completed', 'not_graded', 'graded').
 	 *     @type int    $essay_id           Optional. ID of the essay (from ieltssci_essays).
 	 *     @type string $started_at         Optional. Start timestamp in 'Y-m-d H:i:s' format.
 	 *     @type string $completed_at       Optional. Completion timestamp in 'Y-m-d H:i:s' format.

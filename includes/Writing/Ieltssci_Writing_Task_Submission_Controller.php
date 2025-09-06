@@ -882,7 +882,7 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 				'status'             => array(
 					'type'        => 'string',
 					'description' => 'Submission status.',
-					'enum'        => array( 'in-progress', 'completed', 'graded' ),
+					'enum'        => array( 'in-progress', 'completed', 'not_graded', 'graded' ),
 				),
 				'started_at'         => array(
 					'type'        => 'string',
@@ -940,7 +940,7 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 			'status'             => array(
 				'description' => 'Limit result set to submissions with specific status.',
 				'type'        => 'string',
-				'enum'        => array( 'in-progress', 'completed', 'graded' ),
+				'enum'        => array( 'in-progress', 'completed', 'not_graded', 'graded' ),
 			),
 			'orderby'            => array(
 				'description' => 'Sort collection by object attribute.',
@@ -1011,7 +1011,7 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 				'description' => 'Submission status.',
 				'type'        => 'string',
 				'default'     => 'in-progress',
-				'enum'        => array( 'in-progress', 'completed', 'graded' ),
+				'enum'        => array( 'in-progress', 'completed', 'not_graded', 'graded' ),
 			),
 			'meta'               => array(
 				'description'          => 'Meta data for the task submission. All values should be provided as strings.',
@@ -1064,7 +1064,7 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 			'status'             => array(
 				'description' => 'Submission status.',
 				'type'        => 'string',
-				'enum'        => array( 'in-progress', 'completed', 'graded' ),
+				'enum'        => array( 'in-progress', 'completed', 'not_graded', 'graded' ),
 			),
 			'completed_at'       => array(
 				'description' => 'Completion timestamp in ISO 8601 format (GMT timezone).',

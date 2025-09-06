@@ -1002,7 +1002,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 		$params['status'] = array(
 			'description'       => 'Limit result set to submissions with a specific status.',
 			'type'              => 'string',
-			'enum'              => array( 'in-progress', 'completed', 'graded', 'cancelled' ),
+			'enum'              => array( 'in-progress', 'completed', 'not_graded', 'graded', 'cancelled' ),
 			'validate_callback' => 'rest_validate_request_arg',
 		);
 
@@ -1056,7 +1056,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 			'description'       => 'Submission status.',
 			'type'              => 'string',
 			'default'           => 'in-progress',
-			'enum'              => array( 'in-progress', 'completed', 'graded', 'cancelled' ),
+			'enum'              => array( 'in-progress', 'completed', 'not_graded', 'graded', 'cancelled' ),
 			'sanitize_callback' => 'sanitize_text_field',
 			'validate_callback' => 'rest_validate_request_arg',
 		);
@@ -1110,7 +1110,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 		$params['status'] = array(
 			'description'       => 'Submission status.',
 			'type'              => 'string',
-			'enum'              => array( 'in-progress', 'completed', 'graded', 'cancelled' ),
+			'enum'              => array( 'in-progress', 'completed', 'not_graded', 'graded', 'cancelled' ),
 			'sanitize_callback' => 'sanitize_text_field',
 			'validate_callback' => 'rest_validate_request_arg',
 		);
@@ -1175,7 +1175,7 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 				'status'           => array(
 					'description' => 'Submission status.',
 					'type'        => 'string',
-					'enum'        => array( 'in-progress', 'completed', 'graded', 'cancelled' ),
+					'enum'        => array( 'in-progress', 'completed', 'not_graded', 'graded', 'cancelled' ),
 					'context'     => array( 'view', 'edit', 'create' ),
 				),
 				'started_at'       => array(
