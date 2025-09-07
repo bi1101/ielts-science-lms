@@ -118,7 +118,7 @@ class Ieltssci_LD_Integration {
 
 		// Check if the submission status is completed or graded.
 		$submission_status = isset( $updated_submission['status'] ) ? $updated_submission['status'] : '';
-		if ( ! in_array( $submission_status, array( 'completed', 'graded' ), true ) ) {
+		if ( ! in_array( $submission_status, array( 'completed', 'graded', 'not_graded' ), true ) ) {
 			return; // Only process completed or graded submissions.
 		}
 
