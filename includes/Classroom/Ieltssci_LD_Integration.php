@@ -603,7 +603,7 @@ class Ieltssci_LD_Integration {
 			array(
 				'post_type'   => 'sfwd-essays',
 				'meta_key'    => '_ielts_submission_id',
-				'post_status' => 'not_graded',
+				'post_status' => array( 'publish', 'not_graded', 'graded', 'draft' ),
 				'meta_value'  => $submission_id,
 			)
 		);
