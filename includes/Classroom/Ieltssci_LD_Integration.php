@@ -74,6 +74,9 @@ class Ieltssci_LD_Integration {
 
 		// Hook external writing task submission updates to create LD essays.
 		add_action( 'ieltssci_rest_update_task_submission', array( $this, 'on_rest_update_task_submission' ), 10, 3 );
+
+		// Grant access if user is the post author.
+		add_filter( 'sfwd_lms_has_access', array( $this, 'grant_access_if_post_owner' ), 10, 3 );
 	}
 
 	/**
@@ -85,6 +88,34 @@ class Ieltssci_LD_Integration {
 		return function_exists( 'learndash_get_post_type_slug' ) &&
 				function_exists( 'learndash_update_setting' ) &&
 				function_exists( 'ld_update_course_group_access' );
+	}
+
+	/**
+	 * Grant access to the post if the user is the owner (author) of the post.
+	 *
+	 * @param bool $has_access Whether the user has access.
+	 * @param int  $post_id    The post ID.
+	 * @param int  $user_id    The user ID.
+	 *
+	 * @return bool Modified access status.
+	 */
+	public function grant_access_if_post_owner( $has_access, $post_id, $user_id ) {
+		// If access is already granted, no need to check further.
+		if ( $has_access ) {
+			return $has_access;
+		}
+
+		if ( empty( $user_id ) || $user_id <= 0 ) {
+			$user_id = get_current_user_id();
+		}
+
+		// Check if the user is the author of the post.
+		$post_author = get_post_field( 'post_author', $post_id );
+		if ( $post_author == $user_id ) {
+			return true;
+		}
+
+		return $has_access;
 	}
 
 	/**
