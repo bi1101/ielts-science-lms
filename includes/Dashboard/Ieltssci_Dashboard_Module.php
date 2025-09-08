@@ -87,11 +87,13 @@ class Ieltssci_Dashboard_Module {
 		}
 
 		// Check if current page is one of the assigned dashboard module pages.
-		$should_enqueue = false;
+		$should_enqueue             = false;
+		$current_dashboard_page_key = null; // Track which dashboard page we are on.
 		if ( ! empty( $ielts_pages ) && ! empty( $dashboard_module_pages ) ) {
 			foreach ( $dashboard_module_pages as $page_key => $page_label ) {
 				if ( isset( $ielts_pages[ $page_key ] ) && is_page( $ielts_pages[ $page_key ] ) ) {
-					$should_enqueue = true;
+					$should_enqueue             = true;
+					$current_dashboard_page_key = $page_key; // Store matched page key.
 					break;
 				}
 			}
@@ -108,21 +110,27 @@ class Ieltssci_Dashboard_Module {
 					}
 				}
 			}
-			// Define the handle for the index script and style.
-			$script_handle  = 'ielts-science-dashboard-index';
-			$style_handle   = 'ielts-science-dashboard-index-css';
-			$runtime_handle = 'ielts-science-dashboard-runtime';
+			// Determine script handle based on current dashboard page.
+			$base_handle    = 'ielts-science-dashboard'; // Base handle prefix.
+			$entry_basename = 'index'; // Default to teacher dashboard.
+			if ( 'student_dashboard' === $current_dashboard_page_key ) {
+				$entry_basename = 'student-dashboard'; // Use student dashboard bundle.
+			}
+
+			$script_handle  = $base_handle . '-' . $entry_basename; // Specific page bundle.
+			$style_handle   = $script_handle . '-css'; // Matching CSS handle.
+			$runtime_handle = 'ielts-science-dashboard-runtime'; // Shared runtime bundle handle.
 
 			// Enqueue the runtime script if it's registered.
 			if ( wp_script_is( $runtime_handle, 'registered' ) ) {
 				wp_enqueue_script( $runtime_handle );
 			}
-			// Enqueue the index script if it's registered.
+			// Enqueue the page-specific script if it's registered.
 			if ( wp_script_is( $script_handle, 'registered' ) ) {
 				wp_enqueue_script( $script_handle );
 			}
 
-			// Enqueue the index style if it's registered.
+			// Enqueue the page-specific style if it's registered.
 			if ( wp_style_is( $style_handle, 'registered' ) ) {
 				wp_enqueue_style( $style_handle );
 			}
@@ -486,7 +494,7 @@ class Ieltssci_Dashboard_Module {
 		$ielts_pages = get_option( 'ielts_science_lms_pages', array() );
 
 		// List of dashboard pages to add rewrite rules for.
-		$dashboard_pages = array( 'teacher_dashboard' );
+		$dashboard_pages = array( 'teacher_dashboard', 'student_dashboard' ); // Added student dashboard.
 
 		foreach ( $dashboard_pages as $page_key ) {
 			// Check if the dashboard page is set.
@@ -532,6 +540,7 @@ class Ieltssci_Dashboard_Module {
 			'section_desc'  => __( 'Select the pages for the Dashboard Module.', 'ielts-science-lms' ),
 			'pages'         => array(
 				'teacher_dashboard' => __( 'Teacher Dashboard', 'ielts-science-lms' ),
+				'student_dashboard' => __( 'Student Dashboard', 'ielts-science-lms' ), // Added student dashboard page.
 			),
 		);
 
