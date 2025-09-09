@@ -100,7 +100,7 @@ class Ieltssci_Group_Course_Auto_Creator {
 		$course_data = array(
 			'title'      => sanitize_text_field( $group_title ),
 			'content'    => wp_kses_post( $group_content ),
-			'status'     => 'private',
+			'status'     => 'publish',
 			'author'     => get_current_user_id(),
 			'price_type' => 'closed',
 		);
