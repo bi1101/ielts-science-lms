@@ -224,7 +224,9 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 			// Link back to submission for traceability.
 			add_post_meta( $essay_id, '_ielts_submission_id', $submission_id, true );
 
-			// Derive quiz elapsed time (in seconds) from updated submission meta if available (fallback 0).
+			// Add meta to differentiate question type (writing-task or writing-test).
+			add_post_meta( $essay_id, '_ielts_question_type', 'writing-task', true );
+
 			if ( isset( $updated_submission['meta']['elapsed_time'][0] ) ) {
 				$et_raw = $updated_submission['meta']['elapsed_time'][0];
 				if ( is_array( $et_raw ) ) {
@@ -544,9 +546,17 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 		$essay_ids     = get_posts(
 			array(
 				'post_type'   => 'sfwd-essays',
-				'meta_key'    => '_ielts_submission_id',
-				'post_status' => array( 'publish', 'not_graded', 'graded', 'draft' ),
-				'meta_value'  => $submission_id,
+								'post_status' => array( 'publish', 'not_graded', 'graded', 'draft' ),
+				'meta_query'  => array(
+					array(
+						'key'   => '_ielts_submission_id',
+						'value' => $submission_id,
+),
+					array(
+						'key'   => '_ielts_question_type',
+						'value' => 'writing-task',
+					),
+				),
 			)
 		);
 
