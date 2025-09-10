@@ -28,8 +28,79 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 	 * Initialize the Sync Writing Submissions integration.
 	 */
 	public function __construct() {
+		// Hook external writing task submission creation to create LD essays.
+		add_action( 'ieltssci_rest_create_task_submission', array( $this, 'on_rest_create_task_submission' ), 10, 2 );
 		// Hook external writing task submission updates to create LD essays.
 		add_action( 'ieltssci_rest_update_task_submission', array( $this, 'on_rest_update_task_submission' ), 10, 3 );
+	}
+
+	/**
+	 * Handle IELTS Science external writing task submission creation and create LD Essay.
+	 *
+	 * This listens to the custom action `ieltssci_rest_create_task_submission` fired by our REST layer when a
+	 * new submission is created. It extracts the course/quiz/question IDs from the submission meta, resolves the
+	 * LearnDash ProQuiz models, and creates a corresponding `sfwd-essays` post via `learndash_add_new_essay_response`.
+	 * The created essay is linked back to the submission for later grading and quiz attempt creation.
+	 *
+	 * @param array           $created_submission The created submission data array.
+	 * @param WP_REST_Request $request            Request used to create the submission.
+	 *
+	 * @return void
+	 */
+	public function on_rest_create_task_submission( $created_submission, $request ) {
+		// Extract submission ID from created data.
+		$submission_id = isset( $created_submission['id'] ) ? absint( $created_submission['id'] ) : 0;
+		if ( $submission_id <= 0 ) {
+			return; // Invalid submission ID.
+		}
+
+		// Determine the student/user to attribute the essay to.
+		$user_id = isset( $created_submission['user_id'] ) ? absint( $created_submission['user_id'] ) : 0;
+		if ( $user_id <= 0 ) {
+			return; // Cannot create an essay without a user.
+		}
+
+		// Extract hierarchical context from submission meta.
+		$meta = isset( $created_submission['meta'] ) && is_array( $created_submission['meta'] ) ? $created_submission['meta'] : array();
+
+		$course_id    = isset( $meta['course_id'] ) ? (int) $meta['course_id'][0] : 0;
+		$quiz_post_id = isset( $meta['quiz_id'] ) ? (int) $meta['quiz_id'][0] : 0;
+		if ( $quiz_post_id <= 0 ) {
+			return; // Quiz is required to create an essay.
+		}
+
+		// Resolve the essay question to attach to using submission meta when available.
+		$question_post_id = isset( $meta['question_id'] ) ? (int) $meta['question_id'][0] : 0;
+		if ( $question_post_id <= 0 ) {
+			return; // question_id not included, submission not linked to LD.
+		}
+
+		// Ensure it is an essay question for safety.
+		$q_type_check = get_post_meta( $question_post_id, 'question_type', true );
+		if ( 'essay' !== $q_type_check ) {
+			return; // Provided question is not an essay question.
+		}
+
+		$question_pro_id = (int) get_post_meta( $question_post_id, 'question_pro_id', true );
+		if ( $question_pro_id <= 0 ) {
+			return; // Cannot proceed without ProQuiz question link.
+		}
+
+		$question_mapper = new WpProQuiz_Model_QuestionMapper();
+		$question_model  = $question_mapper->fetchById( $question_pro_id, null );
+		if ( ! ( $question_model instanceof \WpProQuiz_Model_Question ) ) {
+			return; // ProQuiz question not found.
+		}
+
+		// Derive the ProQuiz quiz model from the question to avoid post->pro mapping issues.
+		$quiz_mapper = new WpProQuiz_Model_QuizMapper();
+		$quiz_model  = $quiz_mapper->fetch( (int) $question_model->getQuizId() );
+		if ( ! ( $quiz_model instanceof \WpProQuiz_Model_Quiz ) ) {
+			return; // ProQuiz quiz not found.
+		}
+
+		// Create the LD essay now so it's ready for later completion and grading.
+		$this->handle_create_submission( $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model );
 	}
 
 	/**
@@ -128,69 +199,178 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 	}
 
 	/**
-	 * Handle completed submission by creating a new essay.
+	 * Handle completed submission by creating a LearnDash quiz attempt only.
+	 *
+	 * This method assumes the related LearnDash `sfwd-essays` post was already created during the
+	 * submission creation phase. It looks up that essay via `_ielts_submission_id` linkage and
+	 * initializes a LearnDash quiz attempt in user meta, ensuring course progression works.
+	 *
+	 * Steps:
+	 * 1. Locate the LD essay created for this submission via post meta.
+	 * 2. Resolve optional start time (from external essay created_at) and elapsed time from meta.
+	 * 3. Call `create_ld_quiz_attempt_from_essay()` to persist attempt and fire LD hooks.
 	 *
 	 * @param array  $updated_submission The updated submission data.
 	 * @param int    $submission_id      The submission ID.
 	 * @param int    $user_id            The user ID.
 	 * @param int    $course_id          The course ID.
 	 * @param int    $quiz_post_id       The quiz post ID.
-	 * @param object $question_model    The ProQuiz question model.
-	 * @param object $quiz_model        The ProQuiz quiz model.
+	 * @param object $question_model     The ProQuiz question model.
+	 * @param object $quiz_model         The ProQuiz quiz model.
 	 * @param string $submission_status  The submission status.
 	 */
 	private function handle_completed_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status ) {
 		// Initialize quiz time placeholder (seconds) so it's defined for all paths.
 		$quiz_time = 0; // Will be overwritten if meta elapsed_time present.
-		// Retrieve essay content from the IELTS Science essays table via DB API.
-		$ext_essay_id = 0;
+
+		// Try to derive start timestamp and content from the external essay record if available.
+		$essay_created_at_unix = 0; // Will hold essay creation timestamp for quiz attempt start.
+		$response_text         = ''; // Will hold the final essay content to sync into the LD essay post.
+		$ext_essay_id          = 0;
 		if ( isset( $updated_submission['essay_id'] ) && (int) $updated_submission['essay_id'] > 0 ) {
 			$ext_essay_id = (int) $updated_submission['essay_id'];
 		} elseif ( isset( $updated_submission['meta']['essay_id'] ) && (int) $updated_submission['meta']['essay_id'] > 0 ) {
 			$ext_essay_id = (int) $updated_submission['meta']['essay_id'];
 		}
-
-		if ( $ext_essay_id <= 0 ) {
-			return; // No linked essay to pull content from.
-		}
-
-		$response_text         = '';
-		$essay_created_at_unix = 0; // Will hold essay creation timestamp for quiz attempt start.
-		try {
-			$essay_db = new \IeltsScienceLMS\Writing\Ieltssci_Essay_DB();
-			$essays   = $essay_db->get_essays(
-				array(
-					'id'       => $ext_essay_id,
-					'per_page' => 1,
-				)
-			);
-			if ( is_wp_error( $essays ) ) {
-				return; // Unable to fetch essay content.
-			}
-			// get_essays may return a single row or a list; normalize to array of rows.
-			if ( isset( $essays['id'] ) ) {
-				$essay_row = $essays;
-			} else {
-				$essay_row = is_array( $essays ) && ! empty( $essays ) ? reset( $essays ) : array();
-			}
-			if ( is_array( $essay_row ) ) {
-				$response_text = (string) ( $essay_row['essay_content'] ?? '' );
-				if ( ! empty( $essay_row['created_at'] ) ) {
-					// Attempt to parse created_at as site-local time, fallback to GMT parsing.
-					$created_raw = $essay_row['created_at'];
-					$ts          = strtotime( $created_raw );
-					if ( $ts && $ts > 0 ) {
-						$essay_created_at_unix = $ts;
+		if ( $ext_essay_id > 0 ) {
+			try {
+				$essay_db = new \IeltsScienceLMS\Writing\Ieltssci_Essay_DB();
+				$essays   = $essay_db->get_essays(
+					array(
+						'id'       => $ext_essay_id,
+						'per_page' => 1,
+					)
+				);
+				if ( ! is_wp_error( $essays ) ) {
+					$essay_row = isset( $essays['id'] ) ? $essays : ( is_array( $essays ) && ! empty( $essays ) ? reset( $essays ) : array() );
+					if ( is_array( $essay_row ) && ! empty( $essay_row['created_at'] ) ) {
+						$created_raw = $essay_row['created_at'];
+						$ts          = strtotime( $created_raw );
+						if ( $ts && $ts > 0 ) {
+							$essay_created_at_unix = $ts;
+						}
+					}
+					// Extract essay content string.
+					if ( is_array( $essay_row ) && isset( $essay_row['essay_content'] ) ) {
+						$response_text = (string) $essay_row['essay_content'];
 					}
 				}
+			} catch ( \Throwable $e ) {
+				error_log( 'Error fetching external essay for submission ID ' . $submission_id . ': ' . $e->getMessage() );
 			}
-		} catch ( \Throwable $e ) {
-			return; // Safety: if essay DB fails, bail.
 		}
 
+		// Derive quiz elapsed time (in minutes) from updated submission meta if available (fallback 0).
+		if ( isset( $updated_submission['meta']['elapsed_time'][0] ) ) {
+			$et_raw = $updated_submission['meta']['elapsed_time'][0];
+			if ( is_array( $et_raw ) ) {
+				$et_raw = reset( $et_raw );
+			}
+			$quiz_time = max( 0, (int) $et_raw * 60 ); // Convert minutes to seconds.
+		}
+
+		// Find the LD essay associated with this submission via meta linkage.
+		$essay_post_id = 0;
+		$essay_ids     = get_posts(
+			array(
+				'post_type'              => 'sfwd-essays',
+				'post_status'            => array( 'publish', 'not_graded', 'graded', 'draft' ),
+				'numberposts'            => 1,
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'cache_results'          => false,
+				'update_post_term_cache' => false,
+				'update_post_meta_cache' => false,
+				'meta_query'             => array(
+					'relation' => 'AND',
+					array(
+						'key'   => '_ielts_submission_id',
+						'value' => $submission_id,
+					),
+					array(
+						'key'   => '_ielts_question_type',
+						'value' => 'writing-task',
+					),
+				),
+			)
+		);
+		if ( is_array( $essay_ids ) && ! empty( $essay_ids ) ) {
+			$essay_post_id = (int) ( is_object( $essay_ids[0] ) ? $essay_ids[0]->ID : $essay_ids[0] );
+		}
+		if ( $essay_post_id <= 0 ) {
+			return; // No previously created LD essay found for this submission.
+		}
+
+		// If we have external content, update the LD essay's content (and store in a meta key for compatibility).
 		$response_text = trim( (string) $response_text );
-		if ( '' === $response_text ) {
-			return; // Nothing to submit.
+		if ( '' !== $response_text ) {
+			// Update post content.
+			wp_update_post(
+				array(
+					'ID'           => $essay_post_id,
+					'post_content' => $response_text,
+				)
+			);
+		}
+
+		// Initialize a LearnDash quiz attempt so _sfwd-quizzes and activity entries are initialized.
+		$this->create_ld_quiz_attempt_from_essay( $user_id, $quiz_post_id, $quiz_model, $question_model, $essay_post_id, $course_id, $essay_created_at_unix, $quiz_time ); // Direct meta/action initialization.
+	}
+
+	/**
+	 * Handle new submission by creating a new LearnDash essay post (sfwd-essays).
+	 *
+	 * This method creates the LD essay early in the submission lifecycle so that later updates (e.g.,
+	 * completion and grading) can reference the same essay. It ensures the correct post_author, links
+	 * the essay back to the submission via post meta, and sets the initial status to 'not_graded'.
+	 *
+	 * Steps:
+	 * 1. Check if an essay already exists for this submission via meta query; if yes, return early.
+	 * 2. Switch the current user context to the student to set the correct post_author.
+	 * 3. Call `learndash_add_new_essay_response( '', $question_model, $quiz_model, $post_data )` to create the essay.
+	 * 4. Restore the original current user context.
+	 * 5. If created, set post_status to 'not_graded' and add linkage metas.
+	 *
+	 * @param int                       $submission_id  The submission ID.
+	 * @param int                       $user_id        The user ID.
+	 * @param int                       $course_id      The course ID.
+	 * @param int                       $quiz_post_id   The quiz post ID.
+	 * @param \WpProQuiz_Model_Question $question_model The ProQuiz question model.
+	 * @param \WpProQuiz_Model_Quiz     $quiz_model     The ProQuiz quiz model.
+	 *
+	 * @return void
+	 */
+	private function handle_create_submission( $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model ) {
+		// Ensure no duplicate essay exists for this submission.
+		$existing = get_posts(
+			array(
+				'post_type'              => 'sfwd-essays',
+				'post_status'            => array( 'publish', 'not_graded', 'graded', 'draft' ),
+				'numberposts'            => 1,
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'cache_results'          => false,
+				'update_post_term_cache' => false,
+				'update_post_meta_cache' => false,
+				'meta_query'             => array(
+					'relation' => 'AND',
+					array(
+						'key'   => '_ielts_submission_id',
+						'value' => $submission_id,
+					),
+					array(
+						'key'   => '_ielts_question_type',
+						'value' => 'writing-task',
+					),
+				),
+			)
+		);
+		if ( ! empty( $existing ) ) {
+			return; // Essay already created for this submission.
+		}
+
+		if ( ! ( $question_model instanceof \WpProQuiz_Model_Question ) || ! ( $quiz_model instanceof \WpProQuiz_Model_Quiz ) ) {
+			return; // Safety check for required models.
 		}
 
 		// Temporarily set current user to the student to ensure essay post_author is correct.
@@ -204,8 +384,8 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 			'course_id' => $course_id,
 		);
 
-		// Create the LD Essay post.
-		$essay_id = \learndash_add_new_essay_response( $response_text, $question_model, $quiz_model, $post_data );
+		// Create the LD Essay post with empty/initial content.
+		$essay_id = \learndash_add_new_essay_response( '', $question_model, $quiz_model, $post_data );
 
 		// Restore previous current user if changed.
 		if ( $current_user_id !== $user_id ) {
@@ -226,18 +406,6 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 
 			// Add meta to differentiate question type (writing-task or writing-test).
 			add_post_meta( $essay_id, '_ielts_question_type', 'writing-task', true );
-
-			// Derive quiz elapsed time (in minutes) from updated submission meta if available (fallback 0).
-			if ( isset( $updated_submission['meta']['elapsed_time'][0] ) ) {
-				$et_raw = $updated_submission['meta']['elapsed_time'][0];
-				if ( is_array( $et_raw ) ) {
-					$et_raw = reset( $et_raw );
-				}
-				$quiz_time = max( 0, (int) $et_raw * 60 ); // Convert minutes to seconds.
-			}
-
-			// After creating the essay, initialize a LearnDash quiz attempt so _sfwd-quizzes and activity entries are initialized.
-			$this->create_ld_quiz_attempt_from_essay( $user_id, $quiz_post_id, $quiz_model, $question_model, $essay_id, $course_id, $essay_created_at_unix, $quiz_time ); // Direct meta/action initialization.
 		}
 	}
 
