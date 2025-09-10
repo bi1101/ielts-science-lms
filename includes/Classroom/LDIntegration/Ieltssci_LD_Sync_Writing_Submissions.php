@@ -227,12 +227,13 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 			// Add meta to differentiate question type (writing-task or writing-test).
 			add_post_meta( $essay_id, '_ielts_question_type', 'writing-task', true );
 
+			// Derive quiz elapsed time (in minutes) from updated submission meta if available (fallback 0).
 			if ( isset( $updated_submission['meta']['elapsed_time'][0] ) ) {
 				$et_raw = $updated_submission['meta']['elapsed_time'][0];
 				if ( is_array( $et_raw ) ) {
 					$et_raw = reset( $et_raw );
 				}
-				$quiz_time = max( 0, (int) $et_raw );
+				$quiz_time = max( 0, (int) $et_raw * 60 ); // Convert minutes to seconds.
 			}
 
 			// After creating the essay, initialize a LearnDash quiz attempt so _sfwd-quizzes and activity entries are initialized.
@@ -546,12 +547,12 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 		$essay_ids     = get_posts(
 			array(
 				'post_type'   => 'sfwd-essays',
-								'post_status' => array( 'publish', 'not_graded', 'graded', 'draft' ),
+				'post_status' => array( 'publish', 'not_graded', 'graded', 'draft' ),
 				'meta_query'  => array(
 					array(
 						'key'   => '_ielts_submission_id',
 						'value' => $submission_id,
-),
+					),
 					array(
 						'key'   => '_ielts_question_type',
 						'value' => 'writing-task',
