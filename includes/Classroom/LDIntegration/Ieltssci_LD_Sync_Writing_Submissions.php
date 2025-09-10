@@ -14,6 +14,7 @@ use WpProQuiz_Model_QuestionMapper;
 use WpProQuiz_Model_QuizMapper;
 use WP_REST_Request;
 use IeltsScienceLMS\Writing\Ieltssci_Writing_Score;
+use IeltsScienceLMS\Writing\Ieltssci_Task_Submission_Utils;
 use LD_REST_Essays_Controller_V2;
 use WP_REST_Server;
 use WpProQuiz_Controller_Statistics;
@@ -32,6 +33,8 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 		add_action( 'ieltssci_rest_create_task_submission', array( $this, 'on_rest_create_task_submission' ), 10, 2 );
 		// Hook external writing task submission updates to create LD essays.
 		add_action( 'ieltssci_rest_update_task_submission', array( $this, 'on_rest_update_task_submission' ), 10, 3 );
+		// Hook to modify essay URLs for writing task submissions.
+		add_filter( 'bb_essay_url', array( $this, 'filter_essay_url' ), 10, 2 );
 	}
 
 	/**
@@ -750,5 +753,44 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 				return; // Safety: controller update failed.
 			}
 		}
+	}
+
+	/**
+	 * Filter essay URL to redirect to writing task submission result permalink when applicable.
+	 *
+	 * This method hooks into the 'bb_essay_url' filter to check if an essay is linked
+	 * to a writing task submission. If so, it returns the task submission result permalink
+	 * instead of the default essay permalink.
+	 *
+	 * @param string $essay_url     The original essay URL.
+	 * @param int    $essay_post_id The essay post ID.
+	 * @return string The filtered essay URL.
+	 */
+	public function filter_essay_url( $essay_url, $essay_post_id ) {
+		// Validate essay post ID.
+		$essay_post_id = absint( $essay_post_id );
+		if ( $essay_post_id <= 0 ) {
+			return $essay_url; // Return original URL if invalid.
+		}
+
+		// Check if this essay has an IELTS submission ID.
+		$submission_id = get_post_meta( $essay_post_id, '_ielts_submission_id', true );
+		if ( empty( $submission_id ) ) {
+			return $essay_url; // No submission linked, return original URL.
+		}
+
+		// Check if this is a writing task submission.
+		$question_type = get_post_meta( $essay_post_id, '_ielts_question_type', true );
+		if ( 'writing-task' !== $question_type ) {
+			return $essay_url; // Not a writing task, return original URL.
+		}
+
+		// Get the task submission permalink.
+		$task_submission_url = Ieltssci_Task_Submission_Utils::get_task_submission_result_permalink( $submission_id );
+		if ( empty( $task_submission_url ) ) {
+			return $essay_url; // Failed to get submission permalink, return original URL.
+		}
+
+		return $task_submission_url; // Return the task submission permalink.
 	}
 }
