@@ -15,6 +15,7 @@ use WpProQuiz_Model_QuizMapper;
 use WP_REST_Request;
 use IeltsScienceLMS\Writing\Ieltssci_Writing_Score;
 use IeltsScienceLMS\Writing\Ieltssci_Task_Submission_Utils;
+use IeltsScienceLMS\Writing\Ieltssci_Test_Submission_Utils;
 use LD_REST_Essays_Controller_V2;
 use WP_REST_Server;
 use WpProQuiz_Controller_Statistics;
@@ -1213,10 +1214,10 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 	}
 
 	/**
-	 * Filter essay URL to redirect to writing task submission result permalink when applicable.
+	 * Filter essay URL to redirect to writing submission result permalink when applicable.
 	 *
 	 * This method hooks into the 'bb_essay_url' filter to check if an essay is linked
-	 * to a writing task submission. If so, it returns the task submission result permalink
+	 * to a writing task or test submission. If so, it returns the submission result permalink
 	 * instead of the default essay permalink.
 	 *
 	 * @param string $essay_url     The original essay URL.
@@ -1236,18 +1237,24 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 			return $essay_url; // No submission linked, return original URL.
 		}
 
-		// Check if this is a writing task submission.
+		// Check if this is a writing task or test submission.
 		$question_type = get_post_meta( $essay_post_id, '_ielts_question_type', true );
-		if ( 'writing-task' !== $question_type ) {
-			return $essay_url; // Not a writing task, return original URL.
+		if ( ! in_array( $question_type, array( 'writing-task', 'writing-test' ), true ) ) {
+			return $essay_url; // Not a writing task or test, return original URL.
 		}
 
-		// Get the task submission permalink.
-		$task_submission_url = Ieltssci_Task_Submission_Utils::get_task_submission_result_permalink( $submission_id );
-		if ( empty( $task_submission_url ) ) {
+		// Get the submission result permalink based on type.
+		$submission_url = '';
+		if ( 'writing-task' === $question_type ) {
+			$submission_url = Ieltssci_Task_Submission_Utils::get_task_submission_result_permalink( $submission_id );
+		} elseif ( 'writing-test' === $question_type ) {
+			$submission_url = Ieltssci_Test_Submission_Utils::get_test_submission_result_permalink( $submission_id );
+		}
+
+		if ( empty( $submission_url ) ) {
 			return $essay_url; // Failed to get submission permalink, return original URL.
 		}
 
-		return $task_submission_url; // Return the task submission permalink.
+		return $submission_url; // Return the submission result permalink.
 	}
 }
