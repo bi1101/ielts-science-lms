@@ -387,57 +387,87 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 			);
 		}
 
-		// Get task data from ACF fields.
-		$writing_question = get_field( 'writing_question', $task_id );
-		$chart            = get_field( 'chart', $task_id );
+		// Handle essay: use provided essay_id or create new essay.
+		if ( ! empty( $request['essay_id'] ) ) {
+			$essay_id = (int) $request['essay_id'];
 
-		if ( empty( $writing_question ) ) {
-			return new WP_Error(
-				'task_incomplete',
-				'Task does not have a writing question.',
-				array( 'status' => 400 )
+			// Validate that the essay exists.
+			$essay_db = new Ieltssci_Essay_DB();
+			$essays   = $essay_db->get_essays( array( 'id' => $essay_id ) );
+
+			if ( is_wp_error( $essays ) || empty( $essays ) ) {
+				return new WP_Error(
+					'invalid_essay',
+					'Invalid essay ID or essay not found.',
+					array( 'status' => 404 )
+				);
+			}
+
+			$existing_essay = $essays[0];
+
+			// Check if the essay belongs to the user or if user has permission to use it.
+			if ( (int) $existing_essay['created_by'] !== $user_id && ! current_user_can( 'manage_options' ) ) {
+				return new WP_Error(
+					'rest_forbidden',
+					'You cannot use this essay for the submission.',
+					array( 'status' => 403 )
+				);
+			}
+		} else {
+			// Get task data from ACF fields.
+			$writing_question = get_field( 'writing_question', $task_id );
+			$chart            = get_field( 'chart', $task_id );
+
+			if ( empty( $writing_question ) ) {
+				return new WP_Error(
+					'task_incomplete',
+					'Task does not have a writing question.',
+					array( 'status' => 400 )
+				);
+			}
+
+			// Get the task type from the writing-task-type taxonomy.
+			$task_types = wp_get_post_terms( $task_id, 'writing-task-type', array( 'fields' => 'slugs' ) );
+			$essay_type = 'task-1'; // Default fallback.
+
+			if ( ! is_wp_error( $task_types ) && ! empty( $task_types ) ) {
+				// Use the first task type slug as the essay type.
+				$essay_type = $task_types[0];
+			}
+
+			// Create essay data from task information.
+			$essay_data = array(
+				'essay_type'    => $essay_type,
+				'question'      => $writing_question,
+				'essay_content' => '', // Empty content for new submission.
+				'created_by'    => $user_id,
 			);
-		}
 
-		// Get the task type from the writing-task-type taxonomy.
-		$task_types = wp_get_post_terms( $task_id, 'writing-task-type', array( 'fields' => 'slugs' ) );
-		$essay_type = 'task-1'; // Default fallback.
+			// Add chart image IDs if chart exists.
+			if ( ! empty( $chart ) && is_array( $chart ) && ! empty( $chart['ID'] ) ) {
+				$essay_data['chart_image_ids'] = array( (int) $chart['ID'] );
+			}
 
-		if ( ! is_wp_error( $task_types ) && ! empty( $task_types ) ) {
-			// Use the first task type slug as the essay type.
-			$essay_type = $task_types[0];
-		}
+			// Create the essay using the Essay DB handler.
+			$essay_db = new Ieltssci_Essay_DB();
+			$essay    = $essay_db->create_essay( $essay_data );
 
-		// Create essay data from task information.
-		$essay_data = array(
-			'essay_type'    => $essay_type,
-			'question'      => $writing_question,
-			'essay_content' => '', // Empty content for new submission.
-			'created_by'    => $user_id,
-		);
+			if ( is_wp_error( $essay ) ) {
+				return new WP_Error(
+					'essay_creation_failed',
+					'Failed to create essay: ' . $essay->get_error_message(),
+					array( 'status' => 500 )
+				);
+			}
 
-		// Add chart image IDs if chart exists.
-		if ( ! empty( $chart ) && is_array( $chart ) && ! empty( $chart['ID'] ) ) {
-			$essay_data['chart_image_ids'] = array( (int) $chart['ID'] );
-		}
-
-		// Create the essay using the Essay DB handler.
-		$essay_db = new Ieltssci_Essay_DB();
-		$essay    = $essay_db->create_essay( $essay_data );
-
-		if ( is_wp_error( $essay ) ) {
-			return new WP_Error(
-				'essay_creation_failed',
-				'Failed to create essay: ' . $essay->get_error_message(),
-				array( 'status' => 500 )
-			);
+			$essay_id = $essay['id'];
 		}
 
 		// Prepare task submission data.
 		$submission_data = array(
 			'user_id'  => $user_id,
 			'task_id'  => $task_id,
-			'essay_id' => $essay['id'],
+			'essay_id' => $essay_id,
 			'status'   => ! empty( $request['status'] ) ? sanitize_text_field( $request['status'] ) : 'in-progress',
 		);
 
@@ -1002,6 +1032,11 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 				'type'        => 'integer',
 				'minimum'     => 1,
 			),
+			'essay_id'           => array(
+				'description' => 'ID of the associated essay (optional). If not provided, a new essay will be created.',
+				'type'        => 'integer',
+				'minimum'     => 1,
+			),
 			'uuid'               => array(
 				'description' => 'Custom UUID for the submission (optional).',
 				'type'        => 'string',
@@ -1178,12 +1213,12 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 			'title'      => 'fork_task_submission',
 			'type'       => 'object',
 			'properties' => array(
-				'task_submission' => array(
+				'task_submission'  => array(
 					'description' => 'The newly forked task submission object.',
 					'type'        => 'object',
 					'properties'  => $task_submission_properties,
 				),
-				'forked_essay'    => array(
+				'forked_essay'     => array(
 					'description' => 'Details of the forked essay if essay was forked.',
 					'type'        => 'object',
 					'properties'  => array(
@@ -1270,8 +1305,8 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 
 		// Prepare the response data with detailed fork information.
 		$response_data = array(
-			'task_submission' => $this->prepare_task_submission_for_response( $result['task_submission'], $request )->data,
-			'forked_essay'    => $result['forked_essay'],
+			'task_submission'  => $this->prepare_task_submission_for_response( $result['task_submission'], $request )->data,
+			'forked_essay'     => $result['forked_essay'],
 			'copied_meta_keys' => $result['copied_meta_keys'],
 		);
 
