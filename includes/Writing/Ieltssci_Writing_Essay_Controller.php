@@ -1928,11 +1928,23 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 		// Add embeddable link to the task submissions for this essay.
 		$response->add_link(
 			'task_submissions',
-			rest_url( 'ieltssci/v1/writing-task-submissions?essay_id=' . $essay['id'] ),
+			rest_url( 'ieltssci/v1/writing-task-submissions?essay_id=' . $essay['id'] . '&include_meta=true' ),
 			array(
 				'embeddable' => true,
 			)
 		);
+
+		// Add embeddable link to the original task submissions if this is a fork.
+		if ( ! empty( $essay['original_id'] ) ) {
+			// Add embeddable link to the task submissions for this essay.
+			$response->add_link(
+				'original_task_submissions',
+				rest_url( 'ieltssci/v1/writing-task-submissions?essay_id=' . $essay['original_id'] . '&include_meta=true' ),
+				array(
+					'embeddable' => true,
+				)
+			);
+		}
 
 		/**
 		 * Filter essay data returned from the REST API.
