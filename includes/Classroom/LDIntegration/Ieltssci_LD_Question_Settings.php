@@ -10,6 +10,8 @@
 
 namespace IeltsScienceLMS\Classroom\LDIntegration;
 
+use WpProQuiz_Model_QuestionMapper;
+
 /**
  * Class for managing LearnDash Question custom settings.
  */
