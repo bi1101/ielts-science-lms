@@ -35,6 +35,8 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 		add_action( 'ieltssci_rest_create_test_submission', array( $this, 'on_rest_create_test_submission' ), 10, 2 );
 		// Hook external writing task submission updates to create LD essays.
 		add_action( 'ieltssci_rest_update_task_submission', array( $this, 'on_rest_update_task_submission' ), 10, 3 );
+		// Hook external writing test submission updates to create LD essays.
+		add_action( 'ieltssci_rest_update_test_submission', array( $this, 'on_rest_update_test_submission' ), 10, 3 );
 		// Hook to modify essay URLs for writing task submissions.
 		add_filter( 'bb_essay_url', array( $this, 'filter_essay_url' ), 10, 2 );
 	}
@@ -174,6 +176,395 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 	}
 
 	/**
+	 * Handle IELTS Science external writing test submission updates and create/update LD Essay.
+	 *
+	 * This listens to the custom action `ieltssci_rest_update_test_submission` fired by our REST layer.
+	 * It extracts course/quiz IDs from the submission meta, resolves the associated
+	 * LearnDash essay question, and creates a `sfwd-essays` post via `learndash_add_new_essay_response`
+	 * for completed submissions, or updates existing essays for graded submissions.
+	 *
+	 * @param array           $updated_test_submission The updated test submission data array.
+	 * @param WP_REST_Request $request                  Request used to update the submission.
+	 *
+	 * @return void
+	 */
+	public function on_rest_update_test_submission( $updated_test_submission, $request ) {
+		// Extract submission ID from updated data.
+		$submission_id = isset( $updated_test_submission['id'] ) ? absint( $updated_test_submission['id'] ) : 0;
+		if ( $submission_id <= 0 ) {
+			return; // Invalid submission ID.
+		}
+
+		// Determine the student/user to attribute the essay to.
+		$user_id = isset( $updated_test_submission['user_id'] ) ? absint( $updated_test_submission['user_id'] ) : 0;
+		if ( $user_id <= 0 ) {
+			return; // Cannot create an essay without a user.
+		}
+
+		// Check if the submission status is completed or graded.
+		$submission_status = isset( $updated_test_submission['status'] ) ? $updated_test_submission['status'] : '';
+		if ( ! in_array( $submission_status, array( 'completed', 'graded', 'not_graded' ), true ) ) {
+			return; // Only process completed or graded submissions.
+		}
+
+		// Extract hierarchical context from submission meta.
+		$meta = isset( $updated_test_submission['meta'] ) && is_array( $updated_test_submission['meta'] ) ? $updated_test_submission['meta'] : array();
+
+		$course_id    = isset( $meta['course_id'] ) ? (int) $meta['course_id'][0] : 0;
+		$quiz_post_id = isset( $meta['quiz_id'] ) ? (int) $meta['quiz_id'][0] : 0;
+		if ( $quiz_post_id <= 0 ) {
+			return; // Quiz is required to create an essay.
+		}
+
+		// Resolve the essay question to attach to using submission meta when available.
+		$question_post_id = isset( $meta['question_id'] ) ? (int) $meta['question_id'][0] : 0;
+		if ( $question_post_id <= 0 ) {
+			return; // question_id not included, submission not linked to LD.
+		}
+
+		// Ensure it is an essay question for safety.
+		$q_type_check = get_post_meta( $question_post_id, 'question_type', true );
+		if ( 'essay' !== $q_type_check ) {
+			return; // Provided question is not an essay question.
+		}
+
+		$question_pro_id = (int) get_post_meta( $question_post_id, 'question_pro_id', true );
+		if ( $question_pro_id <= 0 ) {
+			return; // Cannot proceed without ProQuiz question link.
+		}
+
+		$question_mapper = new WpProQuiz_Model_QuestionMapper();
+		$question_model  = $question_mapper->fetchById( $question_pro_id, null );
+		if ( ! ( $question_model instanceof \WpProQuiz_Model_Question ) ) {
+			return; // ProQuiz question not found.
+		}
+
+		// Derive the ProQuiz quiz model from the question to avoid post->pro mapping issues.
+		$quiz_mapper = new WpProQuiz_Model_QuizMapper();
+		$quiz_model  = $quiz_mapper->fetch( (int) $question_model->getQuizId() );
+		if ( ! ( $quiz_model instanceof \WpProQuiz_Model_Quiz ) ) {
+			return; // ProQuiz quiz not found.
+		}
+
+		// Route to appropriate handler based on submission status.
+		switch ( $submission_status ) {
+			case 'completed':
+				$this->handle_completed_writing_test_submission( $updated_test_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status );
+				break;
+
+			case 'not_graded':
+			case 'graded':
+				$this->handle_graded_writing_test_submission( $updated_test_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status );
+				break;
+
+			default:
+				// Status not handled, do nothing.
+				break;
+		}
+	}
+
+	/**
+	 * Handle completed writing test submission by updating the LD essay content and initializing a quiz attempt.
+	 *
+	 * This method:
+	 * - Finds the LearnDash essay post linked to the test submission.
+	 * - Fetches all task submissions associated with the test submission.
+	 * - Combines the content of each essay (including question and answer) into a single string, separated by dividers.
+	 * - Updates the LD essay post with the combined content.
+	 * - Initializes a LearnDash quiz attempt for the user, ensuring course progression and statistics are recorded.
+	 *
+	 * @param array  $updated_submission The updated test submission data.
+	 * @param int    $submission_id      The test submission ID.
+	 * @param int    $user_id            The user ID.
+	 * @param int    $course_id          The course ID.
+	 * @param int    $quiz_post_id       The quiz post ID.
+	 * @param object $question_model     The ProQuiz question model.
+	 * @param object $quiz_model         The ProQuiz quiz model.
+	 * @param string $submission_status  The submission status.
+	 *
+	 * @return void
+	 */
+	private function handle_completed_writing_test_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status ) {
+		// Initialize quiz time placeholder (seconds) so it's defined for all paths.
+		$quiz_time = 0; // Will be overwritten if meta elapsed_time present.
+
+		// Get start timestamp directly from updated submission.
+		$essay_created_at_unix = 0; // Will hold essay creation timestamp for quiz attempt start.
+		if ( isset( $updated_submission['started_at'] ) && ! empty( $updated_submission['started_at'] ) ) {
+			$ts = strtotime( $updated_submission['started_at'] );
+			if ( $ts && $ts > 0 ) {
+				$essay_created_at_unix = $ts;
+			}
+		}
+
+		// Derive quiz elapsed time (in minutes) from updated submission meta if available (fallback 0).
+		if ( isset( $updated_submission['meta']['elapsed_time'][0] ) ) {
+			$et_raw = $updated_submission['meta']['elapsed_time'][0];
+			if ( is_array( $et_raw ) ) {
+				$et_raw = reset( $et_raw );
+			}
+			$quiz_time = max( 0, (int) $et_raw * 60 ); // Convert minutes to seconds.
+		}
+
+		// Find the LD essay associated with this submission via meta linkage.
+		$essay_post_id = 0;
+		$essay_ids     = get_posts(
+			array(
+				'post_type'              => 'sfwd-essays',
+				'post_status'            => array( 'publish', 'not_graded', 'graded', 'draft' ),
+				'numberposts'            => 1,
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'cache_results'          => false,
+				'update_post_term_cache' => false,
+				'update_post_meta_cache' => false,
+				'meta_query'             => array(
+					'relation' => 'AND',
+					array(
+						'key'   => '_ielts_submission_id',
+						'value' => $submission_id,
+					),
+					array(
+						'key'   => '_ielts_question_type',
+						'value' => 'writing-test',
+					),
+				),
+			)
+		);
+		if ( is_array( $essay_ids ) && ! empty( $essay_ids ) ) {
+			$essay_post_id = (int) ( is_object( $essay_ids[0] ) ? $essay_ids[0]->ID : $essay_ids[0] );
+		}
+		if ( $essay_post_id <= 0 ) {
+			return; // No previously created LD essay found for this submission.
+		}
+
+		// Fetch task submissions associated with this test submission to get essay contents.
+		$task_submissions = array();
+		try {
+			$submission_db    = new \IeltsScienceLMS\Writing\Ieltssci_Submission_DB();
+			$task_submissions = $submission_db->get_task_submissions(
+				array(
+					'test_submission_id' => $submission_id,
+				)
+			);
+		} catch ( \Throwable $e ) {
+			error_log( 'Error fetching task submissions for test submission ID ' . $submission_id . ': ' . $e->getMessage() );
+		}
+
+		// Collect essay contents from task submissions.
+		$combined_content = '';
+		$essay_contents   = array();
+		if ( ! empty( $task_submissions ) && is_array( $task_submissions ) ) {
+			$essay_db = new \IeltsScienceLMS\Writing\Ieltssci_Essay_DB();
+			foreach ( $task_submissions as $task_submission ) {
+				if ( isset( $task_submission['essay_id'] ) && (int) $task_submission['essay_id'] > 0 ) {
+					try {
+						$essays = $essay_db->get_essays(
+							array(
+								'id'       => (int) $task_submission['essay_id'],
+								'per_page' => 1,
+							)
+						);
+						if ( ! is_wp_error( $essays ) && is_array( $essays ) && ! empty( $essays ) ) {
+							$essay_row = reset( $essays );
+							$content   = '';
+							if ( isset( $essay_row['question'] ) ) {
+								$question_text   = trim( (string) $essay_row['question'] );
+								$question_text   = str_replace( array( "\r\n", "\r" ), "\n", $question_text );
+								$paragraphs      = explode( "\n", $question_text );
+								$bold_paragraphs = array();
+								foreach ( $paragraphs as $para ) {
+									$para = trim( $para );
+									if ( ! empty( $para ) ) {
+										$bold_paragraphs[] = '<b>' . $para . '</b>';
+									}
+								}
+								$content .= implode( "\n\n", $bold_paragraphs ) . "\n\n";
+							}
+							if ( isset( $essay_row['essay_content'] ) ) {
+								$content .= trim( (string) $essay_row['essay_content'] );
+							}
+							if ( ! empty( $content ) ) {
+								$essay_contents[] = $content;
+							}
+						}
+					} catch ( \Throwable $e ) {
+						error_log( 'Error fetching essay for task submission ID ' . $task_submission['id'] . ': ' . $e->getMessage() );
+					}
+				}
+			}
+		}
+
+		// Combine contents with divider.
+		if ( ! empty( $essay_contents ) ) {
+			$combined_content = implode( "\n\n======\n\n", $essay_contents );
+		}
+
+		// Update the LD essay's content if we have combined content.
+		if ( ! empty( $combined_content ) ) {
+			wp_update_post(
+				array(
+					'ID'           => $essay_post_id,
+					'post_content' => $combined_content,
+				)
+			);
+		}
+
+		// Initialize a LearnDash quiz attempt so _sfwd-quizzes and activity entries are initialized.
+		$this->create_ld_quiz_attempt_from_essay( $user_id, $quiz_post_id, $quiz_model, $question_model, $essay_post_id, $course_id, $essay_created_at_unix, $quiz_time ); // Direct meta/action initialization.
+	}
+
+	/**
+	 * Handle graded writing test submission by updating the LD essay grade and status.
+	 *
+	 * This method:
+	 * - Finds the LearnDash essay post linked to the test submission.
+	 * - Fetches all task submissions associated with the test submission.
+	 * - Calculates a weighted average score from all essays (Task 2 weighted double).
+	 * - Converts the average score to a percentage for LearnDash grading.
+	 * - Updates the LD essay post via REST controller with the calculated score and status.
+	 *
+	 * @param array  $updated_submission The updated test submission data.
+	 * @param int    $submission_id      The test submission ID.
+	 * @param int    $user_id            The user ID.
+	 * @param int    $course_id          The course ID.
+	 * @param int    $quiz_post_id       The quiz post ID.
+	 * @param object $question_model     The ProQuiz question model.
+	 * @param object $quiz_model         The ProQuiz quiz model.
+	 * @param string $submission_status  The submission status.
+	 *
+	 * @return void
+	 */
+	private function handle_graded_writing_test_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status ) {
+		// Find the LD essay associated with this test submission via meta linkage.
+		$essay_post_id = 0;
+		$essay_ids     = get_posts(
+			array(
+				'post_type'   => 'sfwd-essays',
+				'post_status' => array( 'publish', 'not_graded', 'graded', 'draft' ),
+				'meta_query'  => array(
+					array(
+						'key'   => '_ielts_submission_id',
+						'value' => $submission_id,
+					),
+					array(
+						'key'   => '_ielts_question_type',
+						'value' => 'writing-test',
+					),
+				),
+			)
+		);
+
+		if ( is_array( $essay_ids ) && ! empty( $essay_ids ) ) {
+			$essay_post_id = $essay_ids[0]->ID;
+		}
+
+		if ( $essay_post_id <= 0 ) {
+			return; // No linked LD essay found.
+		}
+
+		// Fetch task submissions associated with this test submission to get essay scores.
+		$task_submissions = array();
+		try {
+			$submission_db    = new \IeltsScienceLMS\Writing\Ieltssci_Submission_DB();
+			$task_submissions = $submission_db->get_task_submissions(
+				array(
+					'test_submission_id' => $submission_id,
+				)
+			);
+		} catch ( \Throwable $e ) {
+			error_log( 'Error fetching task submissions for test submission ID ' . $submission_id . ': ' . $e->getMessage() );
+			return;
+		}
+
+		if ( empty( $task_submissions ) || ! is_array( $task_submissions ) ) {
+			return; // No task submissions found.
+		}
+
+		// Collect scores from each task submission's essay with weighting.
+		$weighted_sum = 0.0;
+		$total_weight = 0;
+		foreach ( $task_submissions as $task_submission ) {
+			if ( isset( $task_submission['essay_id'] ) && (int) $task_submission['essay_id'] > 0 ) {
+				$ext_essay_id = (int) $task_submission['essay_id'];
+
+				// Retrieve essay data from the IELTS Science essays table.
+				$essay_db = new \IeltsScienceLMS\Writing\Ieltssci_Essay_DB();
+				$essays   = $essay_db->get_essays(
+					array(
+						'id'       => $ext_essay_id,
+						'per_page' => 1,
+					)
+				);
+
+				if ( is_wp_error( $essays ) || empty( $essays ) ) {
+					continue; // Skip this task submission.
+				}
+
+				// Normalize to essay array.
+				if ( isset( $essays['id'] ) ) {
+					$essay = $essays;
+				} else {
+					$essay = is_array( $essays ) && ! empty( $essays ) ? reset( $essays ) : array();
+				}
+
+				if ( empty( $essay ) ) {
+					continue; // Skip this task submission.
+				}
+
+				// Get the overall score for this essay.
+				$writing_score = new Ieltssci_Writing_Score();
+				$score_data    = $writing_score->get_overall_score( $essay, 'final' );
+
+				if ( $score_data && isset( $score_data['score'] ) ) {
+					$score  = $score_data['score'];
+					$weight = 1; // Default weight.
+
+					// Determine weight based on essay type.
+					if ( isset( $essay['essay_type'] ) ) {
+						if ( strpos( $essay['essay_type'], 'task-2' ) === 0 ) {
+							$weight = 2;
+						} elseif ( strpos( $essay['essay_type'], 'task-1' ) === 0 ) {
+							$weight = 1;
+						}
+					}
+
+					$weighted_sum += $score * $weight;
+					$total_weight += $weight;
+				}
+			}
+		}
+
+		if ( $total_weight <= 0 ) {
+			return; // No valid scores to average.
+		}
+
+		// Calculate the weighted average score.
+		$average_score = $weighted_sum / $total_weight;
+
+		// Convert average score to 0-100 scale for LearnDash grading consistency.
+		$percent_score = max( 0.0, min( 100.0, round( ( $average_score / 9.0 ) * 100.0, 2 ) ) );
+
+		// Update the LD Essay via REST controller with points_awarded using percent score.
+		if ( $essay_post_id > 0 && class_exists( '\LD_REST_Essays_Controller_V2' ) ) {
+			try {
+				$controller = new LD_REST_Essays_Controller_V2();
+				$request    = new WP_REST_Request( WP_REST_Server::EDITABLE, '/ldlms/v2/essays/' . $essay_post_id );
+				$request->set_param( 'id', $essay_post_id );
+				$request->set_param( 'points_awarded', $percent_score );
+				$request->set_param( 'status', $submission_status );
+
+				$response = $controller->update_item( $request );
+				if ( is_wp_error( $response ) ) {
+					return; // Failed to update essay via REST controller.
+				}
+			} catch ( \Throwable $e ) {
+				return; // Safety: controller update failed.
+			}
+		}
+	}
+
+	/**
 	 * Handle IELTS Science external writing task submission updates and create/update LD Essay.
 	 *
 	 * This listens to the custom action `ieltssci_rest_update_task_submission` fired by our REST layer.
@@ -228,7 +619,6 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 
 		// Ensure it is an essay question for safety.
 		$q_type_check = get_post_meta( $question_post_id, 'question_type', true );
-
 		if ( 'essay' !== $q_type_check ) {
 			return; // Provided question is not an essay question.
 		}
