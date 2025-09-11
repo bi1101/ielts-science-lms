@@ -254,12 +254,12 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 		// Route to appropriate handler based on submission status.
 		switch ( $submission_status ) {
 			case 'completed':
-				$this->handle_completed_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status );
+				$this->handle_completed_writing_task_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status );
 				break;
 
 			case 'not_graded':
 			case 'graded':
-				$this->handle_graded_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status );
+				$this->handle_graded_writing_task_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status );
 				break;
 
 			default:
@@ -289,7 +289,7 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 	 * @param object $quiz_model         The ProQuiz quiz model.
 	 * @param string $submission_status  The submission status.
 	 */
-	private function handle_completed_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status ) {
+	private function handle_completed_writing_task_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status ) {
 		// Initialize quiz time placeholder (seconds) so it's defined for all paths.
 		$quiz_time = 0; // Will be overwritten if meta elapsed_time present.
 
@@ -731,7 +731,7 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 	 * @param object $quiz_model        The ProQuiz quiz model.
 	 * @param string $submission_status  The submission status.
 	 */
-	private function handle_graded_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status ) {
+	private function handle_graded_writing_task_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status ) {
 
 		// Find the external essay linked to this $updated_submission.
 		$ext_essay_id = 0;
