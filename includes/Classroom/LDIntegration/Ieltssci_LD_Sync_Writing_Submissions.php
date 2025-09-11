@@ -31,6 +31,8 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 	public function __construct() {
 		// Hook external writing task submission creation to create LD essays.
 		add_action( 'ieltssci_rest_create_task_submission', array( $this, 'on_rest_create_task_submission' ), 10, 2 );
+		// Hook external writing test submission creation to create a single LD essay.
+		add_action( 'ieltssci_rest_create_test_submission', array( $this, 'on_rest_create_test_submission' ), 10, 2 );
 		// Hook external writing task submission updates to create LD essays.
 		add_action( 'ieltssci_rest_update_task_submission', array( $this, 'on_rest_update_task_submission' ), 10, 3 );
 		// Hook to modify essay URLs for writing task submissions.
@@ -103,7 +105,72 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 		}
 
 		// Create the LD essay now so it's ready for later completion and grading.
-		$this->handle_create_submission( $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model );
+		$this->handle_create_submission( $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, 'writing-task' );
+	}
+
+	/**
+	 * Handle IELTS Science external writing test submission creation and create a single LD Essay.
+	 *
+	 * This listens to the `ieltssci_rest_create_test_submission` action. When a new test submission is created,
+	 * it resolves a single LearnDash essay question associated with the entire `writing-test`. It then
+	 * creates one corresponding `sfwd-essays` post, linking it to the main test submission ID. This allows
+	 * the entire test to be represented by a single gradable essay item in LearnDash.
+	 *
+	 * @param array           $created_test_submission The created test submission data array.
+	 * @param WP_REST_Request $request                 Request used to create the submission.
+	 *
+	 * @return void
+	 */
+	public function on_rest_create_test_submission( $created_test_submission, $request ) {
+		// Extract IDs from the created test submission data.
+		$test_submission_id = isset( $created_test_submission['id'] ) ? absint( $created_test_submission['id'] ) : 0;
+		$test_id            = isset( $created_test_submission['test_id'] ) ? absint( $created_test_submission['test_id'] ) : 0;
+		$user_id            = isset( $created_test_submission['user_id'] ) ? absint( $created_test_submission['user_id'] ) : 0;
+
+		if ( $test_submission_id <= 0 || $user_id <= 0 || $test_id <= 0 ) {
+			return; // Cannot proceed without essential IDs.
+		}
+
+		// Extract hierarchical context from submission meta.
+		$meta = isset( $created_test_submission['meta'] ) && is_array( $created_test_submission['meta'] ) ? $created_test_submission['meta'] : array();
+
+		$course_id    = isset( $meta['course_id'] ) ? (int) $meta['course_id'][0] : 0;
+		$quiz_post_id = isset( $meta['quiz_id'] ) ? (int) $meta['quiz_id'][0] : 0;
+		if ( $quiz_post_id <= 0 ) {
+			return; // Quiz is required to create an essay.
+		}
+
+		$question_post_id = (int) isset( $meta['question_id'] ) ? (int) $meta['question_id'][0] : 0;
+		if ( $question_post_id <= 0 ) {
+			return; // Test not linked to a LearnDash question.
+		}
+
+		// Ensure it is an essay question for safety.
+		$q_type_check = get_post_meta( $question_post_id, 'question_type', true );
+		if ( 'essay' !== $q_type_check ) {
+			return; // Linked question is not an essay question.
+		}
+
+		$question_pro_id = (int) get_post_meta( $question_post_id, 'question_pro_id', true );
+		if ( $question_pro_id <= 0 ) {
+			return; // Cannot proceed without ProQuiz question link.
+		}
+
+		$question_mapper = new WpProQuiz_Model_QuestionMapper();
+		$question_model  = $question_mapper->fetchById( $question_pro_id, null );
+		if ( ! ( $question_model instanceof \WpProQuiz_Model_Question ) ) {
+			return; // ProQuiz question not found.
+		}
+
+		// Derive the ProQuiz quiz model from the question.
+		$quiz_mapper = new WpProQuiz_Model_QuizMapper();
+		$quiz_model  = $quiz_mapper->fetch( (int) $question_model->getQuizId() );
+		if ( ! ( $quiz_model instanceof \WpProQuiz_Model_Quiz ) ) {
+			return; // ProQuiz quiz not found.
+		}
+
+		// Create the single LD essay for the entire test, linking it with the main test submission ID.
+		$this->handle_create_submission( $test_submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, 'writing-test' );
 	}
 
 	/**
@@ -340,10 +407,11 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 	 * @param int                       $quiz_post_id   The quiz post ID.
 	 * @param \WpProQuiz_Model_Question $question_model The ProQuiz question model.
 	 * @param \WpProQuiz_Model_Quiz     $quiz_model     The ProQuiz quiz model.
+	 * @param string                    $question_type  The type of question ('writing-task' or 'writing-test').
 	 *
 	 * @return void
 	 */
-	private function handle_create_submission( $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model ) {
+	private function handle_create_submission( $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $question_type = 'writing-task' ) {
 		// Ensure no duplicate essay exists for this submission.
 		$existing = get_posts(
 			array(
@@ -363,7 +431,7 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 					),
 					array(
 						'key'   => '_ielts_question_type',
-						'value' => 'writing-task',
+						'value' => $question_type,
 					),
 				),
 			)
@@ -408,7 +476,7 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 			add_post_meta( $essay_id, '_ielts_submission_id', $submission_id, true );
 
 			// Add meta to differentiate question type (writing-task or writing-test).
-			add_post_meta( $essay_id, '_ielts_question_type', 'writing-task', true );
+			add_post_meta( $essay_id, '_ielts_question_type', $question_type, true );
 		}
 	}
 
