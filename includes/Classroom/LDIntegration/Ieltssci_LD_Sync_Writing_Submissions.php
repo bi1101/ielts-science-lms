@@ -1136,9 +1136,10 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 
 		// Retrieve essay data from the IELTS Science essays table.
 		$essay_db = new \IeltsScienceLMS\Writing\Ieltssci_Essay_DB();
+		$key      = ( 'graded' === $submission_status ) ? 'original_id' : 'id';
 		$essays   = $essay_db->get_essays(
 			array(
-				'id'       => $ext_essay_id,
+				$key       => $ext_essay_id,
 				'per_page' => 1,
 			)
 		);
