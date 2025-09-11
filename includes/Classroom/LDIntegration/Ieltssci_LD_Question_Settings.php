@@ -501,7 +501,7 @@ class Ieltssci_LD_Question_Settings {
 		}
 
 		// If explicit question content is present via V1 style `_question`, prefer it.
-		$question_content = (string) $post->post_content;
+		$question_content = (string) $post->post_title;
 		$question_payload = $request->get_param( '_question' );
 		if ( is_string( $question_payload ) && '' !== $question_payload ) {
 			// Update the newly created post content to keep LD post aligned with ProQuiz data.
