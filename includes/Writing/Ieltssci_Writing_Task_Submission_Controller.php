@@ -189,8 +189,18 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 			return true;
 		}
 
+		// Ensure meta data is loaded.
+		if ( ! isset( $submission['meta'] ) ) {
+			$submission['meta'] = $this->db->get_task_submission_meta( $submission['id'] );
+		}
+
 		// Users can access their own submissions.
 		if ( (int) $submission['user_id'] === $current_user_id ) {
+			return true;
+		}
+
+		// Instructors can access submissions for their courses.
+		if ( ! empty( $submission['meta']['instructor_id'] ) && (int) $submission['meta']['instructor_id'][0] === $current_user_id ) {
 			return true;
 		}
 
@@ -259,11 +269,40 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 			$args['include_meta'] = false;
 		}
 
-		// Get submissions from database.
-		$submissions = $this->db->get_task_submissions( $args );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			// For non-admins, get all submissions and filter in PHP for security.
+			$all_args                 = $args;
+			$all_args['include_meta'] = true;
+			unset( $all_args['number'], $all_args['offset'], $all_args['user_id'] ); // Remove user_id restriction.
+			$all_submissions = $this->db->get_task_submissions( $all_args );
 
-		if ( is_wp_error( $submissions ) ) {
-			return $submissions;
+			if ( is_wp_error( $all_submissions ) ) {
+				return $all_submissions;
+			}
+
+			// Filter submissions based on access permissions.
+			$accessible_submissions = array();
+			foreach ( $all_submissions as $submission ) {
+				if ( $this->can_access_submission( $submission, $request ) ) {
+					$accessible_submissions[] = $submission;
+				}
+			}
+
+			$total = count( $accessible_submissions );
+
+			// Apply pagination to filtered results.
+			$offset      = $args['offset'];
+			$number      = $args['number'];
+			$submissions = array_slice( $accessible_submissions, $offset, $number );
+		} else {
+			// Get submissions from database.
+			$submissions = $this->db->get_task_submissions( $args );
+
+			if ( is_wp_error( $submissions ) ) {
+				return $submissions;
+			}
+
+			$total = 0;
 		}
 
 		// Prepare response data - all submissions should already be accessible based on query filtering.
@@ -273,14 +312,16 @@ class Ieltssci_Writing_Task_Submission_Controller extends WP_REST_Controller {
 			$data[]   = $this->prepare_response_for_collection( $response );
 		}
 
-		// Get total count for pagination headers.
-		$count_args          = $args;
-		$count_args['count'] = true;
-		unset( $count_args['number'], $count_args['offset'] );
-		$total = $this->db->get_task_submissions( $count_args );
+		if ( current_user_can( 'manage_options' ) ) {
+			// Get total count for pagination headers.
+			$count_args          = $args;
+			$count_args['count'] = true;
+			unset( $count_args['number'], $count_args['offset'] );
+			$total = $this->db->get_task_submissions( $count_args );
 
-		if ( is_wp_error( $total ) ) {
-			$total = 0;
+			if ( is_wp_error( $total ) ) {
+				$total = 0;
+			}
 		}
 
 		// Create response with pagination headers.
