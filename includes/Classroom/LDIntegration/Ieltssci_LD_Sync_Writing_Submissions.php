@@ -417,10 +417,9 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 	 *
 	 * This mirrors the essential parts of LD_QuizPro->wp_pro_quiz_completed() needed for course progression:
 	 * - Build $quizdata structure.
+	 * - Save statistics if enabled for the quiz.
 	 * - Append to user meta _sfwd-quizzes.
 	 * - Fire learndash_quiz_submitted and learndash_quiz_completed actions.
-	 * It intentionally skips WP Pro Quiz statistics tables to avoid redundant/echo-heavy controller flows.
-	 * A filter 'ielts_ld_skip_direct_attempt' can short-circuit the process.
 	 *
 	 * @param int                       $user_id       User ID owning the attempt.
 	 * @param int                       $quiz_post_id  WP post ID of the quiz.
@@ -534,7 +533,7 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 
 		$quizdata['quiz_key'] = $quizdata['completed'] . '_' . $quiz_pro_id . '_' . $quiz_post_id . '_' . absint( $course_id );
 
-		// Optionally persist ProQuiz statistics (mirrors WpProQuiz_Controller_Quiz->completedQuiz early save path).
+		// Save statistics if enabled for the quiz.
 		$statistic_ref_id = 0;
 		if ( method_exists( $quiz_model, 'isStatisticsOn' ) && $quiz_model->isStatisticsOn() ) {
 			// Prepare a minimal results payload compatible with WpProQuiz_Controller_Statistics::save().
