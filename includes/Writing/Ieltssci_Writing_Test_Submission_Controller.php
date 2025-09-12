@@ -924,6 +924,17 @@ class Ieltssci_Writing_Test_Submission_Controller extends WP_REST_Controller {
 			)
 		);
 
+		// Add embeddable link to the original writing test submission if original_id meta exists.
+		if ( isset( $submission['meta']['original_id'] ) && ! empty( $submission['meta']['original_id'] ) ) {
+			$response->add_link(
+				'original-writing-test-submission',
+				rest_url( $this->namespace . '/' . $this->resource_test . '/' . $submission['meta']['original_id'][0] ),
+				array(
+					'embeddable' => true,
+				)
+			);
+		}
+
 		// Add embeddable links to related task submissions.
 		if ( isset( $submission['task_submissions'] ) && ! empty( $submission['task_submissions'] ) ) {
 			foreach ( $submission['task_submissions'] as $task_submission ) {
