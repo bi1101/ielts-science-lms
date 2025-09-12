@@ -438,15 +438,20 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 	 */
 	private function handle_graded_writing_test_submission( $updated_submission, $submission_id, $user_id, $course_id, $quiz_post_id, $question_model, $quiz_model, $submission_status ) {
 		// Find the LD essay associated with this test submission via meta linkage.
-		$essay_post_id = 0;
-		$essay_ids     = get_posts(
+		$essay_post_id        = 0;
+		$lookup_submission_id = $submission_id;
+		// Use original_id meta because sfwd-essays are linked with the original test submission ID, not the final/forked result.
+		if ( isset( $updated_submission['meta']['original_id'][0] ) && ! empty( $updated_submission['meta']['original_id'][0] ) ) {
+			$lookup_submission_id = $updated_submission['meta']['original_id'][0];
+		}
+		$essay_ids = get_posts(
 			array(
 				'post_type'   => 'sfwd-essays',
 				'post_status' => array( 'publish', 'not_graded', 'graded', 'draft' ),
 				'meta_query'  => array(
 					array(
 						'key'   => '_ielts_submission_id',
-						'value' => $submission_id,
+						'value' => $lookup_submission_id,
 					),
 					array(
 						'key'   => '_ielts_question_type',
