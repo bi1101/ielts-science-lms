@@ -99,24 +99,41 @@ class Ieltssci_Test_Submission_Utils {
 	 * - Input: $submission_id (int ID).
 	 * - Output: Fully-qualified result permalink string, or empty string on failure.
 	 *
-	 * @param int $submission_id Test submission ID.
+	 * @param int  $submission_id Test submission ID.
+	 * @param bool $use_original  Whether to query the original test submission (true) or the final/cloned result (false). Default true.
 	 * @return string The result permalink URL or empty string if unavailable.
 	 */
-	public static function get_test_submission_result_permalink( $submission_id ) {
+	public static function get_test_submission_result_permalink( $submission_id, $use_original = true ) {
 		$submission_id = absint( $submission_id );
 		if ( $submission_id <= 0 ) {
 			return '';
 		}
 
 		// Load from DB to get the UUID.
-		$db          = new Ieltssci_Submission_DB();
-		$submissions = $db->get_test_submissions(
-			array(
-				'id'     => $submission_id,
-				'number' => 1,
-				'offset' => 0,
-			)
+		$db = new Ieltssci_Submission_DB();
+
+		// Build query based on whether we want the original submission or the final/forked result.
+		// - When $use_original is true, fetch by primary ID (current behavior).
+		// - When false, find the latest submission that has meta original_id = $submission_id.
+		$query_args = array(
+			'number' => 1,
+			'offset' => 0,
 		);
+		if ( $use_original ) {
+			$query_args['id'] = $submission_id; // Original submission by ID.
+		} else {
+			$query_args['meta_query'] = array(
+				array(
+					'key'     => 'original_id',
+					'value'   => (int) $submission_id,
+					'compare' => '=',
+				),
+			);
+			$query_args['orderby']    = 'id';
+			$query_args['order']      = 'DESC'; // Prefer the most recent fork if multiple exist.
+		}
+
+		$submissions = $db->get_test_submissions( $query_args );
 		if ( \is_wp_error( $submissions ) || empty( $submissions ) ) {
 			return '';
 		}
