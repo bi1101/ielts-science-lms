@@ -27,13 +27,14 @@ class Ieltssci_Essay_Utils {
 	 * the configured Writing Module result pages and registered rewrite rules.
 	 *
 	 * Contract:
-	 * - Input: $essay_id (int ID).
+	 * - Input: $essay_id (int ID), $use_original (bool, optional, default false).
 	 * - Output: Fully-qualified permalink string, or empty string on failure.
 	 *
-	 * @param int $essay_id Essay ID.
+	 * @param int  $essay_id    Essay ID.
+	 * @param bool $use_original Whether to query the original essay (true) or the final/cloned result (false). Default false.
 	 * @return string The permalink URL or empty string if unavailable.
 	 */
-	public static function get_essay_result_permalink( $essay_id ) {
+	public static function get_essay_result_permalink( $essay_id, $use_original = true ) {
 		$essay_id = absint( $essay_id );
 		if ( $essay_id <= 0 ) {
 			return ''; // Invalid identifier.
@@ -45,7 +46,12 @@ class Ieltssci_Essay_Utils {
 			'page'     => 1,
 		); // Limit to a single record.
 
-		$args['id'] = $essay_id; // Query by ID.
+		// Set the query key based on whether to use original or final essay.
+		if ( $use_original ) {
+			$args['id'] = $essay_id; // Query by original ID to get the final essay.
+		} else {
+			$args['original_id'] = $essay_id; // Query by final/cloned ID.
+		}
 
 		// Fetch essay from DB.
 		$db     = new Ieltssci_Essay_DB(); // Instantiate the Essay DB handler.
