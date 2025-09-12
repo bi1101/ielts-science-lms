@@ -428,7 +428,7 @@ class Ieltssci_Submission_DB {
 			// Process meta query.
 			if ( ! is_null( $args['meta_query'] ) && is_array( $args['meta_query'] ) ) {
 				$meta_join_alias = 'tsm';
-				$join           .= " LEFT JOIN {$this->test_submission_meta_table} {$meta_join_alias} ON ts.id = {$meta_join_alias}.test_submission_id";
+				$join           .= " LEFT JOIN {$this->test_submission_meta_table} {$meta_join_alias} ON ts.id = {$meta_join_alias}.ieltssci_writing_test_submission_id";
 
 				foreach ( $args['meta_query'] as $meta_query_item ) {
 					if ( ! empty( $meta_query_item['key'] ) ) {
@@ -1393,7 +1393,7 @@ class Ieltssci_Submission_DB {
 			// Process meta query.
 			if ( ! is_null( $args['meta_query'] ) && is_array( $args['meta_query'] ) ) {
 				$meta_join_alias = 'tsm';
-				$join           .= " LEFT JOIN {$this->task_submission_meta_table} {$meta_join_alias} ON ts.id = {$meta_join_alias}.task_submission_id";
+				$join           .= " LEFT JOIN {$this->task_submission_meta_table} {$meta_join_alias} ON ts.id = {$meta_join_alias}.ieltssci_writing_task_submission_id";
 
 				foreach ( $args['meta_query'] as $meta_query_item ) {
 					if ( ! empty( $meta_query_item['key'] ) ) {
