@@ -1249,12 +1249,17 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 			return $essay_url; // Not a writing task or test, return original URL.
 		}
 
+		// Determine if the essay is graded.
+		$essay_status = get_post_status( $essay_post_id );
+		// Get the original result or final teacher-graded result link.
+		$use_original = ( 'graded' === $essay_status ) ? false : true;
+
 		// Get the submission result permalink based on type.
 		$submission_url = '';
 		if ( 'writing-task' === $question_type ) {
-			$submission_url = Ieltssci_Task_Submission_Utils::get_task_submission_result_permalink( $submission_id );
+			$submission_url = Ieltssci_Task_Submission_Utils::get_task_submission_result_permalink( $submission_id, $use_original );
 		} elseif ( 'writing-test' === $question_type ) {
-			$submission_url = Ieltssci_Test_Submission_Utils::get_test_submission_result_permalink( $submission_id );
+			$submission_url = Ieltssci_Test_Submission_Utils::get_test_submission_result_permalink( $submission_id, $use_original );
 		}
 
 		if ( empty( $submission_url ) ) {
