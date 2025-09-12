@@ -671,6 +671,12 @@ class Ieltssci_Submission_DB {
 				throw new Exception( 'Failed to create forked test submission: ' . $new_submission_id->get_error_message() );
 			}
 
+			// Add original_id meta to link back to the original.
+			$add_meta_result = $this->add_test_submission_meta( $new_submission_id, 'original_id', $test_submission_id );
+			if ( is_wp_error( $add_meta_result ) ) {
+				throw new Exception( 'Failed to add original_id meta: ' . $add_meta_result->get_error_message() );
+			}
+
 			// Copy test submission meta if requested.
 			$copied_meta = array();
 			if ( $options['copy_meta'] ) {
@@ -1191,6 +1197,12 @@ class Ieltssci_Submission_DB {
 			$new_submission_id = $this->add_task_submission( $insert );
 			if ( is_wp_error( $new_submission_id ) ) {
 				throw new Exception( 'Failed to create forked task submission: ' . $new_submission_id->get_error_message() );
+			}
+
+			// Add original_id meta to link back to the original.
+			$add_meta_result = $this->add_task_submission_meta( $new_submission_id, 'original_id', $task_submission_id );
+			if ( is_wp_error( $add_meta_result ) ) {
+				throw new Exception( 'Failed to add original_id meta: ' . $add_meta_result->get_error_message() );
 			}
 
 			// Copy meta if requested.
