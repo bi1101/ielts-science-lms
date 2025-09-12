@@ -96,13 +96,14 @@ class Ieltssci_Task_Submission_Utils {
 	 * the essay result permalink using the Essay Utils class.
 	 *
 	 * Contract:
-	 * - Input: $submission_id (int ID).
+	 * - Input: $submission_id (int ID), $use_original (bool, optional, default true).
 	 * - Output: Fully-qualified result permalink string, or empty string on failure.
 	 *
-	 * @param int $submission_id Task submission ID.
+	 * @param int  $submission_id Task submission ID.
+	 * @param bool $use_original  Whether to query the original essay (true) or the final/cloned result (false). Default true.
 	 * @return string The result permalink URL or empty string if unavailable.
 	 */
-	public static function get_task_submission_result_permalink( $submission_id ) {
+	public static function get_task_submission_result_permalink( $submission_id, $use_original = true ) {
 		$submission_id = absint( $submission_id );
 		if ( $submission_id <= 0 ) {
 			return ''; // Invalid identifier.
@@ -138,6 +139,6 @@ class Ieltssci_Task_Submission_Utils {
 		}
 
 		// Use the Essay Utils class to get the result permalink.
-		return Ieltssci_Essay_Utils::get_essay_result_permalink( $essay_id );
+		return Ieltssci_Essay_Utils::get_essay_result_permalink( $essay_id, $use_original );
 	}
 }
