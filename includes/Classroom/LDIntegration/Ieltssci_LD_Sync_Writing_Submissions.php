@@ -44,7 +44,7 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 		add_filter( 'bb_essay_url', array( $this, 'filter_essay_url' ), 10, 2 );
 		// Hook to add post meta to essay REST responses.
 		$essay_post_type = learndash_get_post_type_slug( 'essay' );
-		add_filter( 'rest_prepare_' . $essay_post_type, array( $this, 'add_post_meta_to_essay_response' ), 10, 3 );
+		add_filter( 'rest_prepare_' . $essay_post_type, array( $this, 'add_ieltssci_data_to_essay_response' ), 10, 3 );
 	}
 
 	/**
@@ -1275,9 +1275,10 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 	}
 
 	/**
-	 * Add post meta to the essay REST API response.
+	 * Add IELTS data to essay REST API response.
 	 *
-	 * This filter modifies the REST response for sfwd-essays to include all post meta.
+	 * This method hooks into the REST API response for essays to include additional
+	 * IELTS-specific data, including post meta and a direct link to the submission result.
 	 *
 	 * @param WP_REST_Response $response The response object.
 	 * @param WP_Post          $post     The post object.
@@ -1285,9 +1286,31 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 	 *
 	 * @return WP_REST_Response The modified response.
 	 */
-	public function add_post_meta_to_essay_response( $response, $post, $request ) {
+	public function add_ieltssci_data_to_essay_response( $response, $post, $request ) {
 		// Add post meta to the response data.
-		$response->data['meta'] = get_post_meta( $post->ID );
+		$meta                   = get_post_meta( $post->ID );
+		$response->data['meta'] = $meta;
+
+		// Compute result link if applicable.
+		$submission_id = isset( $meta['_ielts_submission_id'] ) ? $meta['_ielts_submission_id'][0] : '';
+		if ( ! empty( $submission_id ) ) {
+			$question_type = isset( $meta['_ielts_question_type'] ) ? $meta['_ielts_question_type'][0] : '';
+			if ( in_array( $question_type, array( 'writing-task', 'writing-test' ), true ) ) {
+				$essay_status = get_post_status( $post->ID );
+				$use_original = ( 'graded' === $essay_status ) ? false : true;
+
+				$submission_url = '';
+				if ( 'writing-task' === $question_type ) {
+					$submission_url = Ieltssci_Task_Submission_Utils::get_task_submission_result_permalink( $submission_id, $use_original );
+				} elseif ( 'writing-test' === $question_type ) {
+					$submission_url = Ieltssci_Test_Submission_Utils::get_test_submission_result_permalink( $submission_id, $use_original );
+				}
+
+				if ( ! empty( $submission_url ) ) {
+					$response->data['result_link'] = $submission_url;
+				}
+			}
+		}
 
 		return $response;
 	}
