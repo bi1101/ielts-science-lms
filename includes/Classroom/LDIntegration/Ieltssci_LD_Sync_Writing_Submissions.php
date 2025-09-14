@@ -20,6 +20,8 @@ use LD_REST_Essays_Controller_V2;
 use WP_REST_Server;
 use WpProQuiz_Controller_Statistics;
 use WP_User;
+use WP_REST_Response;
+use WP_Post;
 
 /**
  * Class for syncing writing submissions with LearnDash.
@@ -40,6 +42,9 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 		add_action( 'ieltssci_rest_update_test_submission', array( $this, 'on_rest_update_test_submission' ), 10, 3 );
 		// Hook to modify essay URLs for writing task submissions.
 		add_filter( 'bb_essay_url', array( $this, 'filter_essay_url' ), 10, 2 );
+		// Hook to add post meta to essay REST responses.
+		$essay_post_type = learndash_get_post_type_slug( 'essay' );
+		add_filter( 'rest_prepare_' . $essay_post_type, array( $this, 'add_post_meta_to_essay_response' ), 10, 3 );
 	}
 
 	/**
@@ -1267,5 +1272,23 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 		}
 
 		return $submission_url; // Return the submission result permalink.
+	}
+
+	/**
+	 * Add post meta to the essay REST API response.
+	 *
+	 * This filter modifies the REST response for sfwd-essays to include all post meta.
+	 *
+	 * @param WP_REST_Response $response The response object.
+	 * @param WP_Post          $post     The post object.
+	 * @param WP_REST_Request  $request  The request object.
+	 *
+	 * @return WP_REST_Response The modified response.
+	 */
+	public function add_post_meta_to_essay_response( $response, $post, $request ) {
+		// Add post meta to the response data.
+		$response->data['meta'] = get_post_meta( $post->ID );
+
+		return $response;
 	}
 }
