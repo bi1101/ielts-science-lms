@@ -47,6 +47,9 @@ class Ieltssci_LD_Integration {
 
 		new LDIntegration\Ieltssci_LD_Sync_Writing_Submissions();
 
+		// Initialize Teacher Dashboard integration.
+		new LDIntegration\Ieltssci_LD_Teacher_Dashboard_Controller();
+
 		// Grant access if user is the post author.
 		add_filter( 'sfwd_lms_has_access', array( $this, 'grant_access_if_post_owner' ), 10, 3 );
 
