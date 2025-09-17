@@ -91,6 +91,12 @@ class Ieltssci_LD_Teacher_Dashboard_Controller extends WP_REST_Controller {
 							'type'        => 'boolean',
 							'default'     => true,
 						),
+						'user_id'            => array(
+							'description'       => __( 'Optional user ID to filter quiz attempts for a specific user. If provided, the current user must match or have teacher permissions.', 'ielts-science-lms' ),
+							'type'              => 'integer',
+							'default'           => null,
+							'sanitize_callback' => 'absint',
+						),
 					),
 				),
 				'schema' => array( $this, 'get_public_item_schema' ),
@@ -282,14 +288,21 @@ class Ieltssci_LD_Teacher_Dashboard_Controller extends WP_REST_Controller {
 	/**
 	 * Permission callback for quiz attempts endpoint.
 	 *
+	 * @param \WP_REST_Request $request REST request object.
 	 * @return bool|\WP_Error True if allowed, otherwise error.
 	 */
-	public function quiz_attempts_permissions_check() {
+	public function quiz_attempts_permissions_check( $request ) {
 		if ( ! is_user_logged_in() ) {
 			return new \WP_Error( 'rest_forbidden', __( 'You must be logged in.', 'ielts-science-lms' ), array( 'status' => 401 ) );
 		}
 
 		$current_user_id = get_current_user_id();
+		$user_id         = $request->get_param( 'user_id' );
+
+		if ( $user_id && $user_id == $current_user_id ) {
+			// Allow user to view their own attempts.
+			return true;
+		}
 
 		// Allow admins or group leaders.
 		if ( function_exists( 'learndash_is_admin_user' ) && learndash_is_admin_user( $current_user_id ) ) {
@@ -319,13 +332,21 @@ class Ieltssci_LD_Teacher_Dashboard_Controller extends WP_REST_Controller {
 		$teacher_sources    = $request->get_param( 'sources' );
 		$enrollment_sources = $request->get_param( 'enrollment_sources' );
 		$only_quizzes       = filter_var( $request->get_param( 'only_quizzes' ), FILTER_VALIDATE_BOOL );
+		$user_id_param      = $request->get_param( 'user_id' );
 
 		// Resolve defaults when args are not provided by client.
 		$teacher_sources    = is_array( $teacher_sources ) ? $teacher_sources : array( 'author', 'group' );
 		$enrollment_sources = is_array( $enrollment_sources ) ? $enrollment_sources : array( 'direct', 'group' );
 
 		$results = array();
-		$courses = $this->get_teacher_courses( $current_user_id, $teacher_sources );
+		// If user_id is provided, get their enrolled courses and return only that user.
+		if ( $user_id_param ) {
+			$user_id_param = absint( $user_id_param );
+			$courses       = learndash_user_get_enrolled_courses( $user_id_param );
+		} else {
+			// Get all courses for the current teacher user.
+			$courses = $this->get_teacher_courses( $current_user_id, $teacher_sources );
+		}
 		$courses = array_map( 'absint', (array) $courses );
 
 		foreach ( $courses as $course_id ) {
@@ -333,7 +354,13 @@ class Ieltssci_LD_Teacher_Dashboard_Controller extends WP_REST_Controller {
 				continue; // Skip invalid IDs.
 			}
 
-			$enrolled_user_ids = $this->get_users_enrolled_in_course( $course_id, $enrollment_sources );
+			// if user_id is provided, only include them.
+			if ( $user_id_param ) {
+				$enrolled_user_ids = array( $user_id_param );
+			} else {
+				// Get all users enrolled in this course.
+				$enrolled_user_ids = $this->get_users_enrolled_in_course( $course_id, $enrollment_sources );
+			}
 			$enrolled_user_ids = array_map( 'absint', (array) $enrolled_user_ids );
 			$enrolled_user_ids = array_values( array_filter( array_unique( $enrolled_user_ids ) ) );
 
