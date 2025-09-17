@@ -463,7 +463,7 @@ class Ieltssci_LD_Teacher_Dashboard_Controller extends WP_REST_Controller {
 				}
 
 				if ( ! isset( $step_item['step_title'] ) ) {
-					$step_item['step_title'] = '';
+					$step_item['step_title'] = wp_strip_all_tags( html_entity_decode( get_the_title( $step_id ), ENT_QUOTES, 'UTF-8' ) );
 				}
 
 				if ( ! isset( $step_item['step_status'] ) ) {
@@ -612,7 +612,7 @@ class Ieltssci_LD_Teacher_Dashboard_Controller extends WP_REST_Controller {
 						$user_course_activity[ $quiz_id ] = array(
 							'step'           => absint( $quiz_id ),
 							'post_type'      => 'sfwd-quiz',
-							'step_title'     => '',
+							'step_title'     => wp_strip_all_tags( html_entity_decode( get_the_title( $quiz_id ), ENT_QUOTES, 'UTF-8' ) ),
 							'step_status'    => '',
 							'date_started'   => '',
 							'date_completed' => '',
@@ -760,13 +760,19 @@ class Ieltssci_LD_Teacher_Dashboard_Controller extends WP_REST_Controller {
 	 * Get cached course title by course ID.
 	 *
 	 * Title is populated opportunistically from learndash_reports_get_activity() results.
-	 * Avoids extra DB queries for performance.
+	 * Avoids extra DB queries for performance. Falls back to post title if not cached.
 	 *
 	 * @param int $course_id Course ID.
 	 * @return string Course title or empty string.
 	 */
 	protected function get_cached_course_title( $course_id ) {
 		$course_id = absint( $course_id );
-		return isset( $this->course_titles[ $course_id ] ) ? (string) $this->course_titles[ $course_id ] : '';
+		if ( isset( $this->course_titles[ $course_id ] ) ) {
+			return (string) $this->course_titles[ $course_id ];
+		}
+		// Fallback to post title if not cached.
+		$title                             = html_entity_decode( get_the_title( $course_id ), ENT_QUOTES, 'UTF-8' );
+		$this->course_titles[ $course_id ] = wp_strip_all_tags( $title );
+		return $this->course_titles[ $course_id ];
 	}
 }
