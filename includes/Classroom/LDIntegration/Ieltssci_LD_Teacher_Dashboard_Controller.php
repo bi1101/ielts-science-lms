@@ -342,7 +342,7 @@ class Ieltssci_LD_Teacher_Dashboard_Controller extends WP_REST_Controller {
 		// If user_id is provided, get their enrolled courses and return only that user.
 		if ( $user_id_param ) {
 			$user_id_param = absint( $user_id_param );
-			$courses       = learndash_user_get_enrolled_courses( $user_id_param );
+			$courses       = $this->get_courses_enrolled_by_user( $user_id_param, $enrollment_sources );
 		} else {
 			// Get all courses for the current teacher user.
 			$courses = $this->get_teacher_courses( $current_user_id, $teacher_sources );
@@ -624,6 +624,106 @@ class Ieltssci_LD_Teacher_Dashboard_Controller extends WP_REST_Controller {
 		}
 
 		return $user_course_activity;
+	}
+
+
+	/**
+	 * Get all courses that a user is enrolled in based on sources.
+	 *
+	 * Mirrors the approach used in get_users_enrolled_in_course() but inverted to retrieve
+	 * courses for a specific user. Supports two enrollment sources:
+	 * - 'direct': Courses where the user has direct access via usermeta 'course_{ID}_access_from'
+	 *   and courses whose access list includes the user (course meta setting 'course_access_list').
+	 * - 'group': Courses that are assigned to any group the user belongs to via
+	 *   postmeta 'learndash_group_enrolled_{group_id}'.
+	 *
+	 * @param int   $user_id User ID.
+	 * @param array $sources Sources to include. Possible values: 'direct', 'group'.
+	 * @return array<int> List of course IDs the user is enrolled in.
+	 */
+	public function get_courses_enrolled_by_user( $user_id, $sources = array( 'direct', 'group' ) ) {
+		global $wpdb;
+
+		$courses = array();
+		$user_id = absint( $user_id );
+
+		// Validate user ID.
+		if ( empty( $user_id ) ) {
+			return $courses;
+		}
+
+		// 1. Direct enrollments via usermeta 'course_{course_id}_access_from'.
+		if ( in_array( 'direct', (array) $sources, true ) ) {
+			$table = $wpdb->usermeta;
+			// Find all meta_keys like 'course_%_access_from' for this user.
+			$like     = $wpdb->esc_like( 'course_' ) . '%_access_from';
+			$sql_like = $wpdb->prepare( "SELECT meta_key FROM $table WHERE user_id = %d AND meta_key LIKE %s", $user_id, $like );
+			// Allow wildcard percent in LIKE to pass through untouched.
+			$sql_like  = $wpdb->remove_placeholder_escape( $sql_like );
+			$meta_keys = $wpdb->get_col( $sql_like, 0 );
+
+			if ( ! empty( $meta_keys ) ) {
+				foreach ( $meta_keys as $mk ) {
+					// Expecting pattern 'course_{ID}_access_from'.
+					$course_id = intval( filter_var( (string) $mk, FILTER_SANITIZE_NUMBER_INT ) );
+					if ( $course_id > 0 ) {
+						$courses[] = $course_id;
+					}
+				}
+			}
+
+			// Also include courses where the access list includes the user.
+			$all_course_ids = get_posts(
+				array(
+					'post_type'   => 'sfwd-courses',
+					'numberposts' => -1,
+					'fields'      => 'ids',
+				)
+			);
+			if ( ! empty( $all_course_ids ) ) {
+				foreach ( $all_course_ids as $cid ) {
+					$access_list = learndash_get_course_meta_setting( $cid, 'course_access_list' );
+					if ( empty( $access_list ) || ! is_array( $access_list ) ) {
+						continue; // No access list configured for this course.
+					}
+					$access_list = array_map( 'absint', $access_list );
+					if ( in_array( $user_id, $access_list, true ) ) {
+						$courses[] = absint( $cid );
+					}
+				}
+			}
+		}
+
+		// 2. Group-based enrollments: user belongs to groups that are enrolled into courses.
+		if ( in_array( 'group', (array) $sources, true ) ) {
+			// Find group membership meta for this user: 'learndash_group_users_{group_id}'.
+			$table     = $wpdb->usermeta;
+			$like      = $wpdb->esc_like( 'learndash_group_users_' ) . '%';
+			$sql_like  = $wpdb->prepare( "SELECT meta_key FROM $table WHERE user_id = %d AND meta_key LIKE %s", $user_id, $like );
+			$sql_like  = $wpdb->remove_placeholder_escape( $sql_like );
+			$group_mks = $wpdb->get_col( $sql_like, 0 );
+
+			if ( ! empty( $group_mks ) ) {
+				// For each group, find courses with postmeta 'learndash_group_enrolled_{group_id}'.
+				$postmeta_table = $wpdb->postmeta;
+				foreach ( $group_mks as $gmk ) {
+					$group_id = intval( filter_var( (string) $gmk, FILTER_SANITIZE_NUMBER_INT ) );
+					if ( $group_id <= 0 ) {
+						continue; // Invalid group ID.
+					}
+					$meta_key             = 'learndash_group_enrolled_' . $group_id;
+					$sql                  = $wpdb->prepare( "SELECT post_id FROM $postmeta_table WHERE meta_key = %s", $meta_key );
+					$course_ids_for_group = $wpdb->get_col( $sql, 0 );
+					if ( ! empty( $course_ids_for_group ) ) {
+						$courses = array_merge( $courses, array_map( 'absint', $course_ids_for_group ) );
+					}
+				}
+			}
+		}
+
+		$courses = array_values( array_unique( array_filter( array_map( 'absint', $courses ) ) ) );
+
+		return apply_filters( 'ieltssci_filter_user_enrolled_courses', $courses, $user_id, $sources );
 	}
 
 
