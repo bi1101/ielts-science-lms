@@ -40,6 +40,47 @@ class Ieltssci_Writing_Feedback_DB {
 
 
 	/**
+	 * Resolve the user ID that should be credited for feedback on a given essay.
+	 *
+	 * Follows the same pattern used in rate-limit checks: if the essay is linked
+	 * to a task submission that has an 'instructor_id' meta value, then use that
+	 * instructor ID; otherwise, return 0 so callers can fall back to current user.
+	 *
+	 * @param int $essay_id The essay ID.
+	 * @return int The instructor user ID if available, or 0 if none found.
+	 */
+	private function resolve_feedback_creator_user_id( $essay_id ) {
+		if ( empty( $essay_id ) ) {
+			return 0; // Invalid essay ID, no override.
+		}
+
+		try {
+			$submission_db   = new Ieltssci_Submission_DB();
+			$task_submission = $submission_db->get_task_submissions(
+				array(
+					'essay_id' => (int) $essay_id,
+					'number'   => 1,
+					'orderby'  => 'id',
+					'order'    => 'DESC',
+				)
+			);
+			if ( is_wp_error( $task_submission ) ) {
+				return 0; // DB error, skip override.
+			}
+			if ( $task_submission && is_array( $task_submission ) && ! empty( $task_submission ) && ! empty( $task_submission[0]['id'] ) ) {
+				$instructor_id = $submission_db->get_task_submission_meta( $task_submission[0]['id'], 'instructor_id', true );
+				return $instructor_id ? (int) $instructor_id : 0; // Return instructor or 0.
+			}
+		} catch ( \Exception $e ) {
+			// Log exception if needed, but return 0 to avoid blocking feedback saving.
+			error_log( 'Error resolving feedback creator user ID: ' . $e->getMessage() );
+			return 0;
+		}
+
+		return 0; // No instructor found.
+	}
+
+	/**
 	 * Check if a step has already been processed and retrieve existing content
 	 *
 	 * @param string $step_type     The type of step (chain-of-thought, scoring, feedback).
@@ -249,6 +290,21 @@ class Ieltssci_Writing_Feedback_DB {
 		// Get segment ID from segment object.
 		$segment_id = $segment['id'];
 
+		// Try to obtain essay_id from provided segment or by querying the DB if not present.
+		$essay_id = isset( $segment['essay_id'] ) ? (int) $segment['essay_id'] : 0; // Prefer essay_id from segment payload if available.
+		if ( ! $essay_id ) {
+			$essay_db   = new Ieltssci_Essay_DB();
+			$seg_record = $essay_db->get_segments(
+				array(
+					'segment_id' => $segment_id,
+					'fields'     => array( 'essay_id' ),
+				)
+			);
+			if ( ! is_wp_error( $seg_record ) && ! empty( $seg_record ) && isset( $seg_record[0]['essay_id'] ) ) {
+				$essay_id = (int) $seg_record[0]['essay_id'];
+			}
+		}
+
 		// Extract needed feed attributes.
 		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
 
@@ -278,6 +334,12 @@ class Ieltssci_Writing_Feedback_DB {
 			'source'            => $source,
 			$content_field      => $feedback,
 		);
+
+		// If the essay is linked to a task submission with an instructor, credit feedback to the instructor.
+		$instructor_id = $essay_id ? $this->resolve_feedback_creator_user_id( $essay_id ) : 0;
+		if ( $instructor_id > 0 ) {
+			$feedback_data['created_by'] = $instructor_id; // Override creator for attribution.
+		}
 
 		// Always create a new feedback entry regardless of existing records.
 		return $essay_db->create_segment_feedback( $feedback_data );
@@ -340,6 +402,12 @@ class Ieltssci_Writing_Feedback_DB {
 			'source'            => $source,
 			$content_field      => $feedback,
 		);
+
+		// If the essay is linked to a task submission with an instructor, credit feedback to the instructor.
+		$instructor_id = $this->resolve_feedback_creator_user_id( $essay_id );
+		if ( $instructor_id > 0 ) {
+			$feedback_data['created_by'] = $instructor_id; // Override creator for attribution.
+		}
 
 		// Always create a new feedback entry.
 		return $essay_db->create_essay_feedback( $feedback_data );
