@@ -14,6 +14,7 @@ namespace IeltsScienceLMS\RateLimits;
 use WP_Error;
 use IeltsScienceLMS\Writing\Ieltssci_Essay_DB;
 use IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_DB;
+use IeltsScienceLMS\Writing\Ieltssci_Submission_DB;
 
 /**
  * Main Rate Limit Module Class
@@ -157,6 +158,24 @@ class Ieltssci_RateLimit {
 				if ( ! is_wp_error( $essays ) && ! empty( $essays ) ) {
 					$creator_id = $essays[0]['created_by'];
 					$content_id = $essays[0]['id']; // Store essay ID for later use.
+
+					// Get associated task submission if any.
+					if ( isset( $essays[0]['id'] ) && $essays[0]['id'] ) {
+						$submission_db   = new Ieltssci_Submission_DB();
+						$task_submission = $submission_db->get_task_submissions(
+							array(
+								'essay_id' => $essays[0]['id'],
+							)
+						);
+						if ( is_wp_error( $task_submission ) ) {
+							$task_submission = null;
+						}
+						// Use instructor ID from task submission as creator so that students can use their instructor's rate limits.
+						if ( $task_submission && is_array( $task_submission ) && ! empty( $task_submission ) && isset( $task_submission[0]['id'] ) && ! empty( $task_submission[0]['id'] ) ) {
+							$instructor_id = $submission_db->get_task_submission_meta( $task_submission[0]['id'], 'instructor_id', true );
+							$creator_id    = $instructor_id ? (int) $instructor_id : $creator_id;
+						}
+					}
 				}
 			} elseif ( 'speech_feedback' === $action ) {
 				// Include speech DB class.
