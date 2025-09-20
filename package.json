@@ -17,7 +17,9 @@
         "public/writing/build/",
         "public/writing/*.php",
         "public/dashboard/build/",
-        "public/dashboard/*.php"
+        "public/dashboard/*.php",
+        "includes/Classroom/ld_integration/build",
+        "includes/Classroom/ld_integration/*.php"
     ],
     "scripts": {
         "submodules:update": "git submodule update --remote --merge",
