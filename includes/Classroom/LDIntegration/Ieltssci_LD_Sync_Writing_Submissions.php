@@ -963,10 +963,10 @@ class Ieltssci_LD_Sync_Writing_Submissions {
 		$result = 0;
 		$pass   = ( $result >= $passingpercentage ) ? 1 : 0;
 
-		// Time handling similar to LD logic: if we have a start + elapsed build difference anchored to now.
+		// Timestamps.
 		$now = time();
-		if ( $start_unix > 0 && $quiz_time > 0 ) {
-			$started   = $now - (int) $quiz_time; // Anchor to current time like LD recomputation.
+		if ( $start_unix > 0 ) {
+			$started   = $start_unix; // Use start_unix as started.
 			$completed = $now; // Completed now.
 		} else {
 			$started   = 0;
