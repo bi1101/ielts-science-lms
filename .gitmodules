@@ -13,6 +13,6 @@
 [submodule "public/global-components"]
 	path = public/global-components
 	url = https://github.com/bi1101/ielts-science-global-components.git
-[submodule "includes/Classroom/ld_integration"]
-	path = includes/Classroom/ld_integration
+[submodule "public/ld_integration"]
+	path = public/ld_integration
 	url = https://github.com/bi1101/ld_integration.git
