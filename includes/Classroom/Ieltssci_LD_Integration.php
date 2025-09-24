@@ -67,13 +67,13 @@ class Ieltssci_LD_Integration {
 	 * @return void
 	 */
 	public function register_ld_integration_assets() {
-		$build_path  = plugin_dir_path( __FILE__ ) . 'ld_integration/build/';
+		$build_path  = plugin_dir_path( dirname( __DIR__, 1 ) ) . 'public/ld_integration/build/';
 		$asset_files = glob( $build_path . '*.asset.php' );
 
 		foreach ( $asset_files as $asset_file ) {
 			$asset  = include $asset_file;
 			$handle = 'ielts-science-ld-integration-' . basename( $asset_file, '.asset.php' );
-			$src    = plugin_dir_url( __FILE__ ) . 'ld_integration/build/' . basename( $asset_file, '.asset.php' ) . '.js';
+			$src    = plugin_dir_url( dirname( __DIR__, 1 ) ) . 'public/ld_integration/build/' . basename( $asset_file, '.asset.php' ) . '.js';
 			$deps   = $asset['dependencies'];
 			$deps[] = 'wpProQuiz_front_javascript'; // Add ProQuiz front-end script as dependency.
 			$ver    = $asset['version'];
@@ -84,7 +84,7 @@ class Ieltssci_LD_Integration {
 			$css_file = str_replace( '.asset.php', '.css', $asset_file );
 			if ( file_exists( $css_file ) ) {
 				$css_handle = $handle . '-css';
-				$css_src    = plugin_dir_url( __FILE__ ) . 'ld_integration/build/' . basename( $css_file );
+				$css_src    = plugin_dir_url( dirname( __DIR__, 1 ) ) . 'public/ld_integration/build/' . basename( $css_file );
 				wp_register_style( $css_handle, $css_src, array(), $ver );
 			}
 		}
