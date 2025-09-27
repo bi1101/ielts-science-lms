@@ -216,6 +216,15 @@ Table ieltssci_speech {
   created_by integer [not null, note: 'ID người tạo bài, nếu fork từ bài khác thì là ID của người fork']
 }
 
+Table ieltssci_speech_attempt {
+  id integer [primary key, increment]
+  submission_id integer [not null, note: 'ID của bài nộp từ ieltssci_speaking_part_submissions']
+  question_id integer [not null, note: 'ID của câu hỏi']
+  audio_id integer [not null, note: 'ID của file audio người dùng record cho lần thử này']
+  created_at timestamp [default: `now()`]
+  created_by integer [not null, note: 'ID người tạo bài']
+}
+
 // Speech meta data
 Table ieltssci_speech_meta {
   meta_id integer [primary key, increment]
@@ -245,6 +254,11 @@ Ref: ieltssci_speech.id < ieltssci_speech_feedback.speech_id
 
 // Speaking Parts as CPT
 Table wp_speaking_parts {
+  id integer [primary key, increment]
+  question_ids integer[] [not null, note: 'ID của các câu hỏi trong wp_speaking_questions']
+}
+
+Table wp_speaking_questions {
   id integer [primary key, increment]
 }
 
@@ -299,3 +313,5 @@ Ref: wp_speaking_parts.id < ieltssci_speaking_part_submissions.part_id
 Ref: ieltssci_speech.id < ieltssci_speaking_part_submissions.speech_id
 Ref: ieltssci_speaking_test_submissions.id < ieltssci_speaking_test_submission_meta.ieltssci_speaking_test_submission_id
 Ref: ieltssci_speaking_part_submissions.id < ieltssci_speaking_part_submission_meta.ieltssci_speaking_part_submission_id
+Ref: wp_speaking_questions.id < ieltssci_speech_attempt.question_id
+Ref: ieltssci_speaking_part_submissions.id < ieltssci_speech_attempt.submission_id
