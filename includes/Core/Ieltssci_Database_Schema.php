@@ -37,7 +37,7 @@ class Ieltssci_Database_Schema {
 	 *
 	 * @var string
 	 */
-	private $db_version = '0.0.8'; // Updated version number for adding essays meta table.
+	private $db_version = '0.0.9'; // Updated version number for adding speech meta and speaking submission tables.
 
 	/**
 	 * WordPress database object.
@@ -89,10 +89,16 @@ class Ieltssci_Database_Schema {
 			$this->create_essay_feedback_table();
 			$this->create_speech_table();
 			$this->create_speech_feedback_table();
+			$this->create_speech_meta_table();
 			$this->create_writing_test_submissions_table();
 			$this->create_writing_task_submissions_table();
 			$this->create_writing_test_submission_meta_table();
 			$this->create_writing_task_submission_meta_table();
+			$this->create_speaking_test_submissions_table();
+			$this->create_speaking_part_submissions_table();
+			$this->create_speaking_test_submission_meta_table();
+			$this->create_speaking_part_submission_meta_table();
+			$this->create_speech_attempt_table();
 
 			return;
 		} catch ( Exception $e ) {
@@ -147,6 +153,10 @@ class Ieltssci_Database_Schema {
 
 			if ( version_compare( $current_version, '0.0.8', '<' ) ) {
 				$this->update_to_0_0_8();
+			}
+
+			if ( version_compare( $current_version, '0.0.9', '<' ) ) {
+				$this->update_to_0_0_9();
 			}
 
 			// All updates successful, update the stored version.
@@ -264,6 +274,21 @@ class Ieltssci_Database_Schema {
 	 */
 	private function update_to_0_0_8() {
 		$this->create_essays_meta_table();
+	}
+
+	/**
+	 * Update schema to version 0.0.9.
+	 * Adds speech meta table and speaking submission tables.
+	 *
+	 * @throws \Exception On SQL error.
+	 */
+	private function update_to_0_0_9() {
+		$this->create_speech_meta_table();
+		$this->create_speaking_test_submissions_table();
+		$this->create_speaking_part_submissions_table();
+		$this->create_speaking_test_submission_meta_table();
+		$this->create_speaking_part_submission_meta_table();
+		$this->create_speech_attempt_table();
 	}
 
 	/**
@@ -646,6 +671,33 @@ class Ieltssci_Database_Schema {
 	}
 
 	/**
+	 * Creates the speech meta table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_speech_meta_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech_meta';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			meta_id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			ieltssci_speech_id bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+			meta_key varchar(255) DEFAULT NULL,
+			meta_value longtext,
+			PRIMARY KEY (meta_id),
+			KEY ieltssci_speech_id (ieltssci_speech_id),
+			KEY meta_key (meta_key(191)),
+			CONSTRAINT fk_speech_meta_speech
+				FOREIGN KEY (ieltssci_speech_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "speech(id)
+				ON DELETE CASCADE
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
 	 * Creates the writing test submissions table
 	 *
 	 * @return bool True on success.
@@ -763,6 +815,159 @@ class Ieltssci_Database_Schema {
 			CONSTRAINT fk_writing_task_submission_meta_task_submission
 				FOREIGN KEY (ieltssci_writing_task_submission_id)
 				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "writing_task_submissions(id)
+				ON DELETE CASCADE
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
+	 * Creates the speaking test submissions table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_speaking_test_submissions_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'speaking_test_submissions';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			uuid varchar(36) NOT NULL,
+			test_id bigint(20) UNSIGNED NOT NULL COMMENT 'ID of the test from wp_speaking_tests',
+			user_id bigint(20) UNSIGNED NOT NULL COMMENT 'ID of the user who submitted the test',
+			status varchar(50) NOT NULL DEFAULT 'in-progress' COMMENT 'e.g., in-progress, completed, graded',
+			started_at datetime DEFAULT NULL COMMENT 'GMT timestamp when the test was started',
+			updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'GMT timestamp when the test was last updated',
+			completed_at datetime DEFAULT NULL COMMENT 'GMT timestamp when the test was completed',
+			PRIMARY KEY (id),
+			UNIQUE KEY uuid (uuid),
+			KEY test_id (test_id),
+			KEY user_id (user_id),
+			KEY status (status)
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
+	 * Creates the speaking part submissions table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_speaking_part_submissions_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'speaking_part_submissions';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			uuid varchar(36) NOT NULL,
+			test_submission_id bigint(20) UNSIGNED DEFAULT NULL COMMENT 'ID of the test submission from ieltssci_speaking_test_submissions, nullable if standalone',
+			user_id bigint(20) UNSIGNED NOT NULL COMMENT 'ID of the user who submitted the test',
+			part_id bigint(20) UNSIGNED NOT NULL COMMENT 'ID of the speaking part from wp_speaking_parts',
+			status varchar(50) NOT NULL DEFAULT 'in-progress' COMMENT 'e.g., in-progress, completed, graded',
+			speech_id bigint(20) UNSIGNED NOT NULL COMMENT 'ID of the speech from ieltssci_speech',
+			started_at datetime DEFAULT NULL COMMENT 'GMT timestamp when the part was started',
+			updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'GMT timestamp when the part was last updated',
+			completed_at datetime DEFAULT NULL COMMENT 'GMT timestamp when the part was completed',
+			PRIMARY KEY (id),
+			UNIQUE KEY uuid (uuid),
+			KEY test_submission_id (test_submission_id),
+			KEY user_id (user_id),
+			KEY part_id (part_id),
+			KEY speech_id (speech_id),
+			KEY status (status),
+			CONSTRAINT fk_part_submission_test_submission
+				FOREIGN KEY (test_submission_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "speaking_test_submissions(id)
+				ON DELETE CASCADE,
+			CONSTRAINT fk_part_submission_speech
+				FOREIGN KEY (speech_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "speech(id)
+				ON DELETE CASCADE
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
+	 * Creates the speaking test submission meta table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_speaking_test_submission_meta_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'speaking_test_submission_meta';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			meta_id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			ieltssci_speaking_test_submission_id bigint(20) UNSIGNED NOT NULL,
+			meta_key varchar(255) DEFAULT NULL,
+			meta_value longtext,
+			PRIMARY KEY (meta_id),
+			KEY ieltssci_speaking_test_submission_id (ieltssci_speaking_test_submission_id),
+			KEY meta_key (meta_key(191)),
+			CONSTRAINT fk_speaking_test_submission_meta_test_submission
+				FOREIGN KEY (ieltssci_speaking_test_submission_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "speaking_test_submissions(id)
+				ON DELETE CASCADE
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
+	 * Creates the speaking part submission meta table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_speaking_part_submission_meta_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'speaking_part_submission_meta';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			meta_id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			ieltssci_speaking_part_submission_id bigint(20) UNSIGNED NOT NULL,
+			meta_key varchar(255) DEFAULT NULL,
+			meta_value longtext,
+			PRIMARY KEY (meta_id),
+			KEY ieltssci_speaking_part_submission_id (ieltssci_speaking_part_submission_id),
+			KEY meta_key (meta_key(191)),
+			CONSTRAINT fk_speaking_part_submission_meta_part_submission
+				FOREIGN KEY (ieltssci_speaking_part_submission_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "speaking_part_submissions(id)
+				ON DELETE CASCADE
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
+	 * Creates the speech attempt table
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_speech_attempt_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech_attempt';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			submission_id bigint(20) UNSIGNED NOT NULL,
+			question_id bigint(20) UNSIGNED NOT NULL,
+			audio_id bigint(20) UNSIGNED NOT NULL,
+			created_at datetime DEFAULT CURRENT_TIMESTAMP,
+			created_by bigint(20) UNSIGNED NOT NULL,
+			PRIMARY KEY (id),
+			KEY submission_id (submission_id),
+			KEY question_id (question_id),
+			CONSTRAINT fk_speech_attempt_submission
+				FOREIGN KEY (submission_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "speaking_part_submissions(id)
 				ON DELETE CASCADE
 		) $charset_collate";
 
