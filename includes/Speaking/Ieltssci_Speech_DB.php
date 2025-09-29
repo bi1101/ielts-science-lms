@@ -51,6 +51,13 @@ class Ieltssci_Speech_DB {
 	private $speech_feedback_table;
 
 	/**
+	 * Speech meta table name.
+	 *
+	 * @var string
+	 */
+	private $speech_meta_table;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -59,6 +66,21 @@ class Ieltssci_Speech_DB {
 
 		$this->speech_table          = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech';
 		$this->speech_feedback_table = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech_feedback';
+		$this->speech_meta_table     = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech_meta';
+
+		// Register meta tables with WordPress metadata API.
+		$this->register_meta_tables();
+	}
+
+	/**
+	 * Registers custom meta tables with WordPress metadata API.
+	 *
+	 * Following WordPress pattern for custom meta tables as described in:
+	 * https://www.ibenic.com/working-with-custom-tables-in-wordpress-meta-tables/
+	 */
+	private function register_meta_tables() {
+		// Register speech meta table.
+		$this->wpdb->ieltssci_speechmeta = $this->speech_meta_table;
 	}
 
 	/**
@@ -719,6 +741,106 @@ class Ieltssci_Speech_DB {
 
 		} catch ( Exception $e ) {
 			return new WP_Error( 'database_error', 'Failed to count distinct speech entries with speech feedback: ' . $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Adds meta data to a speech.
+	 *
+	 * @param int    $speech_id  The speech ID.
+	 * @param string $meta_key   The meta key.
+	 * @param mixed  $meta_value The meta value.
+	 * @param bool   $unique     Whether the meta key should be unique.
+	 * @return int|WP_Error Meta ID on success, WP_Error on failure.
+	 */
+	public function add_speech_meta( $speech_id, $meta_key, $meta_value, $unique = false ) {
+		$speech_id = absint( $speech_id );
+		if ( ! $speech_id ) {
+			return new WP_Error( 'invalid_speech_id', 'Invalid speech ID.', array( 'status' => 400 ) );
+		}
+		try {
+			$result = add_metadata( 'ieltssci_speech', $speech_id, $meta_key, $meta_value, $unique );
+
+			if ( false === $result ) {
+				return new WP_Error( 'meta_add_failed', 'Failed to add speech meta.', array( 'status' => 500 ) );
+			}
+			return $result;
+		} catch ( Exception $e ) {
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Updates meta data for a speech.
+	 *
+	 * @param int    $speech_id  The speech ID.
+	 * @param string $meta_key   The meta key.
+	 * @param mixed  $meta_value The new meta value.
+	 * @param mixed  $prev_value Optional. Previous value to check before updating.
+	 * @return bool|WP_Error True on success, WP_Error on failure.
+	 */
+	public function update_speech_meta( $speech_id, $meta_key, $meta_value, $prev_value = '' ) {
+		$speech_id = absint( $speech_id );
+		if ( ! $speech_id ) {
+			return new WP_Error( 'invalid_speech_id', 'Invalid speech ID.', array( 'status' => 400 ) );
+		}
+		try {
+			$result = update_metadata( 'ieltssci_speech', $speech_id, $meta_key, $meta_value, $prev_value );
+			if ( false === $result ) {
+				return new WP_Error( 'meta_update_failed', 'Failed to update speech meta.', array( 'status' => 500 ) );
+			}
+			return true;
+		} catch ( Exception $e ) {
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Retrieves meta data for a speech.
+	 *
+	 * @param int    $speech_id The speech ID.
+	 * @param string $key       Optional. The meta key to retrieve. If empty, returns all meta.
+	 * @param bool   $single    Whether to return a single value.
+	 * @return mixed|WP_Error The meta value(s) on success, WP_Error on failure.
+	 */
+	public function get_speech_meta( $speech_id, $key = '', $single = false ) {
+		$speech_id = absint( $speech_id );
+		if ( ! $speech_id ) {
+			return new WP_Error( 'invalid_speech_id', 'Invalid speech ID.', array( 'status' => 400 ) );
+		}
+		try {
+			$result = get_metadata( 'ieltssci_speech', $speech_id, $key, $single );
+			// WordPress get_metadata returns false for invalid object_id, but we want to return empty for consistency.
+			if ( false === $result && ! empty( $key ) && $single ) {
+				return '';
+			}
+			return $result;
+		} catch ( Exception $e ) {
+			return new WP_Error( 'database_error', 'Failed to retrieve speech meta: ' . $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Deletes meta data for a speech.
+	 *
+	 * @param int    $speech_id  The speech ID.
+	 * @param string $meta_key   The meta key to delete.
+	 * @param mixed  $meta_value Optional. Value to match before deleting.
+	 * @return bool|WP_Error True on success, WP_Error on failure.
+	 */
+	public function delete_speech_meta( $speech_id, $meta_key, $meta_value = '' ) {
+		$speech_id = absint( $speech_id );
+		if ( ! $speech_id ) {
+			return new WP_Error( 'invalid_speech_id', 'Invalid speech ID.', array( 'status' => 400 ) );
+		}
+		try {
+			$result = delete_metadata( 'ieltssci_speech', $speech_id, $meta_key, $meta_value );
+			if ( false === $result ) {
+				return new WP_Error( 'meta_delete_failed', 'Failed to delete speech meta.', array( 'status' => 500 ) );
+			}
+			return true;
+		} catch ( Exception $e ) {
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
 		}
 	}
 }
