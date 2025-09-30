@@ -549,13 +549,25 @@ class Ieltssci_Speech_DB {
 	}
 
 	/**
-	 * Create or update a speech feedback.
+	 * Create a speech feedback entry.
 	 *
-	 * @param array $feedback_data Required. Speech feedback data.
-	 * @return array|WP_Error Created/updated feedback data or error.
+	 * @param array $feedback_data {
+	 *     Required. Speech feedback data.
+	 *
+	 *     @var int    $speech_id          Required. ID of the associated speech.
+	 *     @var string $feedback_criteria  Required. Criteria for the feedback.
+	 *     @var string $feedback_language  Required. Language of the feedback.
+	 *     @var string $source             Required. Source of the feedback ('ai' or 'human').
+	 *     @var int    $created_by         Optional. User ID who created the feedback.
+	 *     @var string $cot_content        Optional. Chain-of-thought content.
+	 *     @var string $score_content      Optional. Scoring content.
+	 *     @var string $feedback_content   Optional. Feedback content.
+	 *     @var bool   $is_preferred       Optional. Whether this feedback is preferred.
+	 * }
+	 * @return array|WP_Error Created feedback data or error.
 	 * @throws Exception If there is a database error.
 	 */
-	public function create_update_speech_feedback( $feedback_data ) {
+	public function create_speech_feedback( $feedback_data ) {
 		if ( empty( $feedback_data['speech_id'] ) ||
 			empty( $feedback_data['feedback_criteria'] ) ||
 			empty( $feedback_data['feedback_language'] ) ||
@@ -582,22 +594,11 @@ class Ieltssci_Speech_DB {
 				}
 			}
 
-			if ( isset( $feedback_data['id'] ) ) {
-				$result      = $this->wpdb->update(
-					$this->speech_feedback_table,
-					$data,
-					array( 'id' => $feedback_data['id'] ),
-					null,
-					array( '%d' )
-				);
-				$feedback_id = $feedback_data['id'];
-			} else {
-				$result      = $this->wpdb->insert(
-					$this->speech_feedback_table,
-					$data
-				);
-				$feedback_id = $this->wpdb->insert_id;
-			}
+			$result      = $this->wpdb->insert(
+				$this->speech_feedback_table,
+				$data
+			);
+			$feedback_id = $this->wpdb->insert_id;
 
 			if ( false === $result ) {
 				throw new Exception( $this->wpdb->last_error );
@@ -612,6 +613,100 @@ class Ieltssci_Speech_DB {
 			$this->wpdb->query( 'ROLLBACK' );
 			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
 		}
+	}
+
+	/**
+	 * Update an existing speech feedback entry.
+	 *
+	 * @param int   $feedback_id   Required. ID of the feedback to update.
+	 * @param array $feedback_data {
+	 *     Optional. Fields to update for this feedback.
+	 *
+	 *     @var int    $speech_id          Optional. ID of the associated speech.
+	 *     @var string $feedback_criteria  Optional. Criteria for the feedback.
+	 *     @var string $feedback_language  Optional. Language of the feedback.
+	 *     @var string $source             Optional. Source of the feedback ('ai' or 'human').
+	 *     @var int    $created_by         Optional. User ID who created the feedback.
+	 *     @var string $cot_content        Optional. Chain-of-thought content.
+	 *     @var string $score_content      Optional. Scoring content.
+	 *     @var string $feedback_content   Optional. Feedback content.
+	 *     @var bool   $is_preferred       Optional. Whether this feedback is preferred.
+	 * }
+	 * @return array|WP_Error Updated feedback data or error.
+	 * @throws Exception If there is a database error.
+	 */
+	public function update_speech_feedback( $feedback_id, $feedback_data = array() ) {
+		$feedback_id = absint( $feedback_id );
+		if ( ! $feedback_id ) {
+			return new WP_Error( 'missing_id', 'Missing or invalid feedback ID.', array( 'status' => 400 ) );
+		}
+
+		// Whitelist fields that can be updated.
+		$updatable_fields = array( 'speech_id', 'feedback_criteria', 'feedback_language', 'source', 'created_by', 'cot_content', 'score_content', 'feedback_content', 'is_preferred' );
+		$data             = array();
+		foreach ( $updatable_fields as $field ) {
+			if ( array_key_exists( $field, $feedback_data ) ) {
+				$data[ $field ] = $feedback_data[ $field ];
+			}
+		}
+
+		if ( empty( $data ) ) {
+			return new WP_Error( 'no_changes', 'No fields provided to update.', array( 'status' => 400 ) );
+		}
+
+		$this->wpdb->query( 'START TRANSACTION' );
+
+		try {
+			$result = $this->wpdb->update(
+				$this->speech_feedback_table,
+				$data,
+				array( 'id' => $feedback_id ),
+				null,
+				array( '%d' )
+			);
+
+			if ( false === $result ) {
+				throw new Exception( $this->wpdb->last_error );
+			}
+
+			$feedback = $this->get_speech_feedbacks( array( 'feedback_id' => $feedback_id ) )[0];
+
+			$this->wpdb->query( 'COMMIT' );
+			return $feedback;
+
+		} catch ( Exception $e ) {
+			$this->wpdb->query( 'ROLLBACK' );
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Create or update a speech feedback.
+	 *
+	 * @deprecated 1.0.0 Use create_speech_feedback() or update_speech_feedback() instead.
+	 * @param array $feedback_data {
+	 *     Required. Speech feedback data. Include 'id' to update an existing feedback.
+	 *
+	 *     @var int    $id                 Optional. ID of the feedback to update (for update mode).
+	 *     @var int    $speech_id          Required. ID of the associated speech.
+	 *     @var string $feedback_criteria  Required. Criteria for the feedback.
+	 *     @var string $feedback_language  Required. Language of the feedback.
+	 *     @var string $source             Required. Source of the feedback ('ai' or 'human').
+	 *     @var int    $created_by         Optional. User ID who created the feedback.
+	 *     @var string $cot_content        Optional. Chain-of-thought content.
+	 *     @var string $score_content      Optional. Scoring content.
+	 *     @var string $feedback_content   Optional. Feedback content.
+	 *     @var bool   $is_preferred       Optional. Whether this feedback is preferred.
+	 * }
+	 * @return array|WP_Error Created/updated feedback data or error.
+	 */
+	public function create_update_speech_feedback( $feedback_data ) {
+		if ( isset( $feedback_data['id'] ) ) {
+			$feedback_id = $feedback_data['id'];
+			unset( $feedback_data['id'] ); // Prevent accidental updates to primary key.
+			return $this->update_speech_feedback( $feedback_id, $feedback_data );
+		}
+		return $this->create_speech_feedback( $feedback_data );
 	}
 
 	/**
@@ -716,7 +811,7 @@ class Ieltssci_Speech_DB {
 			if ( $options['copy_speech_feedback'] ) {
 				$feedbacks = $this->get_speech_feedbacks( array( 'speech_id' => $speech_id ) );
 				foreach ( $feedbacks as $feedback ) {
-					$new_feedback = $this->create_update_speech_feedback(
+					$new_feedback = $this->create_speech_feedback(
 						array(
 							'speech_id'         => $new_speech['id'],
 							'feedback_criteria' => $feedback['feedback_criteria'],

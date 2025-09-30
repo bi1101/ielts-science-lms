@@ -182,11 +182,12 @@ class Ieltssci_Speaking_Feedback_DB {
 			'feedback_criteria' => $feedback_criteria,
 			'feedback_language' => $language,
 			'source'            => $source,
+			// Set the specific content field dynamically.
 			$content_field      => $feedback,
 			'created_by'        => get_current_user_id(),
 		);
 
 		// Always create a new feedback entry.
-		return $this->speech_db->create_update_speech_feedback( $feedback_data );
+		return $this->speech_db->create_speech_feedback( $feedback_data );
 	}
 }
