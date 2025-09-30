@@ -259,29 +259,6 @@ class Ieltssci_Speech_DB {
 	}
 
 	/**
-	 * Create or update a speech recording based on UUID.
-	 *
-	 * @deprecated 1.0.0 Use create_speech() or update_speech() instead.
-	 * @param array $speech_data Speech data including audio_ids and transcript.
-	 * @return array|WP_Error Created/updated speech data or error.
-	 */
-	public function create_update_speech( $speech_data ) {
-		// If a UUID is provided and exists, perform update; otherwise create a new record.
-		if ( ! empty( $speech_data['uuid'] ) ) {
-			$existing = $this->get_speeches(
-				array(
-					'uuid'     => $speech_data['uuid'],
-					'per_page' => 1,
-				)
-			);
-			if ( ! is_wp_error( $existing ) && ! empty( $existing ) ) {
-				return $this->update_speech( array( 'id' => $existing[0]['id'] ), $speech_data );
-			}
-		}
-		return $this->create_speech( $speech_data );
-	}
-
-	/**
 	 * Get speech recordings with flexible query arguments.
 	 *
 	 * Retrieves speech records from the database based on the provided query arguments.
@@ -678,35 +655,6 @@ class Ieltssci_Speech_DB {
 			$this->wpdb->query( 'ROLLBACK' );
 			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
 		}
-	}
-
-	/**
-	 * Create or update a speech feedback.
-	 *
-	 * @deprecated 1.0.0 Use create_speech_feedback() or update_speech_feedback() instead.
-	 * @param array $feedback_data {
-	 *     Required. Speech feedback data. Include 'id' to update an existing feedback.
-	 *
-	 *     @var int    $id                 Optional. ID of the feedback to update (for update mode).
-	 *     @var int    $speech_id          Required. ID of the associated speech.
-	 *     @var string $feedback_criteria  Required. Criteria for the feedback.
-	 *     @var string $feedback_language  Required. Language of the feedback.
-	 *     @var string $source             Required. Source of the feedback ('ai' or 'human').
-	 *     @var int    $created_by         Optional. User ID who created the feedback.
-	 *     @var string $cot_content        Optional. Chain-of-thought content.
-	 *     @var string $score_content      Optional. Scoring content.
-	 *     @var string $feedback_content   Optional. Feedback content.
-	 *     @var bool   $is_preferred       Optional. Whether this feedback is preferred.
-	 * }
-	 * @return array|WP_Error Created/updated feedback data or error.
-	 */
-	public function create_update_speech_feedback( $feedback_data ) {
-		if ( isset( $feedback_data['id'] ) ) {
-			$feedback_id = $feedback_data['id'];
-			unset( $feedback_data['id'] ); // Prevent accidental updates to primary key.
-			return $this->update_speech_feedback( $feedback_id, $feedback_data );
-		}
-		return $this->create_speech_feedback( $feedback_data );
 	}
 
 	/**
