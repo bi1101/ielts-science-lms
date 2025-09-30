@@ -367,8 +367,9 @@ class Ieltssci_Speaking_REST {
 				},
 			),
 			'audio_ids'  => array(
-				'required'          => true,
+				'required'          => false,
 				'type'              => 'array',
+				'default'           => array(),
 				'validate_callback' => function ( $param ) {
 					if ( ! is_array( $param ) ) {
 						return false;

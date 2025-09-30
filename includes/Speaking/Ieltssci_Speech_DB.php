@@ -87,9 +87,9 @@ class Ieltssci_Speech_DB {
 	 * Create a new speech recording.
 	 *
 	 * @param array $speech_data {
-	 *     Required. Speech data for creating a new recording.
+	 *     Speech data for creating a new recording.
 	 *
-	 *     @var int[]  $audio_ids  Required. Array of attachment IDs for audio files.
+	 *     @var int[]  $audio_ids  Optional. Array of attachment IDs for audio files.
 	 *     @var array  $transcript Optional. Array of transcripts keyed by attachment ID.
 	 *     @var string $uuid       Optional. UUID for the speech recording. Generated if not provided.
 	 *     @var int    $created_by Optional. User ID who created the speech. Defaults to current user.
@@ -98,10 +98,6 @@ class Ieltssci_Speech_DB {
 	 * @throws Exception If there is a database error.
 	 */
 	public function create_speech( $speech_data ) {
-		if ( empty( $speech_data['audio_ids'] ) ) {
-			return new WP_Error( 'missing_required', 'Missing required audio IDs.', array( 'status' => 400 ) );
-		}
-
 		$this->wpdb->query( 'START TRANSACTION' );
 
 		try {
@@ -113,7 +109,7 @@ class Ieltssci_Speech_DB {
 
 			$data = array(
 				'uuid'       => $uuid,
-				'audio_ids'  => is_array( $speech_data['audio_ids'] ) ? json_encode( $speech_data['audio_ids'] ) : $speech_data['audio_ids'],
+				'audio_ids'  => isset( $speech_data['audio_ids'] ) && is_array( $speech_data['audio_ids'] ) ? json_encode( $speech_data['audio_ids'] ) : json_encode( array() ),
 				'created_by' => $created_by,
 			);
 
@@ -134,10 +130,11 @@ class Ieltssci_Speech_DB {
 
 			// Handle transcript data in post meta if provided.
 			if ( ! empty( $speech_data['transcript'] ) && is_array( $speech_data['transcript'] ) ) {
+				// Decode the audio_ids from the data array.
+				$audio_ids = json_decode( $data['audio_ids'], true );
+
 				foreach ( $speech_data['transcript'] as $attachment_id => $transcript_data ) {
 					// Make sure the attachment ID is in the audio_ids array.
-					$audio_ids = is_array( $speech_data['audio_ids'] ) ? $speech_data['audio_ids'] : json_decode( $speech_data['audio_ids'], true );
-
 					if ( in_array( (int) $attachment_id, $audio_ids, true ) ) {
 						update_post_meta( (int) $attachment_id, 'ieltssci_audio_transcription', $transcript_data ); // Store transcript per attachment.
 					}
