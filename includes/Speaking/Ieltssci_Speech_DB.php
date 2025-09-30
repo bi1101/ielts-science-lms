@@ -84,13 +84,20 @@ class Ieltssci_Speech_DB {
 	}
 
 	/**
-	 * Create a new speech recording or update an existing one based on UUID.
+	 * Create a new speech recording.
 	 *
-	 * @param array $speech_data Speech data including audio_ids and transcript.
-	 * @return array|WP_Error Created/updated speech data or error.
+	 * @param array $speech_data {
+	 *     Required. Speech data for creating a new recording.
+	 *
+	 *     @var int[]  $audio_ids  Required. Array of attachment IDs for audio files.
+	 *     @var array  $transcript Optional. Array of transcripts keyed by attachment ID.
+	 *     @var string $uuid       Optional. UUID for the speech recording. Generated if not provided.
+	 *     @var int    $created_by Optional. User ID who created the speech. Defaults to current user.
+	 * }
+	 * @return array|WP_Error Created speech data or error.
 	 * @throws Exception If there is a database error.
 	 */
-	public function create_update_speech( $speech_data ) {
+	public function create_speech( $speech_data ) {
 		if ( empty( $speech_data['audio_ids'] ) ) {
 			return new WP_Error( 'missing_required', 'Missing required audio IDs.', array( 'status' => 400 ) );
 		}
@@ -100,15 +107,6 @@ class Ieltssci_Speech_DB {
 		try {
 			// Generate UUID if not provided.
 			$uuid = ! empty( $speech_data['uuid'] ) ? $speech_data['uuid'] : wp_generate_uuid4();
-
-			// Check if speech with this UUID already exists.
-			$existing_speech = null;
-			if ( ! empty( $speech_data['uuid'] ) ) {
-				$existing_speeches = $this->get_speeches( array( 'uuid' => $uuid ) );
-				if ( ! empty( $existing_speeches ) && ! is_wp_error( $existing_speeches ) ) {
-					$existing_speech = $existing_speeches[0];
-				}
-			}
 
 			// Set created_by to current user if not provided.
 			$created_by = ! empty( $speech_data['created_by'] ) ? $speech_data['created_by'] : get_current_user_id();
@@ -125,35 +123,14 @@ class Ieltssci_Speech_DB {
 				'%d', // created_by.
 			);
 
-			if ( $existing_speech ) {
-				// Update existing speech.
-				$result = $this->wpdb->update(
-					$this->speech_table,
-					$data,
-					array( 'id' => $existing_speech['id'] ),
-					$format,
-					array( '%d' ) // id format.
-				);
+			// Create new speech.
+			$result = $this->wpdb->insert( $this->speech_table, $data, $format );
 
-				if ( false === $result ) {
-					throw new Exception( 'Failed to update speech: ' . $this->wpdb->last_error );
-				}
-
-				$speech_id = $existing_speech['id'];
-			} else {
-				// Create new speech.
-				$result = $this->wpdb->insert(
-					$this->speech_table,
-					$data,
-					$format
-				);
-
-				if ( false === $result ) {
-					throw new Exception( 'Failed to create speech: ' . $this->wpdb->last_error );
-				}
-
-				$speech_id = $this->wpdb->insert_id;
+			if ( false === $result ) {
+				throw new Exception( 'Failed to create speech: ' . $this->wpdb->last_error );
 			}
+
+			$speech_id = $this->wpdb->insert_id;
 
 			// Handle transcript data in post meta if provided.
 			if ( ! empty( $speech_data['transcript'] ) && is_array( $speech_data['transcript'] ) ) {
@@ -162,16 +139,16 @@ class Ieltssci_Speech_DB {
 					$audio_ids = is_array( $speech_data['audio_ids'] ) ? $speech_data['audio_ids'] : json_decode( $speech_data['audio_ids'], true );
 
 					if ( in_array( (int) $attachment_id, $audio_ids, true ) ) {
-						update_post_meta( (int) $attachment_id, 'ieltssci_audio_transcription', $transcript_data );
+						update_post_meta( (int) $attachment_id, 'ieltssci_audio_transcription', $transcript_data ); // Store transcript per attachment.
 					}
 				}
 			}
 
-			// Get the created/updated speech.
+			// Get the created speech.
 			$speech = $this->get_speeches( array( 'id' => $speech_id ) );
 
 			if ( empty( $speech ) ) {
-				throw new Exception( 'Failed to retrieve speech after creation/update.' );
+				throw new Exception( 'Failed to retrieve speech after creation.' );
 			}
 
 			$this->wpdb->query( 'COMMIT' );
@@ -188,6 +165,126 @@ class Ieltssci_Speech_DB {
 	}
 
 	/**
+	 * Update an existing speech recording by ID or UUID.
+	 *
+	 * @param array $where {
+	 *     Required. Identifier for the speech to update. Must contain either 'id' or 'uuid'.
+	 *
+	 *     @var int    $id   Optional. Speech ID to update.
+	 *     @var string $uuid Optional. Speech UUID to update.
+	 * }
+	 * @param array $speech_data {
+	 *     Optional. Speech data to update. All fields are optional and will fall back to existing values if not provided.
+	 *
+	 *     @var int[]  $audio_ids  Optional. Array of attachment IDs for audio files.
+	 *     @var array  $transcript Optional. Array of transcripts keyed by attachment ID.
+	 *     @var string $uuid       Optional. New UUID for the speech recording.
+	 *     @var int    $created_by Optional. New user ID who created the speech.
+	 * }
+	 * @return array|WP_Error Updated speech data or error.
+	 * @throws Exception If there is a database error.
+	 */
+	public function update_speech( $where, $speech_data = array() ) {
+		if ( empty( $where['id'] ) && empty( $where['uuid'] ) ) {
+			return new WP_Error( 'missing_identifier', 'Missing speech identifier (id or uuid).', array( 'status' => 400 ) );
+		}
+
+		$this->wpdb->query( 'START TRANSACTION' );
+
+		try {
+			// Find the existing speech.
+			$finder = array();
+			if ( ! empty( $where['id'] ) ) {
+				$finder['id'] = absint( $where['id'] );
+			}
+			if ( ! empty( $where['uuid'] ) ) {
+				$finder['uuid'] = $where['uuid'];
+			}
+
+			$existing_list = $this->get_speeches( array_merge( $finder, array( 'per_page' => 1 ) ) );
+			if ( is_wp_error( $existing_list ) || empty( $existing_list ) ) {
+				throw new Exception( 'Speech not found for update.' );
+			}
+			$existing = $existing_list[0];
+
+			// Prepare new values, falling back to existing values if not provided.
+			$new_uuid    = ! empty( $speech_data['uuid'] ) ? $speech_data['uuid'] : $existing['uuid'];
+			$new_audio   = array_key_exists( 'audio_ids', $speech_data )
+				? ( is_array( $speech_data['audio_ids'] ) ? json_encode( $speech_data['audio_ids'] ) : $speech_data['audio_ids'] )
+				: json_encode( is_array( $existing['audio_ids'] ) ? $existing['audio_ids'] : array() );
+			$new_creator = array_key_exists( 'created_by', $speech_data ) ? (int) $speech_data['created_by'] : (int) $existing['created_by'];
+
+			$data   = array(
+				'uuid'       => $new_uuid,
+				'audio_ids'  => $new_audio,
+				'created_by' => $new_creator,
+			);
+			$format = array( '%s', '%s', '%d' );
+
+			$result = $this->wpdb->update(
+				$this->speech_table,
+				$data,
+				array( 'id' => (int) $existing['id'] ),
+				$format,
+				array( '%d' )
+			);
+
+			if ( false === $result ) {
+				throw new Exception( 'Failed to update speech: ' . $this->wpdb->last_error );
+			}
+
+			// Handle transcript data in post meta if provided.
+			if ( ! empty( $speech_data['transcript'] ) && is_array( $speech_data['transcript'] ) ) {
+				// Resolve the latest set of audio IDs to validate transcript keys.
+				$final_audio_ids = json_decode( $data['audio_ids'], true );
+				foreach ( $speech_data['transcript'] as $attachment_id => $transcript_data ) {
+					if ( in_array( (int) $attachment_id, $final_audio_ids, true ) ) {
+						update_post_meta( (int) $attachment_id, 'ieltssci_audio_transcription', $transcript_data ); // Update transcript per attachment.
+					}
+				}
+			}
+
+			// Get the updated speech.
+			$speech = $this->get_speeches( array( 'id' => (int) $existing['id'] ) );
+
+			if ( empty( $speech ) ) {
+				throw new Exception( 'Failed to retrieve speech after update.' );
+			}
+
+			$this->wpdb->query( 'COMMIT' );
+			$result_speech               = $speech[0];
+			$result_speech['transcript'] = $this->get_speech_transcript( $result_speech );
+			return $result_speech;
+		} catch ( Exception $e ) {
+			$this->wpdb->query( 'ROLLBACK' );
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Create or update a speech recording based on UUID.
+	 *
+	 * @deprecated 1.0.0 Use create_speech() or update_speech() instead.
+	 * @param array $speech_data Speech data including audio_ids and transcript.
+	 * @return array|WP_Error Created/updated speech data or error.
+	 */
+	public function create_update_speech( $speech_data ) {
+		// If a UUID is provided and exists, perform update; otherwise create a new record.
+		if ( ! empty( $speech_data['uuid'] ) ) {
+			$existing = $this->get_speeches(
+				array(
+					'uuid'     => $speech_data['uuid'],
+					'per_page' => 1,
+				)
+			);
+			if ( ! is_wp_error( $existing ) && ! empty( $existing ) ) {
+				return $this->update_speech( array( 'id' => $existing[0]['id'] ), $speech_data );
+			}
+		}
+		return $this->create_speech( $speech_data );
+	}
+
+	/**
 	 * Get speech recordings with flexible query arguments.
 	 *
 	 * Retrieves speech records from the database based on the provided query arguments.
@@ -197,18 +294,18 @@ class Ieltssci_Speech_DB {
 	 * @param array $args {
 	 *     Optional. Arguments to filter and control speech record retrieval.
 	 *
-	 *     @type int|array|null     $id         Optional. Speech ID(s) to filter by.
-	 *     @type string|array|null  $uuid       Optional. Speech UUID(s) to filter by.
-	 *     @type int|array|null     $created_by Optional. User ID(s) who created the speech.
-	 *     @type array|null         $date_query Optional. Date query parameters.
-	 *         @type string         $after      Optional. Retrieve records created after this date.
-	 *         @type string         $before     Optional. Retrieve records created before this date.
-	 *     @type string             $orderby    Optional. Field to order results by. Accepts 'id', 'uuid',
+	 *     @var int|array|null     $id         Optional. Speech ID(s) to filter by.
+	 *     @var string|array|null  $uuid       Optional. Speech UUID(s) to filter by.
+	 *     @var int|array|null     $created_by Optional. User ID(s) who created the speech.
+	 *     @var array|null         $date_query Optional. Date query parameters.
+	 *         @var string         $after      Optional. Retrieve records created after this date.
+	 *         @var string         $before     Optional. Retrieve records created before this date.
+	 *     @var string             $orderby    Optional. Field to order results by. Accepts 'id', 'uuid',
 	 *                                          created_at', or 'created_by'. Default 'id'.
-	 *     @type string             $order      Optional. Order direction. Accepts 'ASC' or 'DESC'. Default 'DESC'.
-	 *     @type int                $per_page   Optional.   Number of records per page. Default 10.
-	 *     @type int                $page       Optional.   Page number for pagination. Default 1.
-	 *     @type bool               $count      Optional.   Whether to return only the count. Default false.
+	 *     @var string             $order      Optional. Order direction. Accepts 'ASC' or 'DESC'. Default 'DESC'.
+	 *     @var int                $per_page   Optional.   Number of records per page. Default 10.
+	 *     @var int                $page       Optional.   Page number for pagination. Default 1.
+	 *     @var bool               $count      Optional.   Whether to return only the count. Default false.
 	 * }
 	 * @return array|int|WP_Error Speech data array with transcript info, count of records, or error.
 	 * @throws Exception If there is a database error.
@@ -601,7 +698,7 @@ class Ieltssci_Speech_DB {
 			}
 
 			// Create new speech.
-			$new_speech = $this->create_update_speech(
+			$new_speech = $this->create_speech(
 				array(
 					'uuid'       => $options['generate_new_uuid'] ? wp_generate_uuid4() : $original['uuid'],
 					'audio_ids'  => $original['audio_ids'],
@@ -679,10 +776,10 @@ class Ieltssci_Speech_DB {
 	 *
 	 * @param array $args {
 	 *     Optional. Arguments to count distinct speech entries with speech feedback.
-	 *     @type int    $created_by        User ID of the feedback creator.
-	 *     @type string $feedback_criteria Feedback criteria.
-	 *     @type string $date_from         Start date for feedback creation (Y-m-d H:i:s).
-	 *     @type string $date_to           End date for feedback creation (Y-m-d H:i:s).
+	 *     @var int    $created_by        User ID of the feedback creator.
+	 *     @var string $feedback_criteria Feedback criteria.
+	 *     @var string $date_from         Start date for feedback creation (Y-m-d H:i:s).
+	 *     @var string $date_to           End date for feedback creation (Y-m-d H:i:s).
 	 * }
 	 * @return int|WP_Error Count of distinct speech entries or WP_Error on failure.
 	 * @throws Exception If there is a database error.

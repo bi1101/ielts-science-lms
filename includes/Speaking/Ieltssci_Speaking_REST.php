@@ -440,7 +440,8 @@ class Ieltssci_Speaking_REST {
 			}
 		}
 
-		$result = $this->speech_service->create_update_speech( $speech_data );
+		// Use the new dedicated creation method.
+		$result = $this->speech_service->create_speech( $speech_data );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
