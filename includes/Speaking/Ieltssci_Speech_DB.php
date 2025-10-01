@@ -463,9 +463,20 @@ class Ieltssci_Speech_DB {
 			$where          = array( '1=1' );
 			$prepare_values = array();
 
+			// Process feedback_id filter.
+			if ( ! is_null( $args['feedback_id'] ) ) {
+				if ( is_array( $args['feedback_id'] ) ) {
+					$placeholders   = array_fill( 0, count( $args['feedback_id'] ), '%d' );
+					$where[]        = 'id IN (' . implode( ',', $placeholders ) . ')';
+					$prepare_values = array_merge( $prepare_values, $args['feedback_id'] );
+				} else {
+					$where[]          = 'id = %d';
+					$prepare_values[] = $args['feedback_id'];
+				}
+			}
+
 			// Build where clauses and prepare values.
 			$field_types = array(
-				'feedback_id'       => '%d',
 				'speech_id'         => '%d',
 				'source'            => '%s',
 				'feedback_criteria' => '%s',
