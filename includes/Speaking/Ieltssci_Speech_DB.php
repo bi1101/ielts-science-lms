@@ -711,7 +711,6 @@ class Ieltssci_Speech_DB {
 	 * @param int|null $user_id Optional. User ID creating the fork.
 	 * @param array    $options Optional. Fork options.
 	 *     @var bool $copy_speech_feedback  Whether to copy speech feedback. Default true.
-	 *     @var bool $generate_new_uuid    Whether to generate a new UUID. Default true.
 	 * @return array|WP_Error New speech data or error.
 	 * @throws Exception If there is a database error.
 	 */
@@ -724,7 +723,6 @@ class Ieltssci_Speech_DB {
 		// Set default options.
 		$defaults = array(
 			'copy_speech_feedback' => true,
-			'generate_new_uuid'    => true,
 		);
 		$options  = wp_parse_args( $options, $defaults );
 
@@ -740,7 +738,7 @@ class Ieltssci_Speech_DB {
 			// Create new speech.
 			$new_speech = $this->create_speech(
 				array(
-					'uuid'       => $options['generate_new_uuid'] ? wp_generate_uuid4() : $original['uuid'],
+					'uuid'       => wp_generate_uuid4(),
 					'audio_ids'  => $original['audio_ids'],
 					'created_by' => $user_id,
 				)
