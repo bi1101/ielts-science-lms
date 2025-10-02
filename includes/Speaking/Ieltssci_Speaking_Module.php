@@ -697,6 +697,7 @@ class Ieltssci_Speaking_Module {
 
 			// Get Google Console client ID.
 			$google_console_client_id = '';
+			$facebook_app_id          = '';
 			$api_keys_db              = new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_DB();
 			$google_console_key       = $api_keys_db->get_api_key(
 				0,
@@ -706,6 +707,16 @@ class Ieltssci_Speaking_Module {
 			);
 			if ( ! empty( $google_console_key ) && ! empty( $google_console_key['meta'] ) && ! empty( $google_console_key['meta']['client-id'] ) ) {
 				$google_console_client_id = $google_console_key['meta']['client-id'];
+			}
+			// Get Facebook App ID.
+			$facebook_key = $api_keys_db->get_api_key(
+				0,
+				array(
+					'provider' => 'facebook',
+				)
+			);
+			if ( ! empty( $facebook_key ) && ! empty( $facebook_key['meta'] ) && ! empty( $facebook_key['meta']['app-id'] ) ) {
+				$facebook_app_id = $facebook_key['meta']['app-id'];
 			}
 
 			// Combine all data to be localized.
@@ -730,6 +741,8 @@ class Ieltssci_Speaking_Module {
 				'ajax_url'                 => admin_url( 'admin-ajax.php' ), // Add AJAX URL for custom login.
 				'current_page'             => $current_page,
 				'post_data'                => $post_data,
+				// Check if Nextend Social Login plugin is active.
+				'social_login_active'      => class_exists( 'NextendSocialLogin' ),
 				// New logo data.
 				'site_logo_url'            => $logo_url,
 				'site_logo_dark_url'       => $logo_dark_url,
@@ -752,7 +765,10 @@ class Ieltssci_Speaking_Module {
 				'footer_tagline'           => buddyboss_theme_get_option( 'footer_tagline' ),
 				'footer_style'             => (int) buddyboss_theme_get_option( 'footer_style' ),
 				'footer_logo_url'          => wp_get_attachment_image_url( buddyboss_theme_get_option( 'footer_logo', 'id' ), 'full' ),
+				// Google Console client ID.
 				'google_console_client_id' => $google_console_client_id,
+				// Facebook App ID.
+				'facebook_app_id'          => $facebook_app_id,
 			);
 
 			// Get footer menu items.
