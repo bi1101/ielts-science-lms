@@ -303,9 +303,11 @@ class Ieltssci_Speaking_Module {
 			'section_title' => __( 'Speaking Module Pages', 'ielts-science-lms' ),
 			'section_desc'  => __( 'Select the pages for the Speaking Module.', 'ielts-science-lms' ),
 			'pages'         => array(
-				'speaking_submission' => __( 'IELTS Science Speaking', 'ielts-science-lms' ),
-				'speaking_result'     => __( 'Speaking Results', 'ielts-science-lms' ),
-				'speaking_history'    => __( 'Speaking History', 'ielts-science-lms' ),
+				'speaking_submission'    => __( 'IELTS Science Speaking', 'ielts-science-lms' ),
+				'speaking_result'        => __( 'Speaking Results', 'ielts-science-lms' ),
+				'speaking_history'       => __( 'Speaking History', 'ielts-science-lms' ),
+				'speaking_part_practice' => __( 'Speaking Part Practice', 'ielts-science-lms' ),
+				'speaking_test_practice' => __( 'Speaking Test Practice', 'ielts-science-lms' ),
 			),
 		);
 
@@ -372,6 +374,12 @@ class Ieltssci_Speaking_Module {
 			foreach ( $speaking_module_pages as $page_key => $page_label ) {
 				if ( isset( $ielts_pages[ $page_key ] ) && is_page( $ielts_pages[ $page_key ] ) ) {
 					$should_enqueue = true;
+					// Set specific script type for practice pages.
+					if ( 'speaking_part_practice' === $page_key ) {
+						$script_type = 'speaking-part-practice';
+					} elseif ( 'speaking_test_practice' === $page_key ) {
+						$script_type = 'speaking-test-practice';
+					}
 					break;
 				}
 			}
@@ -775,20 +783,32 @@ class Ieltssci_Speaking_Module {
 	}
 
 	/**
-	 * Register custom rewrite rules for UUID child slugs
+	 * Register custom rewrite rules for UUID child slugs.
+	 *
+	 * Sets up rewrite rules to support URL patterns with UUIDs for entry identification.
+	 *
+	 * @return void
 	 */
 	public function register_custom_rewrite_rules() {
 		$ielts_pages = get_option( 'ielts_science_lms_pages', array() );
 
-		// List of result pages to add rewrite rules for.
-		$result_pages = array( 'speaking_result', 'speaking_history' );
+		// List of result pages and practice pages to add rewrite rules for.
+		$uuid_pages = array(
+			'speaking_result',
+			'speaking_history',
+			'speaking_part_practice',
+			'speaking_test_practice',
+		);
 
-		foreach ( $result_pages as $page_key ) {
+		foreach ( $uuid_pages as $page_key ) {
+			// Check if the page is set.
 			if ( ! empty( $ielts_pages[ $page_key ] ) ) {
-				$result_page = get_post( $ielts_pages[ $page_key ] );
+				$page = get_post( $ielts_pages[ $page_key ] );
 
-				if ( $result_page ) {
-					$slug = $result_page->post_name;
+				if ( $page ) {
+					$slug = $page->post_name;
+
+					// Add rewrite rule for UUIDs (8-4-4-4-12 format).
 					add_rewrite_rule(
 						'^' . $slug . '/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/?$',
 						'index.php?pagename=' . $slug . '&entry_id=$matches[1]',
@@ -798,6 +818,7 @@ class Ieltssci_Speaking_Module {
 			}
 		}
 
+		// Register the query var only once.
 		add_filter(
 			'query_vars',
 			function ( $query_vars ) {
