@@ -348,10 +348,20 @@ class Ieltssci_Speaking_Module {
 		// Get module pages data for the current module.
 		$module_pages_data = $this->provide_module_pages_data( array() );
 
+		// Also get dashboard module pages data.
+		$dashboard_module  = new \IeltsScienceLMS\Dashboard\Ieltssci_Dashboard_Module();
+		$module_pages_data = $dashboard_module->provide_module_pages_data( $module_pages_data );
+
 		// Extract speaking module pages.
 		$speaking_module_pages = array();
 		if ( isset( $module_pages_data['speaking_module']['pages'] ) ) {
 			$speaking_module_pages = $module_pages_data['speaking_module']['pages'];
+		}
+
+		// Extract dashboard module pages.
+		$dashboard_module_pages = array();
+		if ( isset( $module_pages_data['dashboard_module']['pages'] ) ) {
+			$dashboard_module_pages = $module_pages_data['dashboard_module']['pages'];
 		}
 
 		// Check if the current page is one of the assigned speaking module pages.
@@ -480,6 +490,19 @@ class Ieltssci_Speaking_Module {
 			// Prepare data for localization using speaking module pages.
 			$page_data_for_js = array();
 			foreach ( $speaking_module_pages as $page_key => $page_label ) {
+				if ( isset( $ielts_pages[ $page_key ] ) ) {
+					$page_id = $ielts_pages[ $page_key ];
+					// Check if this page is set as the front page - ensure consistent types for comparison.
+					$front_page_id = get_option( 'page_on_front' );
+					$is_front_page = ( (int) $page_id === (int) $front_page_id );
+					// Use empty string for homepage URI to match root route.
+					$uri                           = $is_front_page ? '' : get_page_uri( $page_id );
+					$page_data_for_js[ $page_key ] = $uri;
+				}
+			}
+
+			// Add dashboard module pages to the localized data.
+			foreach ( $dashboard_module_pages as $page_key => $page_label ) {
 				if ( isset( $ielts_pages[ $page_key ] ) ) {
 					$page_id = $ielts_pages[ $page_key ];
 					// Check if this page is set as the front page - ensure consistent types for comparison.
