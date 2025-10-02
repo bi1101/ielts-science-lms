@@ -55,8 +55,8 @@ class Ieltssci_Core_Module {
 		add_action( 'wp_enqueue_scripts', array( $this, 'dequeue_assets_for_react_template' ), 100 );
 
 		// Add template overrides for writing tasks and tests.
-		add_filter( 'single_template', array( $this, 'override_writing_post_templates' ) );
-		add_filter( 'archive_template', array( $this, 'override_writing_archive_templates' ) );
+		add_filter( 'single_template', array( $this, 'override_post_templates' ) );
+		add_filter( 'archive_template', array( $this, 'override_archive_templates' ) );
 		add_action( 'ieltssci_process_db_update', array( $this, 'process_db_update' ) );
 		add_filter(
 			'rest_endpoints',
@@ -330,16 +330,16 @@ class Ieltssci_Core_Module {
 	}
 
 	/**
-	 * Override writing post templates to use React template.
+	 * Override writing and speaking post templates to use React template.
 	 *
 	 * @param string $template Current template path.
-	 * @return string Modified template path for writing-task and writing-test posts.
+	 * @return string Modified template path for writing-task, writing-test, speaking-part, and speaking-test posts.
 	 */
-	public function override_writing_post_templates( $template ) {
+	public function override_post_templates( $template ) {
 		global $post;
 
-		// Check if we're viewing a writing-task or writing-test post.
-		if ( is_singular( array( 'writing-task', 'writing-test' ) ) ) {
+		// Check if we're viewing a writing-task, writing-test, speaking-part, or speaking-test post.
+		if ( is_singular( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ) {
 			$react_template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
 
 			// Check if our React template file exists.
@@ -352,14 +352,14 @@ class Ieltssci_Core_Module {
 	}
 
 	/**
-	 * Override writing archive templates to use React template.
+	 * Override writing and speaking archive templates to use React template.
 	 *
 	 * @param string $template Current template path.
-	 * @return string Modified template path for writing-task and writing-test archives.
+	 * @return string Modified template path for writing-task, writing-test, speaking-part, and speaking-test archives.
 	 */
-	public function override_writing_archive_templates( $template ) {
-		// Check if we're viewing writing-task or writing-test archive pages.
-		if ( is_post_type_archive( array( 'writing-task', 'writing-test' ) ) ) {
+	public function override_archive_templates( $template ) {
+		// Check if we're viewing writing-task, writing-test, speaking-part, or speaking-test archive pages.
+		if ( is_post_type_archive( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ) {
 			$react_template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
 
 			// Check if our React template file exists.
@@ -376,8 +376,8 @@ class Ieltssci_Core_Module {
 	 */
 	public function dequeue_assets_for_react_template() {
 		if ( is_page_template( 'template-react-page.php' ) ||
-			is_singular( array( 'writing-task', 'writing-test' ) ) ||
-			is_post_type_archive( array( 'writing-task', 'writing-test' ) ) ) {
+			is_singular( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ||
+			is_post_type_archive( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ) {
 
 			// Dequeue Stylesheets.
 			wp_dequeue_style( 'bb_theme_block-buddypanel-style-css' );

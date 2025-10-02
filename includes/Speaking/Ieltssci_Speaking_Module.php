@@ -356,6 +356,8 @@ class Ieltssci_Speaking_Module {
 
 		// Check if the current page is one of the assigned speaking module pages.
 		$should_enqueue = false;
+		$script_type    = 'index'; // Default script type.
+
 		if ( ! empty( $ielts_pages ) && ! empty( $speaking_module_pages ) ) {
 			foreach ( $speaking_module_pages as $page_key => $page_label ) {
 				if ( isset( $ielts_pages[ $page_key ] ) && is_page( $ielts_pages[ $page_key ] ) ) {
@@ -365,10 +367,67 @@ class Ieltssci_Speaking_Module {
 			}
 		}
 
+		// Check for speaking part/test pages and archives.
+		if ( ! $should_enqueue ) {
+			if ( is_singular( 'speaking-part' ) ) {
+				// Dequeue styles with handle matching 'elementor-post-*'.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
+				$should_enqueue = true;
+				$script_type    = 'speaking-part-single';
+			} elseif ( is_singular( 'speaking-test' ) ) {
+				// Dequeue styles with handle matching 'elementor-post-*'.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
+				$should_enqueue = true;
+				$script_type    = 'speaking-test-single';
+			} elseif ( is_post_type_archive( 'speaking-part' ) || ( is_home() && get_option( 'page_for_posts' ) && get_post_type( get_option( 'page_for_posts' ) ) === 'speaking-part' ) ) {
+				// Dequeue styles with handle matching 'elementor-post-*'.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
+				$should_enqueue = true;
+				$script_type    = 'speaking-part-archive';
+			} elseif ( is_post_type_archive( 'speaking-test' ) || ( is_home() && get_option( 'page_for_posts' ) && get_post_type( get_option( 'page_for_posts' ) ) === 'speaking-test' ) ) {
+				// Dequeue styles with handle matching 'elementor-post-*'.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
+				$should_enqueue = true;
+				$script_type    = 'speaking-test-archive';
+			}
+		}
+
 		if ( $should_enqueue ) {
-			// Define the handle for the index script and style.
-			$script_handle  = 'ielts-science-speaking-index';
-			$style_handle   = 'ielts-science-speaking-index-css';
+			// Define the handle for the script and style based on type.
+			$script_handle  = 'ielts-science-speaking-' . $script_type;
+			$style_handle   = 'ielts-science-speaking-' . $script_type . '-css';
 			$runtime_handle = 'ielts-science-speaking-runtime';
 
 			// Enqueue the runtime script if it's registered.
@@ -383,6 +442,39 @@ class Ieltssci_Speaking_Module {
 			// Enqueue the index style if it's registered.
 			if ( wp_style_is( $style_handle, 'registered' ) ) {
 				wp_enqueue_style( $style_handle );
+			}
+
+			// --- Post Data Retrieval ---.
+			$post_data = null;
+			if ( is_singular( array( 'speaking-part', 'speaking-test' ) ) ) {
+				$current_post = get_queried_object();
+
+				if ( $current_post && is_a( $current_post, 'WP_Post' ) ) {
+					try {
+						// Build the proper REST route.
+						$route = '/wp/v2/' . $current_post->post_type . '/' . $current_post->ID;
+
+						// Create a REST request that mimics a normal API request.
+						$request = new WP_REST_Request( 'GET', $route );
+						$request->set_param( 'acf_format', 'standard' ); // Ensure ACF fields are included in the response.
+						// Set the route on the request.
+						$request->set_route( $route );
+
+						// Dispatch the request through the REST server to get ACF fields.
+						$response = rest_do_request( $request );
+
+						if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
+							$server    = rest_get_server();
+							$post_data = $server->response_to_data( $response, true );
+
+							// Add permalink to post data.
+							$post_data['permalink_template'] = get_permalink( $current_post->ID, true );
+						}
+					} catch ( \Exception $e ) {
+						// Log error but continue execution.
+						error_log( 'Post data preparation failed: ' . $e->getMessage() );
+					}
+				}
 			}
 
 			// Prepare data for localization using speaking module pages.
@@ -496,11 +588,42 @@ class Ieltssci_Speaking_Module {
 			}
 
 			// Get current page information.
+			$queried_object = get_queried_object();
+			$slug           = '';
+			$page_id        = 0;
+			$page_url       = '';
+			$page_title     = '';
+			$page_path      = ''; // Initialize page path.
+
+			if ( $queried_object ) {
+				if ( is_a( $queried_object, 'WP_Post' ) ) {
+					// It's a post object.
+					$slug       = $queried_object->post_name;
+					$page_id    = get_queried_object_id();
+					$page_url   = get_permalink( $page_id );
+					$page_path  = wp_make_link_relative( $page_url );
+					$page_title = get_the_title();
+				} elseif ( is_post_type_archive() ) {
+					$page_id    = 0; // Archive pages don't have a specific ID.
+					$page_url   = get_post_type_archive_link( $queried_object->name );
+					$page_title = $queried_object->labels->name ?? $queried_object->label ?? '';
+					$page_path  = wp_make_link_relative( $page_url ); // Get relative path.
+					$slug       = $queried_object->has_archive ? $queried_object->has_archive : $queried_object->name;
+				} elseif ( is_tax() || is_category() || is_tag() ) {
+					$page_id    = $queried_object->term_id;
+					$page_url   = get_term_link( $queried_object );
+					$page_path  = wp_make_link_relative( $page_url ); // Get relative path.
+					$page_title = $queried_object->name;
+					$slug       = $queried_object->slug;
+				}
+			}
+
 			$current_page = array(
-				'id'    => get_queried_object_id(),
-				'url'   => get_permalink( get_queried_object_id() ),
-				'title' => get_the_title(),
-				'slug'  => get_queried_object() ? get_queried_object()->post_name : '',
+				'id'    => $page_id,
+				'url'   => $page_url,
+				'title' => $page_title,
+				'path'  => $page_path, // Use relative path.
+				'slug'  => $slug,
 			);
 
 			$setting_instance = new Ieltssci_Speaking_Settings();
@@ -575,6 +698,7 @@ class Ieltssci_Speaking_Module {
 				'register_url'             => $register_url,
 				'ajax_url'                 => admin_url( 'admin-ajax.php' ), // Add AJAX URL for custom login.
 				'current_page'             => $current_page,
+				'post_data'                => $post_data,
 				// New logo data.
 				'site_logo_url'            => $logo_url,
 				'site_logo_dark_url'       => $logo_dark_url,
