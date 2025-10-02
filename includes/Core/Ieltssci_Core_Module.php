@@ -147,32 +147,54 @@ class Ieltssci_Core_Module {
 	 * Hooked into 'plugins_loaded'.
 	 */
 	public function run_database_updates() {
-		if ( $this->db_schema->needs_upgrade() ) {
-			// Check if Action Scheduler is available.
-			if ( function_exists( 'as_schedule_single_action' ) && ! defined( 'WP_INSTALLING' ) ) {
-				// Check if update is already scheduled.
-				$scheduled_actions = as_get_scheduled_actions(
-					array(
-						'hook'   => 'ieltssci_process_db_update',
-						'status' => 'pending',
-					),
-					'ids'
-				);
-
-				if ( empty( $scheduled_actions ) ) {
-					// Schedule update to run in background (30 seconds later to ensure Action Scheduler is fully loaded).
-					as_schedule_single_action( time() + 30, 'ieltssci_process_db_update' );
-
-					// Add admin notice that updates are scheduled.
-					if ( is_admin() && current_user_can( 'manage_options' ) ) {
-						add_action( 'admin_notices', array( $this, 'display_update_scheduled_notice' ) );
-					}
-				}
-			} else {
-				// Fallback to direct update if Action Scheduler isn't available.
-				$this->process_db_update();
-			}
+		if ( ! $this->db_schema->needs_upgrade() ) {
+			return;
 		}
+
+		// Prefer immediate async dispatch if Action Scheduler is present.
+		if ( function_exists( 'as_enqueue_async_action' ) && ! defined( 'WP_INSTALLING' ) ) {
+
+			// Avoid duplicates (covers pending, in-progress, or failed).
+			if ( ! as_has_scheduled_action( 'ieltssci_process_db_update' ) ) {
+				as_enqueue_async_action( 'ieltssci_process_db_update' );
+				// Show notice if in admin.
+				if ( is_admin() && current_user_can( 'manage_options' ) ) {
+					add_action( 'admin_notices', array( $this, 'display_update_scheduled_notice' ) );
+				}
+			}
+			return;
+		}
+
+		// Fallback to delayed scheduling if async helper absent.
+		if ( function_exists( 'as_schedule_single_action' ) && ! defined( 'WP_INSTALLING' ) ) {
+
+			if ( ! as_has_scheduled_action( 'ieltssci_process_db_update' ) ) {
+				as_schedule_single_action( time() + 30, 'ieltssci_process_db_update' );
+				if ( is_admin() && current_user_can( 'manage_options' ) ) {
+					add_action( 'admin_notices', array( $this, 'display_update_scheduled_notice' ) );
+				}
+			}
+
+			// Safety fallback: if an older pending action exists too long, run inline.
+			$cutoff        = time() - 300; // 5 minutes.
+			$stale_actions = as_get_scheduled_actions(
+				array(
+					'hook'         => 'ieltssci_process_db_update',
+					'status'       => 'pending',
+					'date'         => gmdate( 'Y-m-d H:i:s', $cutoff ),
+					'date_compare' => '<=',
+				),
+				'ids'
+			);
+			if ( ! empty( $stale_actions ) ) {
+				$this->process_db_update(); // Run directly as a fallback.
+			}
+
+			return;
+		}
+
+		// Ultimate fallback: run inline if Action Scheduler unavailable.
+		$this->process_db_update();
 	}
 
 	/**
