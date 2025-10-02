@@ -27,6 +27,7 @@ class Ieltssci_Speaking_Module {
 		new Ieltssci_Speaking_SSE_REST();
 		new Ieltssci_Speaking_Part_Submission_Controller();
 		new Ieltssci_Speaking_Test_Submission_Controller();
+		new Ieltssci_Speech_Attempt_Controller();
 
 		// Register post meta for audio transcription.
 		add_action( 'init', array( $this, 'register_audio_transcription_meta' ) );
