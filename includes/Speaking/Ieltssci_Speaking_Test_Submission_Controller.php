@@ -1181,7 +1181,7 @@ class Ieltssci_Speaking_Test_Submission_Controller extends WP_REST_Controller {
 		$params['status'] = array(
 			'description' => 'Limit results to submissions with a specific status.',
 			'type'        => 'string',
-			'enum'        => array( 'in-progress', 'completed', 'cancelled' ),
+			'enum'        => array( 'in-progress', 'completed', 'not_graded', 'graded' ),
 		);
 
 		$params['include_meta'] = array(
@@ -1222,7 +1222,7 @@ class Ieltssci_Speaking_Test_Submission_Controller extends WP_REST_Controller {
 				'description' => 'The submission status.',
 				'type'        => 'string',
 				'default'     => 'in-progress',
-				'enum'        => array( 'in-progress', 'completed', 'cancelled' ),
+				'enum'        => array( 'in-progress', 'completed', 'not_graded', 'graded' ),
 			),
 			'meta'    => array(
 				'description' => 'Meta data to associate with the submission.',
@@ -1253,7 +1253,7 @@ class Ieltssci_Speaking_Test_Submission_Controller extends WP_REST_Controller {
 			'status'       => array(
 				'description' => 'The submission status.',
 				'type'        => 'string',
-				'enum'        => array( 'in-progress', 'completed', 'cancelled' ),
+				'enum'        => array( 'in-progress', 'completed', 'not_graded', 'graded' ),
 			),
 			'started_at'   => array(
 				'description' => 'The timestamp when the submission was started (GMT).',
@@ -1365,7 +1365,7 @@ class Ieltssci_Speaking_Test_Submission_Controller extends WP_REST_Controller {
 				'status'           => array(
 					'description' => 'Submission status.',
 					'type'        => 'string',
-					'enum'        => array( 'in-progress', 'completed', 'cancelled' ),
+					'enum'        => array( 'in-progress', 'completed', 'not_graded', 'graded' ),
 				),
 				'started_at'       => array(
 					'description' => 'Timestamp when the submission was started (GMT).',
@@ -1447,10 +1447,10 @@ class Ieltssci_Speaking_Test_Submission_Controller extends WP_REST_Controller {
 							'result'      => array(
 								'type'       => 'object',
 								'properties' => array(
-									'part_submission' => array(
+									'part_submission'  => array(
 										'type' => 'object',
 									),
-									'forked_speech'   => array(
+									'forked_speech'    => array(
 										'type' => 'object',
 									),
 									'copied_meta_keys' => array(

@@ -929,7 +929,7 @@ class Ieltssci_Speaking_Part_Submission_Controller extends WP_REST_Controller {
 			'status'             => array(
 				'description' => 'Limit results to submissions with a specific status.',
 				'type'        => 'string',
-				'enum'        => array( 'in-progress', 'completed', 'cancelled' ),
+				'enum'        => array( 'in-progress', 'completed', 'not_graded', 'graded' ),
 			),
 			'orderby'            => array(
 				'description' => 'Sort collection by object attribute.',
@@ -997,7 +997,7 @@ class Ieltssci_Speaking_Part_Submission_Controller extends WP_REST_Controller {
 				'description' => 'The submission status.',
 				'type'        => 'string',
 				'default'     => 'in-progress',
-				'enum'        => array( 'in-progress', 'completed', 'cancelled' ),
+				'enum'        => array( 'in-progress', 'completed', 'not_graded', 'graded' ),
 			),
 			'started_at'         => array(
 				'description' => 'The timestamp when the submission was started (GMT).',
@@ -1044,7 +1044,7 @@ class Ieltssci_Speaking_Part_Submission_Controller extends WP_REST_Controller {
 			'status'             => array(
 				'description' => 'The submission status.',
 				'type'        => 'string',
-				'enum'        => array( 'in-progress', 'completed', 'cancelled' ),
+				'enum'        => array( 'in-progress', 'completed', 'not_graded', 'graded' ),
 			),
 			'started_at'         => array(
 				'description' => 'The timestamp when the submission was started (GMT).',
@@ -1258,7 +1258,7 @@ class Ieltssci_Speaking_Part_Submission_Controller extends WP_REST_Controller {
 				'status'             => array(
 					'description' => 'Submission status.',
 					'type'        => 'string',
-					'enum'        => array( 'in-progress', 'completed', 'cancelled' ),
+					'enum'        => array( 'in-progress', 'completed', 'not_graded', 'graded' ),
 				),
 				'started_at'         => array(
 					'description' => 'Timestamp when the submission was started (GMT).',
@@ -1310,10 +1310,10 @@ class Ieltssci_Speaking_Part_Submission_Controller extends WP_REST_Controller {
 					'description' => 'Details of the forked speech if speech was forked.',
 					'type'        => 'object',
 					'properties'  => array(
-						'speech'             => array(
+						'speech'   => array(
 							'type' => 'object',
 						),
-						'feedback'           => array(
+						'feedback' => array(
 							'type' => 'array',
 						),
 					),
