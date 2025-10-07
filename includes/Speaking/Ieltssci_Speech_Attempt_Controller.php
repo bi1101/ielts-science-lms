@@ -325,6 +325,10 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 			$params['created_by'] = (int) $request->get_param( 'created_by' );
 		}
 
+		if ( $request->has_param( 'audio_id' ) ) {
+			$params['audio_id'] = (int) $request->get_param( 'audio_id' );
+		}
+
 		$attempts = $this->db->get_speech_attempts( $params );
 
 		if ( is_wp_error( $attempts ) ) {
@@ -450,6 +454,12 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 				'minimum'           => 1,
 				'sanitize_callback' => 'absint',
 				'description'       => 'Filter by creator user ID.',
+			),
+			'audio_id'      => array(
+				'type'              => 'integer',
+				'minimum'           => 1,
+				'sanitize_callback' => 'absint',
+				'description'       => 'Filter by audio attachment ID.',
 			),
 		);
 	}
