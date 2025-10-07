@@ -37,7 +37,7 @@ class Ieltssci_Database_Schema {
 	 *
 	 * @var string
 	 */
-	private $db_version = '0.0.9'; // Updated version number for adding speech meta and speaking submission tables.
+	private $db_version = '0.0.10'; // Updated version number for adding speech meta, speaking submission tables, and speech attempt feedback.
 
 	/**
 	 * WordPress database object.
@@ -99,6 +99,7 @@ class Ieltssci_Database_Schema {
 			$this->create_speaking_test_submission_meta_table();
 			$this->create_speaking_part_submission_meta_table();
 			$this->create_speech_attempt_table();
+			$this->create_speech_attempt_feedback_table();
 
 			return;
 		} catch ( Exception $e ) {
@@ -157,6 +158,10 @@ class Ieltssci_Database_Schema {
 
 			if ( version_compare( $current_version, '0.0.9', '<' ) ) {
 				$this->update_to_0_0_9();
+			}
+
+			if ( version_compare( $current_version, '0.0.10', '<' ) ) {
+				$this->update_to_0_0_10();
 			}
 
 			// All updates successful, update the stored version.
@@ -289,6 +294,16 @@ class Ieltssci_Database_Schema {
 		$this->create_speaking_test_submission_meta_table();
 		$this->create_speaking_part_submission_meta_table();
 		$this->create_speech_attempt_table();
+	}
+
+	/**
+	 * Update schema to version 0.0.10.
+	 * Adds speech attempt feedback table.
+	 *
+	 * @throws \Exception On SQL error.
+	 */
+	private function update_to_0_0_10() {
+		$this->create_speech_attempt_feedback_table();
 	}
 
 	/**
@@ -968,6 +983,42 @@ class Ieltssci_Database_Schema {
 			CONSTRAINT fk_speech_attempt_submission
 				FOREIGN KEY (submission_id)
 				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "speaking_part_submissions(id)
+				ON DELETE CASCADE
+		) $charset_collate";
+
+		return $this->execute_sql( $sql );
+	}
+
+	/**
+	 * Creates the speech attempt feedback table.
+	 *
+	 * @return bool True on success.
+	 * @throws \Exception On SQL error.
+	 */
+	private function create_speech_attempt_feedback_table() {
+		$table_name      = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech_attempt_feedback';
+		$charset_collate = $this->wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			feedback_criteria varchar(191) NOT NULL,
+			attempt_id bigint(20) UNSIGNED NOT NULL,
+			feedback_language varchar(50) NOT NULL,
+			source varchar(20) NOT NULL,
+			cot_content longtext DEFAULT NULL,
+			score_content longtext DEFAULT NULL,
+			feedback_content longtext DEFAULT NULL,
+			is_preferred boolean DEFAULT 0 COMMENT 'Feedback được chọn làm feedback mặc định cho lần thử này.',
+			created_at datetime DEFAULT CURRENT_TIMESTAMP,
+			created_by bigint(20) UNSIGNED NOT NULL,
+			PRIMARY KEY (id),
+			KEY attempt_id (attempt_id),
+			KEY feedback_criteria (feedback_criteria(191)),
+			KEY feedback_language (feedback_language),
+			KEY source (source),
+			CONSTRAINT fk_speech_attempt_feedback_attempt
+				FOREIGN KEY (attempt_id)
+				REFERENCES {$this->wpdb->prefix}" . self::TABLE_PREFIX . "speech_attempt(id)
 				ON DELETE CASCADE
 		) $charset_collate";
 
