@@ -313,6 +313,15 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 	public function get_items( $request ) {
 		$params = array();
 
+		if ( $request->has_param( 'id' ) ) {
+			$id = $request->get_param( 'id' );
+			if ( is_array( $id ) ) {
+				$params['id'] = array_map( 'intval', $id );
+			} else {
+				$params['id'] = (int) $id;
+			}
+		}
+
 		if ( $request->has_param( 'submission_id' ) ) {
 			$params['submission_id'] = (int) $request->get_param( 'submission_id' );
 		}
@@ -329,10 +338,48 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 			$params['audio_id'] = (int) $request->get_param( 'audio_id' );
 		}
 
+		if ( $request->has_param( 'date_query' ) ) {
+			$params['date_query'] = $request->get_param( 'date_query' );
+		}
+
+		if ( $request->has_param( 'orderby' ) ) {
+			$params['orderby'] = $request->get_param( 'orderby' );
+		}
+
+		if ( $request->has_param( 'order' ) ) {
+			$params['order'] = $request->get_param( 'order' );
+		}
+
+		if ( $request->has_param( 'number' ) ) {
+			$params['number'] = (int) $request->get_param( 'number' );
+		}
+
+		if ( $request->has_param( 'offset' ) ) {
+			$params['offset'] = (int) $request->get_param( 'offset' );
+		}
+
+		if ( $request->has_param( 'count' ) ) {
+			$params['count'] = (bool) $request->get_param( 'count' );
+		}
+
+		// Handle pagination.
+		if ( $request->has_param( 'page' ) && $request->has_param( 'per_page' ) ) {
+			$page             = (int) $request->get_param( 'page' );
+			$per_page         = (int) $request->get_param( 'per_page' );
+			$params['number'] = $per_page;
+			$params['offset'] = ( $page - 1 ) * $per_page;
+		} elseif ( $request->has_param( 'per_page' ) ) {
+			$params['number'] = (int) $request->get_param( 'per_page' );
+		}
+
 		$attempts = $this->db->get_speech_attempts( $params );
 
 		if ( is_wp_error( $attempts ) ) {
 			return $attempts;
+		}
+
+		if ( isset( $params['count'] ) && $params['count'] ) {
+			return rest_ensure_response( $attempts );
 		}
 
 		$data = array();
@@ -438,6 +485,20 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 	 */
 	public function get_collection_params() {
 		return array(
+			'id'            => array(
+				'description'       => 'Filter by attempt ID or array of IDs.',
+				'type'              => array( 'integer', 'array' ),
+				'items'             => array(
+					'type'    => 'integer',
+					'minimum' => 1,
+				),
+				'sanitize_callback' => function ( $value ) {
+					if ( is_array( $value ) ) {
+						return array_map( 'absint', $value );
+					}
+					return absint( $value );
+				},
+			),
 			'submission_id' => array(
 				'type'              => 'integer',
 				'minimum'           => 1,
@@ -461,6 +522,62 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 				'minimum'           => 1,
 				'sanitize_callback' => 'absint',
 				'description'       => 'Filter by audio attachment ID.',
+			),
+			'date_query'    => array(
+				'description' => 'Date query for filtering by created_at.',
+				'type'        => 'object',
+				'properties'  => array(
+					'after'  => array(
+						'type'   => 'string',
+						'format' => 'date-time',
+					),
+					'before' => array(
+						'type'   => 'string',
+						'format' => 'date-time',
+					),
+				),
+			),
+			'orderby'       => array(
+				'description' => 'Field to order by.',
+				'type'        => 'string',
+				'enum'        => array( 'id', 'created_at' ),
+				'default'     => 'id',
+			),
+			'order'         => array(
+				'description' => 'Sort order.',
+				'type'        => 'string',
+				'enum'        => array( 'ASC', 'DESC' ),
+				'default'     => 'DESC',
+			),
+			'number'        => array(
+				'description' => 'Number of results to return.',
+				'type'        => 'integer',
+				'minimum'     => 1,
+				'default'     => 20,
+			),
+			'offset'        => array(
+				'description' => 'Offset for pagination.',
+				'type'        => 'integer',
+				'minimum'     => 0,
+				'default'     => 0,
+			),
+			'count'         => array(
+				'description' => 'Whether to return a count instead of results.',
+				'type'        => 'boolean',
+				'default'     => false,
+			),
+			'page'          => array(
+				'description' => 'Current page of the collection.',
+				'type'        => 'integer',
+				'default'     => 1,
+				'minimum'     => 1,
+			),
+			'per_page'      => array(
+				'description' => 'Maximum number of items to be returned in result set.',
+				'type'        => 'integer',
+				'default'     => 10,
+				'minimum'     => 1,
+				'maximum'     => 100,
 			),
 		);
 	}
