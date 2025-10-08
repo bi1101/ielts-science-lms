@@ -141,9 +141,9 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 			return;
 		}
 
-		// Check if this is an audio file.
+		// Check if this is an audio or video file.
 		$mime_type = get_post_mime_type( $attachment->ID );
-		if ( ! $mime_type || strpos( $mime_type, 'audio/' ) !== 0 ) {
+		if ( ! $mime_type || ( strpos( $mime_type, 'audio/' ) !== 0 && strpos( $mime_type, 'video/' ) !== 0 ) ) {
 			return;
 		}
 
