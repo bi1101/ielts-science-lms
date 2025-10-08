@@ -339,7 +339,8 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 		foreach ( $attempts as $attempt ) {
 			if ( $this->can_access_attempt( $attempt, $request ) ) {
 				$response = $this->prepare_item_for_response( $attempt, $request );
-				$data[]   = $response->get_data();
+				// Follow core pattern: wrap item responses so _links are preserved in collections.
+				$data[] = $this->prepare_response_for_collection( $response );
 			}
 		}
 
