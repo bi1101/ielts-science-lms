@@ -14,6 +14,7 @@ namespace IeltsScienceLMS\Speaking;
 use WP_REST_Server;
 use WP_REST_Request;
 use IeltsScienceLMS\RateLimits\Ieltssci_RateLimit;
+use IeltsScienceLMS\Speaking\Ieltssci_Speech_DB;
 
 /**
  * Class Ieltssci_Speaking_SSE_REST
@@ -125,6 +126,21 @@ class Ieltssci_Speaking_SSE_REST {
 		$guide_score    = $request->get_param( 'guide_score' );
 		$guide_feedback = $request->get_param( 'guide_feedback' );
 		$refetch        = $request->get_param( 'refetch' );
+
+		// If refetch is requested, check permission.
+		if ( $refetch ) {
+			// Get speech by UUID.
+			$speech_db = new Ieltssci_Speech_DB();
+			$speeches  = $speech_db->get_speeches( array( 'uuid' => $uuid ) );
+			if ( empty( $speeches ) || is_wp_error( $speeches ) ) {
+				return new \WP_Error( 'no_speech', 'Speech recording not found.', array( 'status' => 403 ) );
+			}
+			$speech          = $speeches[0];
+			$current_user_id = get_current_user_id();
+			if ( (int) $speech['created_by'] !== (int) $current_user_id && ! current_user_can( 'manage_options' ) ) {
+				return new \WP_Error( 'forbidden', 'You do not have permission to regenerate this speech feedback because you are not the owner.', array( 'status' => 403 ) );
+			}
+		}
 
 		// Check rate limits before setting headers.
 		$rate_limiter = new Ieltssci_RateLimit();
