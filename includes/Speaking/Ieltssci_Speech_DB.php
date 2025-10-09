@@ -58,15 +58,31 @@ class Ieltssci_Speech_DB {
 	private $speech_meta_table;
 
 	/**
+	 * Speech attempt table name.
+	 *
+	 * @var string
+	 */
+	private $speech_attempt_table;
+
+	/**
+	 * Speech attempt feedback table name.
+	 *
+	 * @var string
+	 */
+	private $speech_attempt_feedback_table;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
 		global $wpdb;
 		$this->wpdb = $wpdb;
 
-		$this->speech_table          = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech';
-		$this->speech_feedback_table = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech_feedback';
-		$this->speech_meta_table     = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech_meta';
+		$this->speech_table                  = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech';
+		$this->speech_feedback_table         = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech_feedback';
+		$this->speech_meta_table             = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech_meta';
+		$this->speech_attempt_table          = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech_attempt';
+		$this->speech_attempt_feedback_table = $this->wpdb->prefix . self::TABLE_PREFIX . 'speech_attempt_feedback';
 
 		// Register meta tables with WordPress metadata API.
 		$this->register_meta_tables();
@@ -709,6 +725,343 @@ class Ieltssci_Speech_DB {
 			$this->wpdb->query( 'COMMIT' );
 			return true;
 
+		} catch ( Exception $e ) {
+			$this->wpdb->query( 'ROLLBACK' );
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Get speech attempt feedbacks with flexible query arguments.
+	 *
+	 * Supports filtering by feedback ID, attempt, creator, criteria, language, and date ranges.
+	 * Can also filter by a parent speech using speech_id or speech_uuid by linking through attempts' audio IDs.
+	 *
+	 * @param array $args {
+	 *     Optional. Query arguments.
+	 *     @var int|array       $feedback_id       Optional. Feedback ID(s) to filter by.
+	 *     @var int|array       $attempt_id        Optional. Attempt ID(s) to filter by.
+	 *     @var int|array       $created_by        Optional. User ID(s) who created the feedback.
+	 *     @var string|array    $feedback_criteria Optional. Criteria of the feedback.
+	 *     @var string|array    $feedback_language Optional. Language of the feedback.
+	 *     @var string|array    $source            Optional. Source of the feedback ('ai'|'human'|'guided').
+	 *     @var array|null      $date_query        Optional. Date query with 'after' and/or 'before'.
+	 *     @var int|string|null $speech_id         Optional. Parent speech ID to constrain results via attempts' audio IDs.
+	 *     @var string|null     $speech_uuid       Optional. Parent speech UUID to constrain results via attempts' audio IDs.
+	 *     @var string          $orderby           Optional. Field to order by. One of 'id','attempt_id','created_at'. Default 'id'.
+	 *     @var string          $order             Optional. 'ASC' or 'DESC'. Default 'DESC'.
+	 *     @var int             $limit             Optional. Number of results to return. Default 10.
+	 *     @var int             $offset            Optional. Offset for pagination. Default 0.
+	 *     @var bool            $include_cot       Optional. Include Chain-of-thought content. Default true.
+	 *     @var bool            $include_score     Optional. Include score content. Default true.
+	 *     @var bool            $include_feedback  Optional. Include feedback content. Default true.
+	 *     @var bool            $count             Optional. If true, return only the count. Default false.
+	 * }
+	 * @return array|int|WP_Error Feedbacks data, count, or error.
+	 */
+	public function get_speech_attempt_feedbacks( $args = array() ) {
+		try {
+			$defaults = array(
+				'feedback_id'       => null,
+				'attempt_id'        => null,
+				'created_by'        => null,
+				'feedback_criteria' => null,
+				'feedback_language' => null,
+				'source'            => null,
+				'date_query'        => null,
+				'speech_id'         => null,
+				'speech_uuid'       => null,
+				'orderby'           => 'id',
+				'order'             => 'DESC',
+				'limit'             => 10,
+				'offset'            => 0,
+				'include_cot'       => true,
+				'include_score'     => true,
+				'include_feedback'  => true,
+				'count'             => false,
+			);
+
+			$args = wp_parse_args( $args, $defaults );
+
+			// Determine fields to select.
+			if ( $args['count'] ) {
+				$select = 'COUNT(*)';
+			} else {
+				$fields = array( 'id', 'attempt_id', 'feedback_criteria', 'feedback_language', 'source', 'created_at', 'created_by', 'is_preferred' );
+				if ( $args['include_cot'] ) {
+					$fields[] = 'cot_content';
+				}
+				if ( $args['include_score'] ) {
+					$fields[] = 'score_content';
+				}
+				if ( $args['include_feedback'] ) {
+					$fields[] = 'feedback_content';
+				}
+				$select = implode( ', ', $fields );
+			}
+
+			$from           = $this->speech_attempt_feedback_table . ' saf';
+			$where          = array( '1=1' );
+			$prepare_values = array();
+
+			// Optional constraint by parent speech via attempts' audio IDs.
+			if ( ! empty( $args['speech_id'] ) || ! empty( $args['speech_uuid'] ) ) {
+				$speeches = $this->get_speeches(
+					array(
+						'id'       => $args['speech_id'] ?? null,
+						'uuid'     => $args['speech_uuid'] ?? null,
+						'per_page' => 1,
+					)
+				);
+				if ( ! empty( $speeches ) && ! is_wp_error( $speeches ) ) {
+					$audio_ids = $speeches[0]['audio_ids'] ?? array();
+					if ( ! empty( $audio_ids ) ) {
+						$placeholders   = array_fill( 0, count( $audio_ids ), '%d' );
+						$where[]        = 'saf.attempt_id IN (SELECT id FROM ' . $this->speech_attempt_table . ' WHERE audio_id IN (' . implode( ',', $placeholders ) . '))';
+						$prepare_values = array_merge( $prepare_values, array_map( 'intval', $audio_ids ) );
+					} else {
+						// No audio in speech means no attempt feedback.
+						return $args['count'] ? 0 : array();
+					}
+				} else {
+					// No speech found, return empty.
+					return $args['count'] ? 0 : array();
+				}
+			}
+
+			// Process feedback_id filter.
+			if ( ! is_null( $args['feedback_id'] ) ) {
+				if ( is_array( $args['feedback_id'] ) ) {
+					$placeholders   = array_fill( 0, count( $args['feedback_id'] ), '%d' );
+					$where[]        = 'saf.id IN (' . implode( ',', $placeholders ) . ')';
+					$prepare_values = array_merge( $prepare_values, $args['feedback_id'] );
+				} else {
+					$where[]          = 'saf.id = %d';
+					$prepare_values[] = $args['feedback_id'];
+				}
+			}
+
+			$field_types = array(
+				'attempt_id'        => '%d',
+				'created_by'        => '%d',
+				'feedback_criteria' => '%s',
+				'feedback_language' => '%s',
+				'source'            => '%s',
+			);
+			foreach ( $field_types as $field => $fmt ) {
+				if ( ! is_null( $args[ $field ] ) ) {
+					if ( is_array( $args[ $field ] ) ) {
+						$placeholders   = array_fill( 0, count( $args[ $field ] ), $fmt );
+						$where[]        = 'saf.' . $field . ' IN (' . implode( ',', $placeholders ) . ')';
+						$prepare_values = array_merge( $prepare_values, $args[ $field ] );
+					} else {
+						$where[]          = 'saf.' . $field . ' = ' . $fmt;
+						$prepare_values[] = $args[ $field ];
+					}
+				}
+			}
+
+			// Process date query.
+			if ( ! is_null( $args['date_query'] ) && is_array( $args['date_query'] ) ) {
+				if ( ! empty( $args['date_query']['after'] ) ) {
+					$where[]          = 'saf.created_at >= %s';
+					$prepare_values[] = $args['date_query']['after'];
+				}
+				if ( ! empty( $args['date_query']['before'] ) ) {
+					$where[]          = 'saf.created_at <= %s';
+					$prepare_values[] = $args['date_query']['before'];
+				}
+			}
+
+			// Build query.
+			$sql = 'SELECT ' . $select . ' FROM ' . $from . ' WHERE ' . implode( ' AND ', $where );
+
+			if ( ! $args['count'] ) {
+				$allowed_orderby = array( 'id', 'attempt_id', 'created_at' );
+				$orderby         = in_array( $args['orderby'], $allowed_orderby, true ) ? $args['orderby'] : 'id';
+				$order           = strtoupper( $args['order'] ) === 'ASC' ? 'ASC' : 'DESC';
+				$sql            .= " ORDER BY saf.$orderby $order";
+
+				$sql             .= ' LIMIT %d OFFSET %d';
+				$prepare_values[] = max( 1, (int) $args['limit'] );
+				$prepare_values[] = max( 0, (int) $args['offset'] );
+			}
+
+			$prepared_sql = $this->wpdb->prepare( $sql, $prepare_values );
+			return $args['count'] ? (int) $this->wpdb->get_var( $prepared_sql ) : $this->wpdb->get_results( $prepared_sql, ARRAY_A );
+		} catch ( Exception $e ) {
+			return new WP_Error( 'database_error', 'Failed to retrieve speech attempt feedbacks: ' . $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Create a speech attempt feedback entry.
+	 *
+	 * @param array $feedback_data {
+	 *     Required. Attempt feedback data.
+	 *     @var int    $attempt_id        Required. ID of the associated attempt.
+	 *     @var string $feedback_criteria Required. Criteria for the feedback.
+	 *     @var string $feedback_language Required. Language of the feedback.
+	 *     @var string $source            Required. Source of the feedback ('ai' or 'human').
+	 *     @var int    $created_by        Optional. User ID who created the feedback.
+	 *     @var string $cot_content       Optional. Chain-of-thought content.
+	 *     @var string $score_content     Optional. Scoring content.
+	 *     @var string $feedback_content  Optional. Feedback content.
+	 *     @var bool   $is_preferred      Optional. Whether this feedback is preferred.
+	 * }
+	 * @return array|WP_Error Created feedback data or error.
+	 *
+	 * @throws Exception If there is a database error.
+	 */
+	public function create_speech_attempt_feedback( $feedback_data ) {
+		if ( empty( $feedback_data['attempt_id'] ) || empty( $feedback_data['feedback_criteria'] ) || empty( $feedback_data['feedback_language'] ) || empty( $feedback_data['source'] ) ) {
+			return new WP_Error( 'missing_required', 'Missing required fields.', array( 'status' => 400 ) );
+		}
+
+		// Validate attempt exists quickly without depending on Submission DB class.
+		$attempt_exists = (int) $this->wpdb->get_var( $this->wpdb->prepare( 'SELECT id FROM ' . $this->speech_attempt_table . ' WHERE id = %d LIMIT 1', (int) $feedback_data['attempt_id'] ) );
+		if ( ! $attempt_exists ) {
+			return new WP_Error( 'attempt_not_found', 'Speech attempt not found.', array( 'status' => 404 ) );
+		}
+
+		$this->wpdb->query( 'START TRANSACTION' );
+		try {
+			$data = array(
+				'attempt_id'        => (int) $feedback_data['attempt_id'],
+				'feedback_criteria' => $feedback_data['feedback_criteria'],
+				'feedback_language' => $feedback_data['feedback_language'],
+				'source'            => $feedback_data['source'],
+				'created_by'        => $feedback_data['created_by'] ?? get_current_user_id(),
+			);
+
+			// Optional fields.
+			$optional_fields = array( 'cot_content', 'score_content', 'feedback_content', 'is_preferred' );
+			foreach ( $optional_fields as $field ) {
+				if ( isset( $feedback_data[ $field ] ) ) {
+					$data[ $field ] = $feedback_data[ $field ];
+				}
+			}
+
+			$result = $this->wpdb->insert( $this->speech_attempt_feedback_table, $data );
+			if ( false === $result ) {
+				throw new Exception( $this->wpdb->last_error );
+			}
+			$feedback_id = (int) $this->wpdb->insert_id;
+
+			$feedback = $this->get_speech_attempt_feedbacks( array( 'feedback_id' => $feedback_id ) );
+			$feedback = is_array( $feedback ) && ! empty( $feedback ) ? $feedback[0] : null;
+
+			$this->wpdb->query( 'COMMIT' );
+			return $feedback;
+
+		} catch ( Exception $e ) {
+			$this->wpdb->query( 'ROLLBACK' );
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Update an existing speech attempt feedback.
+	 *
+	 * @param int   $feedback_id   Required. ID of the feedback to update.
+	 * @param array $feedback_data {
+	 *     Optional. Fields to update.
+	 *
+	 *     @var int    $attempt_id        The ID of the speech attempt this feedback belongs to.
+	 *     @var string $feedback_criteria The criteria for the feedback.
+	 *     @var string $feedback_language The language of the feedback.
+	 *     @var string $source            The source of the feedback.
+	 *     @var int    $created_by        The ID of the user who created the feedback.
+	 *     @var string $cot_content       Chain of thought content.
+	 *     @var string $score_content     Score content.
+	 *     @var string $feedback_content  The actual feedback content.
+	 *     @var bool   $is_preferred      Whether this feedback is preferred.
+	 * }
+	 * @return array|WP_Error Updated feedback data or error.
+	 *
+	 * @throws Exception If there is a database error.
+	 */
+	public function update_speech_attempt_feedback( $feedback_id, $feedback_data = array() ) {
+		$feedback_id = absint( $feedback_id );
+		if ( ! $feedback_id ) {
+			return new WP_Error( 'missing_id', 'Missing or invalid feedback ID.', array( 'status' => 400 ) );
+		}
+
+		$updatable_fields = array( 'attempt_id', 'feedback_criteria', 'feedback_language', 'source', 'created_by', 'cot_content', 'score_content', 'feedback_content', 'is_preferred' );
+		$data             = array();
+		foreach ( $updatable_fields as $field ) {
+			if ( array_key_exists( $field, $feedback_data ) ) {
+				$data[ $field ] = $feedback_data[ $field ];
+			}
+		}
+
+		if ( empty( $data ) ) {
+			return new WP_Error( 'no_changes', 'No fields provided to update.', array( 'status' => 400 ) );
+		}
+
+		// If updating attempt_id, validate the attempt exists.
+		if ( isset( $data['attempt_id'] ) ) {
+			$attempt_exists = (int) $this->wpdb->get_var( $this->wpdb->prepare( 'SELECT id FROM ' . $this->speech_attempt_table . ' WHERE id = %d LIMIT 1', (int) $data['attempt_id'] ) );
+			if ( ! $attempt_exists ) {
+				return new WP_Error( 'attempt_not_found', 'Speech attempt not found.', array( 'status' => 404 ) );
+			}
+		}
+
+		$this->wpdb->query( 'START TRANSACTION' );
+		try {
+			$result = $this->wpdb->update( $this->speech_attempt_feedback_table, $data, array( 'id' => $feedback_id ), null, array( '%d' ) );
+			if ( false === $result ) {
+				throw new Exception( $this->wpdb->last_error );
+			}
+
+			$feedback = $this->get_speech_attempt_feedbacks( array( 'feedback_id' => $feedback_id ) );
+			$feedback = is_array( $feedback ) && ! empty( $feedback ) ? $feedback[0] : null;
+
+			$this->wpdb->query( 'COMMIT' );
+			return $feedback;
+
+		} catch ( Exception $e ) {
+			$this->wpdb->query( 'ROLLBACK' );
+			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
+	 * Set a feedback as preferred for its associated attempt and criteria.
+	 *
+	 * @param int $feedback_id ID of the speech attempt feedback to set as preferred.
+	 * @return bool|WP_Error True on success, WP_Error on failure.
+	 *
+	 * @throws Exception If there is a database error.
+	 */
+	public function set_preferred_speech_attempt_feedback( $feedback_id ) {
+		$this->wpdb->query( 'START TRANSACTION' );
+		try {
+			$feedback = $this->get_speech_attempt_feedbacks( array( 'feedback_id' => $feedback_id ) );
+			$feedback = is_array( $feedback ) && ! empty( $feedback ) ? $feedback[0] : null;
+			if ( empty( $feedback ) ) {
+				throw new Exception( 'Feedback not found.' );
+			}
+
+			// Unset other preferred feedbacks.
+			$this->wpdb->update(
+				$this->speech_attempt_feedback_table,
+				array( 'is_preferred' => 0 ),
+				array(
+					'attempt_id'        => $feedback['attempt_id'],
+					'feedback_criteria' => $feedback['feedback_criteria'],
+					'is_preferred'      => 1,
+				)
+			);
+
+			// Set this feedback as preferred.
+			$result = $this->wpdb->update( $this->speech_attempt_feedback_table, array( 'is_preferred' => 1 ), array( 'id' => $feedback_id ) );
+			if ( false === $result ) {
+				throw new Exception( $this->wpdb->last_error );
+			}
+
+			$this->wpdb->query( 'COMMIT' );
+			return true;
 		} catch ( Exception $e ) {
 			$this->wpdb->query( 'ROLLBACK' );
 			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
