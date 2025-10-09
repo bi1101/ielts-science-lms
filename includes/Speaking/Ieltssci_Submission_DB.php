@@ -1260,16 +1260,16 @@ class Ieltssci_Submission_DB {
 	 *
 	 * @param array $data {
 	 *     Required fields.
-	 *     @var int $submission_id Speaking part submission ID.
-	 *     @var int $question_id   Associated question ID.
-	 *     @var int $audio_id      Attachment post ID for uploaded audio.
-	 *     @var int $created_by    User ID who created this attempt.
+	 *     @var int|null $submission_id Optional. Speaking part submission ID.
+	 *     @var int|null $question_id   Optional. Associated question ID.
+	 *     @var int      $audio_id      Attachment post ID for uploaded audio.
+	 *     @var int      $created_by    User ID who created this attempt.
 	 * }
 	 * @throws Exception When a database error occurs.
 	 * @return int|WP_Error Inserted attempt ID or WP_Error on failure.
 	 */
 	public function add_speech_attempt( $data ) {
-		$required = array( 'submission_id', 'question_id', 'audio_id', 'created_by' );
+		$required = array( 'audio_id', 'created_by' );
 		foreach ( $required as $key ) {
 			if ( empty( $data[ $key ] ) ) {
 				return new WP_Error( 'missing_required', 'Missing required field: ' . $key . '.', array( 'status' => 400 ) );
@@ -1277,12 +1277,20 @@ class Ieltssci_Submission_DB {
 		}
 
 		$insert = array(
-			'submission_id' => (int) $data['submission_id'],
-			'question_id'   => (int) $data['question_id'],
-			'audio_id'      => (int) $data['audio_id'],
-			'created_by'    => (int) $data['created_by'],
+			'audio_id'   => (int) $data['audio_id'],
+			'created_by' => (int) $data['created_by'],
 		);
-		$format = array( '%d', '%d', '%d', '%d' );
+		$format = array( '%d', '%d' );
+
+		if ( isset( $data['submission_id'] ) && ! empty( $data['submission_id'] ) ) {
+			$insert['submission_id'] = (int) $data['submission_id'];
+			$format[]                = '%d';
+		}
+
+		if ( isset( $data['question_id'] ) && ! empty( $data['question_id'] ) ) {
+			$insert['question_id'] = (int) $data['question_id'];
+			$format[]              = '%d';
+		}
 
 		$this->wpdb->query( 'START TRANSACTION' );
 		try {
@@ -1306,8 +1314,9 @@ class Ieltssci_Submission_DB {
 	 * @param array $data       {
 	 *     Fields to update.
 	 *
-	 *     @var int $question_id The ID of the question associated with the attempt.
-	 *     @var int $audio_id    The ID of the audio file for the attempt.
+	 *     @var int|null $submission_id The ID of the speaking part submission.
+	 *     @var int|null $question_id   The ID of the question associated with the attempt.
+	 *     @var int      $audio_id      The ID of the audio file for the attempt.
 	 * }
 	 * @throws Exception When a database error occurs.
 	 * @return bool|WP_Error True on success or WP_Error on failure.
@@ -1319,15 +1328,21 @@ class Ieltssci_Submission_DB {
 		}
 
 		$allowed = array(
-			'question_id' => '%d',
-			'audio_id'    => '%d',
+			'submission_id' => '%d',
+			'question_id'   => '%d',
+			'audio_id'      => '%d',
 		);
 		$update  = array();
 		$format  = array();
 		foreach ( $allowed as $key => $fmt ) {
 			if ( array_key_exists( $key, $data ) ) {
-				$update[ $key ] = ( 'question_id' === $key || 'audio_id' === $key ) ? (int) $data[ $key ] : $data[ $key ];
-				$format[]       = $fmt;
+				if ( in_array( $key, array( 'submission_id', 'question_id' ) ) ) {
+					$update[ $key ] = isset( $data[ $key ] ) && ! empty( $data[ $key ] ) ? (int) $data[ $key ] : null;
+					$format[]       = '%d';
+				} else {
+					$update[ $key ] = (int) $data[ $key ];
+					$format[]       = $fmt;
+				}
 			}
 		}
 		if ( empty( $update ) ) {

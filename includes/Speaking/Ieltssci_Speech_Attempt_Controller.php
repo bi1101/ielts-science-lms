@@ -127,7 +127,8 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 	 * Create speech attempt from attachment upload.
 	 *
 	 * Triggered after an attachment is created via REST API.
-	 * Checks for submission_id and question_id in the request.
+	 * Creates speech attempt only if submission_id and question_id are provided,
+	 * or if create_speech_attempt is explicitly set to true.
 	 *
 	 * @since 1.0.0
 	 *
@@ -147,21 +148,34 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 			return;
 		}
 
-		// Check if speech attempt parameters are present.
+		// Get speech attempt parameters (optional).
 		$submission_id = $request->get_param( 'submission_id' );
 		$question_id   = $request->get_param( 'question_id' );
 
-		if ( empty( $submission_id ) || empty( $question_id ) ) {
-			return;
+		// If both submission_id and question_id are empty, require explicit create_speech_attempt flag.
+		$submission_provided = isset( $submission_id ) && ! empty( $submission_id );
+		$question_provided   = isset( $question_id ) && ! empty( $question_id );
+
+		if ( ! $submission_provided && ! $question_provided ) {
+			$create_attempt = $request->get_param( 'create_speech_attempt' );
+			if ( ! $create_attempt || 'true' !== $create_attempt ) {
+				return;
+			}
 		}
 
 		// Create speech attempt record.
 		$attempt_data = array(
-			'submission_id' => (int) $submission_id,
-			'question_id'   => (int) $question_id,
-			'audio_id'      => $attachment->ID,
-			'created_by'    => get_current_user_id(),
+			'audio_id'   => $attachment->ID,
+			'created_by' => get_current_user_id(),
 		);
+
+		if ( $submission_provided ) {
+			$attempt_data['submission_id'] = (int) $submission_id;
+		}
+
+		if ( $question_provided ) {
+			$attempt_data['question_id'] = (int) $question_id;
+		}
 
 		$attempt_id = $this->db->add_speech_attempt( $attempt_data );
 
@@ -433,8 +447,8 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 	public function prepare_item_for_response( $attempt, $request ) {
 		$data = array(
 			'id'            => (int) $attempt['id'],
-			'submission_id' => (int) $attempt['submission_id'],
-			'question_id'   => (int) $attempt['question_id'],
+			'submission_id' => ! is_null( $attempt['submission_id'] ) ? (int) $attempt['submission_id'] : null,
+			'question_id'   => ! is_null( $attempt['question_id'] ) ? (int) $attempt['question_id'] : null,
 			'audio_id'      => (int) $attempt['audio_id'],
 			'created_by'    => (int) $attempt['created_by'],
 			'created_at'    => $attempt['created_at'],
@@ -603,12 +617,12 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 				),
 				'submission_id' => array(
 					'description' => 'Speaking part submission ID.',
-					'type'        => 'integer',
+					'type'        => array( 'integer', 'null' ),
 					'context'     => array( 'view', 'edit' ),
 				),
 				'question_id'   => array(
 					'description' => 'Question ID.',
-					'type'        => 'integer',
+					'type'        => array( 'integer', 'null' ),
 					'context'     => array( 'view', 'edit' ),
 				),
 				'audio_id'      => array(

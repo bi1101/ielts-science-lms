@@ -972,8 +972,8 @@ class Ieltssci_Database_Schema {
 
 		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
 			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-			submission_id bigint(20) UNSIGNED NOT NULL,
-			question_id bigint(20) UNSIGNED NOT NULL,
+			submission_id bigint(20) UNSIGNED DEFAULT NULL,
+			question_id bigint(20) UNSIGNED DEFAULT NULL,
 			audio_id bigint(20) UNSIGNED NOT NULL,
 			created_at datetime DEFAULT CURRENT_TIMESTAMP,
 			created_by bigint(20) UNSIGNED NOT NULL,
