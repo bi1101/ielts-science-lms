@@ -1029,6 +1029,7 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 				$feed,
 				$uuid,
 				'chain-of-thought',
+				null,
 				$language,
 				'human'
 			);
@@ -1046,6 +1047,7 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 				$feed,
 				$uuid,
 				'scoring',
+				null,
 				$language,
 				'human'
 			);
@@ -1063,6 +1065,7 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 				$feed,
 				$uuid,
 				'feedback',
+				null,
 				$language,
 				'human'
 			);

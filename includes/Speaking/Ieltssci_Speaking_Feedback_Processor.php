@@ -505,6 +505,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 				$feed,
 				$uuid,
 				$step_type,
+				null,
 				$language,
 				$source
 			);
@@ -517,6 +518,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 					$feed,
 					$uuid,
 					'chain-of-thought', // Force step_type to chain-of-thought.
+					null,
 					$language,
 					$source
 				);
@@ -534,6 +536,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 				$feed,
 				$uuid,
 				$step_type,
+				null,
 				$language,
 				$source
 			);

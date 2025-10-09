@@ -395,7 +395,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'vocabulary-suggestions-speaking',
 						'Vocabulary Suggestions Speaking',
-						'essay',
+						'speech',
 						array( 'speaking' ),
 						array(
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
@@ -410,7 +410,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'grammar-suggestions-speaking',
 						'Grammar Suggestions Speaking',
-						'essay',
+						'speech',
 						array( 'speaking' ),
 						array(
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
@@ -425,7 +425,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'coherence',
 						'Coherence',
-						'transcript',
+						'speech',
 						array( 'speaking' ),
 						array(
 							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
@@ -442,7 +442,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'range-of-vocab-speaking',
 						'Range of Vocab Speaking',
-						'transcript',
+						'speech',
 						array( 'speaking' ),
 						array(
 							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
@@ -453,7 +453,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'word-choice-collocation-style-speaking',
 						'Word choice, Collocation, Style Speaking',
-						'transcript',
+						'speech',
 						array( 'speaking' ),
 						array(
 							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
@@ -464,7 +464,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'uncommon-vocab-speaking',
 						'Uncommon vocab Speaking',
-						'transcript',
+						'speech',
 						array( 'speaking' ),
 						array(
 							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
@@ -475,7 +475,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'new-vocab-speaking',
 						'New Vocabulary',
-						'transcript',
+						'speech',
 						array( 'speaking' ),
 						array(
 							$settings_config_instance->create_step(
@@ -496,7 +496,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'range-of-structures-speaking',
 						'Range of Structures Speaking',
-						'transcript',
+						'speech',
 						array( 'speaking' ),
 						array(
 							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
@@ -507,7 +507,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'grammar-accuracy-speaking',
 						'Grammar Accuracy Speaking',
-						'transcript',
+						'speech',
 						array( 'speaking' ),
 						array(
 							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
@@ -524,7 +524,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'improve-speech',
 						'Improve Speech',
-						'transcript',
+						'speech',
 						array( 'speaking' ),
 						array(
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
