@@ -320,7 +320,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 		// Handle special case for transcription step.
 		if ( 'transcribe' === $step_type ) {
 			$transcription_prompt = isset( $config['general-setting']['prompt'] ) ? $config['general-setting']['prompt'] : '';
-			return $this->process_transcription_step( $uuid, $api_provider, $model, $transcription_prompt );
+			return $this->process_transcription_step( $uuid, $api_provider, $model, $transcription_prompt, $attempt );
 		}
 
 		// Map step_type to the appropriate database column.
@@ -596,30 +596,40 @@ class Ieltssci_Speaking_Feedback_Processor {
 	/**
 	 * Process transcription step for audio files
 	 *
-	 * @param string $uuid The UUID of the recording.
-	 * @param string $api_provider The API provider to use.
-	 * @param string $model The transcription model.
-	 * @param string $prompt Additional prompt to guide transcription.
-	 * @return string The concatenated responses from all transcription result API calls.
+	 * @param string     $uuid The UUID of the recording.
+	 * @param string     $api_provider The API provider to use.
+	 * @param string     $model The transcription model.
+	 * @param string     $prompt Additional prompt to guide transcription.
+	 * @param array|null $attempt Optional. The attempt data array. If provided, only processes this attempt's audio.
+	 * @return string|array The concatenated transcript string for all audio files, or the transcript JSON for a single attempt.
 	 * @throws Exception If the transcription process fails.
 	 */
-	private function process_transcription_step( $uuid, $api_provider, $model, $prompt ) {
-		// Get audio file paths associated with this recording.
-		$speech_db = new Ieltssci_Speech_DB();
-		$speech    = $speech_db->get_speeches(
-			array(
-				'uuid'     => $uuid,
-				'per_page' => 1,
-			)
-		);
+	private function process_transcription_step( $uuid, $api_provider, $model, $prompt, $attempt = null ) {
+		// If attempt is provided, process only that single audio file.
+		if ( ! is_null( $attempt ) ) {
+			$audio_id = isset( $attempt['audio_id'] ) ? $attempt['audio_id'] : null;
+			if ( empty( $audio_id ) ) {
+				throw new Exception( 'Speech attempt has no audio file.' );
+			}
+			$audio_ids = array( $audio_id );
+		} else {
+			// Get audio file paths associated with this recording.
+			$speech_db = new Ieltssci_Speech_DB();
+			$speech    = $speech_db->get_speeches(
+				array(
+					'uuid'     => $uuid,
+					'per_page' => 1,
+				)
+			);
 
-		if ( is_wp_error( $speech ) || empty( $speech ) ) {
-			throw new Exception( 'Speech recording not found.' );
-		}
+			if ( is_wp_error( $speech ) || empty( $speech ) ) {
+				throw new Exception( 'Speech recording not found.' );
+			}
 
-		$audio_ids = $speech[0]['audio_ids'];
-		if ( empty( $audio_ids ) ) {
-			throw new Exception( 'No audio files found for this recording.' );
+			$audio_ids = $speech[0]['audio_ids'];
+			if ( empty( $audio_ids ) ) {
+				throw new Exception( 'No audio files found for this recording.' );
+			}
 		}
 
 		// Format audio files in the structure expected by make_parallel_transcription_api_call.
