@@ -357,24 +357,6 @@ class Ieltssci_Speaking_Feedback_Processor {
 		// Select guided JSON based on language parameter with fallback.
 		$selected_guided_json = 'vi' === strtolower( $language ) && ! empty( $guided_json_vi ) ? $guided_json_vi : $guided_json;
 
-		// Pre-process attempt-specific variables if attempt is provided.
-		if ( ! is_null( $attempt ) && isset( $attempt['audio_id'] ) ) {
-			$attachment_id = (int) $attempt['audio_id'];
-			// Resolve attempt title from attachment title.
-			$attempt_title = '';
-			$raw_title     = get_the_title( $attachment_id );
-			if ( is_string( $raw_title ) ) {
-				$attempt_title = $raw_title;
-			}
-
-			// Resolve attempt transcript from attachment transcription meta.
-			$attempt_transcript = $this->get_audio_transcript_text( $attachment_id );
-
-			// Replace attempt-specific placeholders in the prompt.
-			$selected_prompt = str_replace( '{|attempt_title|}', $attempt_title, $selected_prompt );
-			$selected_prompt = str_replace( '{|attempt_transcript|}', $attempt_transcript, $selected_prompt );
-		}
-
 		// If existing content is found, send it back without making a new API call.
 		if ( ! empty( $existing_content ) ) {
 			// If this step has thinking enabled, check for existing chain-of-thought content.
@@ -414,7 +396,8 @@ class Ieltssci_Speaking_Feedback_Processor {
 			isset( $attempt['id'] ) ? (int) $attempt['id'] : null, // Use attempt ID for attempt-aware merge tags.
 			$feedback_style,
 			$guide_score,
-			$guide_feedback
+			$guide_feedback,
+			$attempt // Pass the full attempt array for attempt-specific merge tags.
 		);
 
 		// Handle different prompt processing results.
@@ -894,28 +877,5 @@ class Ieltssci_Speaking_Feedback_Processor {
 
 		// Return the aggregated structure as a JSON string.
 		return wp_json_encode( $final_structure );
-	}
-
-	/**
-	 * Get the transcript text from an audio file's metadata
-	 *
-	 * @param int $media_id The media attachment ID.
-	 * @return string The transcript text.
-	 */
-	private function get_audio_transcript_text( $media_id ) {
-		$transcription_meta = get_post_meta( $media_id, 'ieltssci_audio_transcription', true );
-		if ( is_array( $transcription_meta ) && isset( $transcription_meta['text'] ) && is_string( $transcription_meta['text'] ) ) {
-			return $transcription_meta['text'];
-		} elseif ( is_string( $transcription_meta ) && ! empty( $transcription_meta ) ) {
-			// Some sites may store JSON-encoded string. Try to decode first.
-			$decoded = json_decode( $transcription_meta, true );
-			if ( json_last_error() === JSON_ERROR_NONE && is_array( $decoded ) && isset( $decoded['text'] ) && is_string( $decoded['text'] ) ) {
-				return $decoded['text'];
-			} else {
-				// Fallback: if it is a plain string, use as-is.
-				return $transcription_meta;
-			}
-		}
-		return '';
 	}
 }

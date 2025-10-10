@@ -29,9 +29,10 @@ class Ieltssci_Merge_Tags_Processor {
 	 * @param string      $feedback_style The feedback style to use.
 	 * @param string      $guide_score   Human-guided scoring for the AI to consider.
 	 * @param string      $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param array|null  $attempt      Optional. The attempt data array for attempt-specific merge tags.
 	 * @return string|array The processed prompt with merge tags replaced, or an array if a modifier results in an array.
 	 */
-	public function process_merge_tags( $prompt, $uuid = null, $segment_order_or_attempt_id = null, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
+	public function process_merge_tags( $prompt, $uuid = null, $segment_order_or_attempt_id = null, $feedback_style = '', $guide_score = '', $guide_feedback = '', $attempt = null ) {
 		// Regex to find merge tags in format {prefix|parameters|suffix}.
 		$regex = '/\{(?\'prefix\'.*?)\|(?\'parameters\'.*?)\|(?\'suffix\'.*?)\}/ms';
 
@@ -55,7 +56,7 @@ class Ieltssci_Merge_Tags_Processor {
 					$content = $guide_feedback;
 			} else {
 				// Standard case: fetch content based on parameters.
-				$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id );
+				$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id, $attempt );
 			}
 
 			if ( is_array( $content ) ) {
@@ -88,7 +89,7 @@ class Ieltssci_Merge_Tags_Processor {
 					$content = $guide_feedback;
 				} else {
 					// Standard case: fetch content based on parameters.
-					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id );
+					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id, $attempt );
 				}
 
 				// For non-array content, standard replacement.
@@ -140,7 +141,7 @@ class Ieltssci_Merge_Tags_Processor {
 					$content = $guide_feedback;
 				} else {
 					// Standard case: fetch content based on parameters.
-					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id );
+					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id, $attempt );
 				}
 
 				$replacement = empty( $content ) ? '' : "{$prefix}{$content}{$suffix}";
@@ -160,9 +161,10 @@ class Ieltssci_Merge_Tags_Processor {
 	 * @param string      $parameters    The parameters specifying what content to fetch.
 	 * @param string|null $uuid          The UUID of the essay or speech. Can be null for standalone speech attempts.
 	 * @param int         $segment_order_or_attempt_id Optional. The order of the segment to filter by.
+	 * @param array|null  $attempt      Optional. The attempt data array for attempt-specific merge tags.
 	 * @return array|string|null The content to replace the merge tag with, or null if not found.
 	 */
-	private function fetch_content_for_merge_tag( $parameters, $uuid = null, $segment_order_or_attempt_id = null ) {
+	private function fetch_content_for_merge_tag( $parameters, $uuid = null, $segment_order_or_attempt_id = null, $attempt = null ) {
 		// Regex to extract parameter components:
 		// table:field[filter_field:filter_value]:modifier.
 		$regex = '/(?\'table\'.*?):(?\'field\'[^:\[]+)(?:\[(?\'filter_field\'.*?):(?\'filter_value\'.*?)\])?(?::(?\'modifier\'.*))?/m';
@@ -178,20 +180,34 @@ class Ieltssci_Merge_Tags_Processor {
 			$filter_value = isset( $match['filter_value'] ) ? trim( $match['filter_value'] ) : '';
 			$modifier     = isset( $match['modifier'] ) ? trim( $match['modifier'] ) : '';
 
-			// Special case: if filter_value is 'uuid', use the provided UUID.
-			if ( 'uuid' === $filter_value ) {
-				$filter_value = $uuid;
-			}
+			// Handle attempt-specific merge tags.
+			if ( 'attempt_title' === $table ) {
+				if ( ! is_null( $attempt ) && isset( $attempt['audio_id'] ) ) {
+					$attachment_id = (int) $attempt['audio_id'];
+					$raw_title     = get_the_title( $attachment_id );
+					$content       = is_string( $raw_title ) ? $raw_title : '';
+				}
+			} elseif ( 'attempt_transcript' === $table ) {
+				if ( ! is_null( $attempt ) && isset( $attempt['audio_id'] ) ) {
+					$attachment_id = (int) $attempt['audio_id'];
+					$content       = $this->get_audio_transcript_text( $attachment_id );
+				}
+			} else {
+				// Special case: if filter_value is 'uuid', use the provided UUID.
+				if ( 'uuid' === $filter_value ) {
+					$filter_value = $uuid;
+				}
 
-			// Get content based on extracted parameters.
-			$content = $this->get_content_from_database(
-				$table,
-				$field,
-				$filter_field,
-				$filter_value,
-				$uuid,
-				$segment_order_or_attempt_id
-			);
+				// Get content based on extracted parameters.
+				$content = $this->get_content_from_database(
+					$table,
+					$field,
+					$filter_field,
+					$filter_value,
+					$uuid,
+					$segment_order_or_attempt_id
+				);
+			}
 
 			// Apply modifier if present and content is not empty.
 			if ( ! empty( $content ) && ! empty( $modifier ) ) {
@@ -895,5 +911,28 @@ class Ieltssci_Merge_Tags_Processor {
 		}
 
 		return $message;
+	}
+
+	/**
+	 * Get audio transcript text from attachment metadata
+	 *
+	 * @param int $media_id The attachment/media ID.
+	 * @return string The transcript text or empty string if not found.
+	 */
+	private function get_audio_transcript_text( $media_id ) {
+		$transcription_meta = get_post_meta( $media_id, 'ieltssci_audio_transcription', true );
+		if ( is_array( $transcription_meta ) && isset( $transcription_meta['text'] ) && is_string( $transcription_meta['text'] ) ) {
+			return $transcription_meta['text'];
+		} elseif ( is_string( $transcription_meta ) && ! empty( $transcription_meta ) ) {
+			// Some sites may store JSON-encoded string. Try to decode first.
+			$decoded = json_decode( $transcription_meta, true );
+			if ( json_last_error() === JSON_ERROR_NONE && is_array( $decoded ) && isset( $decoded['text'] ) && is_string( $decoded['text'] ) ) {
+				return $decoded['text'];
+			} else {
+				// Fallback: if it is a plain string, use as-is.
+				return $transcription_meta;
+			}
+		}
+		return '';
 	}
 }
