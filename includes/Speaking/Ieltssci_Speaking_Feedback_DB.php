@@ -43,11 +43,12 @@ class Ieltssci_Speaking_Feedback_DB {
 	 * @param string $step_type     The type of step (chain-of-thought, scoring, feedback).
 	 * @param array  $feed          The feed data containing configuration.
 	 * @param string $uuid          The UUID of the speech recording.
+	 * @param array  $attempt       Optional. The attempt data if processing a specific attempt.
 	 * @param string $content_field The database field to retrieve.
 	 *
 	 * @return string|null The existing content if found, null otherwise.
 	 */
-	public function get_existing_step_content( $step_type, $feed, $uuid, $content_field = '' ) {
+	public function get_existing_step_content( $step_type, $feed, $uuid, $attempt = null, $content_field = '' ) {
 		// If content_field is not provided, determine it from the step_type.
 		if ( empty( $content_field ) ) {
 			// Map step_type to the appropriate database column.
@@ -68,45 +69,81 @@ class Ieltssci_Speaking_Feedback_DB {
 		// Initialize variables for existing content.
 		$existing_content  = null;
 		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
+		$apply_to          = isset( $feed['apply_to'] ) ? $feed['apply_to'] : 'speech';
 
-		// Get speech ID from UUID.
-		$speeches = $this->speech_db->get_speeches(
-			array(
-				'uuid'     => $uuid,
-				'per_page' => 1,
-			)
-		);
-
-		if ( is_wp_error( $speeches ) || empty( $speeches ) ) {
-			return null;
-		}
-
-		$speech_id = $speeches[0]['id'];
-
-		// Get feedback ordered by creation date (newest first).
-		$feedback_results = $this->speech_db->get_speech_feedbacks(
-			array(
-				'speech_id'         => $speech_id,
-				'feedback_criteria' => $feedback_criteria,
-				'include_cot'       => ( 'cot_content' === $content_field ),
-				'include_score'     => ( 'score_content' === $content_field ),
-				'include_feedback'  => ( 'feedback_content' === $content_field ),
-				'orderby'           => 'created_at',
-				'order'             => 'DESC',
-			)
-		);
-
-		// Use the first feedback that has content in the required field.
-		if ( ! is_wp_error( $feedback_results ) && ! empty( $feedback_results ) ) {
-			foreach ( $feedback_results as $feedback ) {
-				if ( ! empty( $feedback[ $content_field ] ) ) {
-					$existing_content = $feedback[ $content_field ];
-					break;
+		// Switch based on apply_to for extendability.
+		switch ( $apply_to ) {
+			case 'attempt':
+				if ( empty( $attempt ) || empty( $attempt['id'] ) ) {
+					return null; // No attempt context provided, cannot check attempt-level content.
 				}
-			}
-		}
 
-		return $existing_content;
+				$feedback_results = $this->speech_db->get_speech_attempt_feedbacks(
+					array(
+						'attempt_id'        => (int) $attempt['id'],
+						'feedback_criteria' => $feedback_criteria,
+						'include_cot'       => ( 'cot_content' === $content_field ),
+						'include_score'     => ( 'score_content' === $content_field ),
+						'include_feedback'  => ( 'feedback_content' === $content_field ),
+						'orderby'           => 'created_at',
+						'order'             => 'DESC',
+						'limit'             => 10,
+					)
+				);
+
+				// Use the first feedback that has content in the required field.
+				if ( ! is_wp_error( $feedback_results ) && ! empty( $feedback_results ) ) {
+					foreach ( $feedback_results as $feedback ) {
+						if ( ! empty( $feedback[ $content_field ] ) ) {
+							$existing_content = $feedback[ $content_field ];
+							break;
+						}
+					}
+				}
+
+				return $existing_content;
+
+			case 'speech':
+			default:
+				// Speech-level: Get speech ID from UUID.
+				$speeches = $this->speech_db->get_speeches(
+					array(
+						'uuid'     => $uuid,
+						'per_page' => 1,
+					)
+				);
+
+				if ( is_wp_error( $speeches ) || empty( $speeches ) ) {
+					return null;
+				}
+
+				$speech_id = $speeches[0]['id'];
+
+				// Get feedback ordered by creation date (newest first).
+				$feedback_results = $this->speech_db->get_speech_feedbacks(
+					array(
+						'speech_id'         => $speech_id,
+						'feedback_criteria' => $feedback_criteria,
+						'include_cot'       => ( 'cot_content' === $content_field ),
+						'include_score'     => ( 'score_content' === $content_field ),
+						'include_feedback'  => ( 'feedback_content' === $content_field ),
+						'orderby'           => 'created_at',
+						'order'             => 'DESC',
+					)
+				);
+
+				// Use the first feedback that has content in the required field.
+				if ( ! is_wp_error( $feedback_results ) && ! empty( $feedback_results ) ) {
+					foreach ( $feedback_results as $feedback ) {
+						if ( ! empty( $feedback[ $content_field ] ) ) {
+							$existing_content = $feedback[ $content_field ];
+							break;
+						}
+					}
+				}
+
+				return $existing_content;
+		}
 	}
 
 	/**

@@ -90,6 +90,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 	 *
 	 * @param int    $feed_id       ID of the feed to process.
 	 * @param string $uuid          The UUID of the recording.
+	 * @param int    $attempt_id    Optional. ID of the speech attempt to process.
 	 * @param string $language      The language of the feedback.
 	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
 	 * @param string $guide_score   Human-guided scoring for the AI to consider.
@@ -98,7 +99,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 	 * @return WP_Error|null Error or null on success.
 	 * @throws Exception When feed processing fails.
 	 */
-	public function process_feed_by_id( $feed_id, $uuid, $language = 'en', $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
+	public function process_feed_by_id( $feed_id, $uuid, $attempt_id = null, $language = 'en', $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
 		// Get the specific feed that needs processing.
 		$feeds = $this->api_feeds_db->get_api_feeds(
 			array(
@@ -120,7 +121,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 
 		try {
 			// Process the feed (to be implemented).
-			$this->process_feed( $feed, $uuid, $language, $feedback_style, $guide_score, $guide_feedback, $refetch );
+			$this->process_feed( $feed, $uuid, $attempt_id, $language, $feedback_style, $guide_score, $guide_feedback, $refetch );
 			return null;
 		} catch ( Exception $e ) {
 			return new WP_Error( 500, $e->getMessage() );
@@ -132,6 +133,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 	 *
 	 * @param array  $feed          The feed data.
 	 * @param string $uuid          The UUID of the recording.
+	 * @param int    $attempt_id    Optional. ID of the speech attempt to process.
 	 * @param string $language      The language of the feedback.
 	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
 	 * @param string $guide_score   Human-guided scoring for the AI to consider.
@@ -140,17 +142,45 @@ class Ieltssci_Speaking_Feedback_Processor {
 	 *
 	 * @throws Exception When feed processing fails.
 	 */
-	public function process_feed( $feed, $uuid, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
+	public function process_feed( $feed, $uuid, $attempt_id = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
+		// Fetch attempt if provided.
+		$attempt = null;
+		if ( ! is_null( $attempt_id ) ) {
+			$submission_db = new Ieltssci_Submission_DB();
+			$attempt       = $submission_db->get_speech_attempt( $attempt_id );
+			if ( is_wp_error( $attempt ) ) {
+				throw new Exception( 'Failed to fetch attempt: ' . esc_html( $attempt->get_error_message() ) );
+			}
+			if ( empty( $attempt ) ) {
+				throw new Exception( 'Attempt not found.' );
+			}
+		}
+
 		// Announce starting this feed.
-		$this->send_message(
-			'feed_start',
-			array(
-				'feed_id'           => $feed['id'],
-				'feed_title'        => isset( $feed['feed_title'] ) ? $feed['feed_title'] : 'Speaking Feedback',
-				'message'           => 'Starting speaking feedback processing...',
-				'feedback_criteria' => isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : '',
-			)
-		);
+		if ( ! is_null( $attempt ) ) {
+			$this->send_message(
+				'attempt_feed_start',
+				array(
+					'feed_id'            => $feed['id'],
+					'feed_title'         => isset( $feed['feed_title'] ) ? $feed['feed_title'] : 'Speaking Feedback',
+					'message'            => 'Starting speaking feedback processing for attempt...',
+					'feedback_criteria'  => isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : '',
+					'attempt_id'         => $attempt['id'],
+					'attempt_audio_id'   => $attempt['audio_id'],
+					'attempt_created_at' => $attempt['created_at'],
+				)
+			);
+		} else {
+			$this->send_message(
+				'feed_start',
+				array(
+					'feed_id'           => $feed['id'],
+					'feed_title'        => isset( $feed['feed_title'] ) ? $feed['feed_title'] : 'Speaking Feedback',
+					'message'           => 'Starting speaking feedback processing...',
+					'feedback_criteria' => isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : '',
+				)
+			);
+		}
 
 		try {
 			$steps = isset( $feed['meta'] ) ? json_decode( $feed['meta'], true )['steps'] : array();
@@ -169,29 +199,42 @@ class Ieltssci_Speaking_Feedback_Processor {
 			$results = array();
 
 			foreach ( $steps as $step ) {
-				$result    = $this->process_step( $step, $uuid, $feed, $language, $feedback_style, $guide_score, $guide_feedback, $refetch );
+				$result    = $this->process_step( $step, $uuid, $feed, $attempt, $language, $feedback_style, $guide_score, $guide_feedback, $refetch );
 				$results[] = $result;
 			}
 
 			// Signal completion of this feed.
-			$this->send_message(
-				'feed_complete',
-				array(
-					'feed_id'  => $feed['id'],
-					'status'   => 'success',
-					'feedback' => $results,
-				)
-			);
+			if ( ! is_null( $attempt ) ) {
+				$this->send_message(
+					'attempt_feed_complete',
+					array(
+						'feed_id'    => $feed['id'],
+						'status'     => 'success',
+						'feedback'   => $results,
+						'attempt_id' => $attempt['id'],
+					)
+				);
+			} else {
+				$this->send_message(
+					'feed_complete',
+					array(
+						'feed_id'  => $feed['id'],
+						'status'   => 'success',
+						'feedback' => $results,
+					)
+				);
+			}
 		} catch ( Exception $e ) {
 			// Handle error.
 			$this->send_error(
 				'feed_error',
 				array(
-					'feed_id'  => isset( $feed['id'] ) ? $feed['id'] : 0,
-					'title'    => 'Error Processing Feedback',
-					'message'  => $e->getMessage(),
-					'ctaTitle' => 'Try Again',
-					'ctaLink'  => '#',
+					'feed_id'    => isset( $feed['id'] ) ? $feed['id'] : 0,
+					'attempt_id' => ! is_null( $attempt ) ? $attempt['id'] : null,
+					'title'      => 'Error Processing Feedback',
+					'message'    => $e->getMessage(),
+					'ctaTitle'   => 'Try Again',
+					'ctaLink'    => '#',
 				)
 			);
 			throw $e;
@@ -201,19 +244,20 @@ class Ieltssci_Speaking_Feedback_Processor {
 	/**
 	 * Process a single step from a feed
 	 *
-	 * @param array  $step    The step configuration.
-	 * @param string $uuid    The UUID of the recording.
-	 * @param array  $feed    The feed data.
-	 * @param string $language The language of the feedback.
-	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
-	 * @param string $guide_score   Human-guided scoring for the AI to consider.
-	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
-	 * @param string $refetch       Whether to refetch the content even if it exists.
+	 * @param array      $step     The step configuration.
+	 * @param string     $uuid     The UUID of the recording.
+	 * @param array      $feed     The feed data.
+	 * @param array|null $attempt  Optional. The attempt data array.
+	 * @param string     $language The language of the feedback.
+	 * @param string     $feedback_style The sample feedback style provided by the user for the AI to replicate.
+	 * @param string     $guide_score   Human-guided scoring for the AI to consider.
+	 * @param string     $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param string     $refetch       Whether to refetch the content even if it exists.
 	 *
 	 * @return string The processed content.
 	 * @throws Exception Throw exception when requests fail.
 	 */
-	public function process_step( $step, $uuid, $feed, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
+	public function process_step( $step, $uuid, $feed, $attempt = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
 		// Get settings from the step.
 		$step_type = isset( $step['step'] ) ? $step['step'] : 'feedback';
 		$sections  = isset( $step['sections'] ) ? $step['sections'] : array();
@@ -299,7 +343,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 		// Check if this step has already been processed.
 		$existing_content = null;
 		if ( $should_check_existing ) {
-			$existing_content = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $content_field );
+			$existing_content = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $attempt, $content_field );
 		}
 
 		// Get score regex if available in scoring step.
@@ -313,11 +357,29 @@ class Ieltssci_Speaking_Feedback_Processor {
 		// Select guided JSON based on language parameter with fallback.
 		$selected_guided_json = 'vi' === strtolower( $language ) && ! empty( $guided_json_vi ) ? $guided_json_vi : $guided_json;
 
+		// Pre-process attempt-specific variables if attempt is provided.
+		if ( ! is_null( $attempt ) && isset( $attempt['audio_id'] ) ) {
+			$attachment_id = (int) $attempt['audio_id'];
+			// Resolve attempt title from attachment title.
+			$attempt_title = '';
+			$raw_title     = get_the_title( $attachment_id );
+			if ( is_string( $raw_title ) ) {
+				$attempt_title = $raw_title;
+			}
+
+			// Resolve attempt transcript from attachment transcription meta.
+			$attempt_transcript = $this->get_audio_transcript_text( $attachment_id );
+
+			// Replace attempt-specific placeholders in the prompt.
+			$selected_prompt = str_replace( '{|attempt_title|}', $attempt_title, $selected_prompt );
+			$selected_prompt = str_replace( '{|attempt_transcript|}', $attempt_transcript, $selected_prompt );
+		}
+
 		// If existing content is found, send it back without making a new API call.
 		if ( ! empty( $existing_content ) ) {
 			// If this step has thinking enabled, check for existing chain-of-thought content.
 			if ( $enable_thinking ) {
-				$existing_cot = $this->feedback_db->get_existing_step_content( 'chain-of-thought', $feed, $uuid, 'cot_content' );
+				$existing_cot = $this->feedback_db->get_existing_step_content( 'chain-of-thought', $feed, $uuid, $attempt, 'cot_content' );
 
 				if ( $existing_cot ) {
 					// Stream the existing chain-of-thought content to the client.
@@ -349,7 +411,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 		$processed_prompt = $this->merge_tags_processor->process_merge_tags(
 			$selected_prompt,
 			$uuid,
-			null, // No segment_order for speaking.
+			isset( $attempt['id'] ) ? (int) $attempt['id'] : null, // Use attempt ID for attempt-aware merge tags.
 			$feedback_style,
 			$guide_score,
 			$guide_feedback
@@ -505,7 +567,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 				$feed,
 				$uuid,
 				$step_type,
-				null,
+				$attempt,
 				$language,
 				$source
 			);
@@ -518,7 +580,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 					$feed,
 					$uuid,
 					'chain-of-thought', // Force step_type to chain-of-thought.
-					null,
+					$attempt,
 					$language,
 					$source
 				);
@@ -536,7 +598,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 				$feed,
 				$uuid,
 				$step_type,
-				null,
+				$attempt,
 				$language,
 				$source
 			);
@@ -832,5 +894,28 @@ class Ieltssci_Speaking_Feedback_Processor {
 
 		// Return the aggregated structure as a JSON string.
 		return wp_json_encode( $final_structure );
+	}
+
+	/**
+	 * Get the transcript text from an audio file's metadata
+	 *
+	 * @param int $media_id The media attachment ID.
+	 * @return string The transcript text.
+	 */
+	private function get_audio_transcript_text( $media_id ) {
+		$transcription_meta = get_post_meta( $media_id, 'ieltssci_audio_transcription', true );
+		if ( is_array( $transcription_meta ) && isset( $transcription_meta['text'] ) && is_string( $transcription_meta['text'] ) ) {
+			return $transcription_meta['text'];
+		} elseif ( is_string( $transcription_meta ) && ! empty( $transcription_meta ) ) {
+			// Some sites may store JSON-encoded string. Try to decode first.
+			$decoded = json_decode( $transcription_meta, true );
+			if ( json_last_error() === JSON_ERROR_NONE && is_array( $decoded ) && isset( $decoded['text'] ) && is_string( $decoded['text'] ) ) {
+				return $decoded['text'];
+			} else {
+				// Fallback: if it is a plain string, use as-is.
+				return $transcription_meta;
+			}
+		}
+		return '';
 	}
 }

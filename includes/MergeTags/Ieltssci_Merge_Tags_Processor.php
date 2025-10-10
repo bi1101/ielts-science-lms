@@ -25,13 +25,13 @@ class Ieltssci_Merge_Tags_Processor {
 	 *
 	 * @param string $prompt       The prompt string containing merge tags.
 	 * @param string $uuid         The UUID of the essay to use for fetching content.
-	 * @param int    $segment_order Optional. The order of the segment to filter by.
+	 * @param int    $segment_order_or_attempt_id Optional. The order of the segment or speech attempt id to filter by.
 	 * @param string $feedback_style The feedback style to use.
 	 * @param string $guide_score   Human-guided scoring for the AI to consider.
 	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
 	 * @return string|array The processed prompt with merge tags replaced, or an array if a modifier results in an array.
 	 */
-	public function process_merge_tags( $prompt, $uuid, $segment_order = null, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
+	public function process_merge_tags( $prompt, $uuid, $segment_order_or_attempt_id = null, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
 		// Regex to find merge tags in format {prefix|parameters|suffix}.
 		$regex = '/\{(?\'prefix\'.*?)\|(?\'parameters\'.*?)\|(?\'suffix\'.*?)\}/ms';
 
@@ -55,7 +55,7 @@ class Ieltssci_Merge_Tags_Processor {
 					$content = $guide_feedback;
 			} else {
 				// Standard case: fetch content based on parameters.
-				$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order );
+				$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id );
 			}
 
 			if ( is_array( $content ) ) {
@@ -88,7 +88,7 @@ class Ieltssci_Merge_Tags_Processor {
 					$content = $guide_feedback;
 				} else {
 					// Standard case: fetch content based on parameters.
-					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order );
+					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id );
 				}
 
 				// For non-array content, standard replacement.
@@ -140,7 +140,7 @@ class Ieltssci_Merge_Tags_Processor {
 					$content = $guide_feedback;
 				} else {
 					// Standard case: fetch content based on parameters.
-					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order );
+					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id );
 				}
 
 				$replacement = empty( $content ) ? '' : "{$prefix}{$content}{$suffix}";
@@ -159,10 +159,10 @@ class Ieltssci_Merge_Tags_Processor {
 	 *
 	 * @param string $parameters    The parameters specifying what content to fetch.
 	 * @param string $uuid          The UUID of the essay.
-	 * @param int    $segment_order Optional. The order of the segment to filter by.
+	 * @param int    $segment_order_or_attempt_id Optional. The order of the segment to filter by.
 	 * @return array|string|null The content to replace the merge tag with, or null if not found.
 	 */
-	private function fetch_content_for_merge_tag( $parameters, $uuid, $segment_order = null ) {
+	private function fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id = null ) {
 		// Regex to extract parameter components:
 		// table:field[filter_field:filter_value]:modifier.
 		$regex = '/(?\'table\'.*?):(?\'field\'[^:\[]+)(?:\[(?\'filter_field\'.*?):(?\'filter_value\'.*?)\])?(?::(?\'modifier\'.*))?/m';
@@ -184,7 +184,14 @@ class Ieltssci_Merge_Tags_Processor {
 			}
 
 			// Get content based on extracted parameters.
-			$content = $this->get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid, $segment_order );
+			$content = $this->get_content_from_database(
+				$table,
+				$field,
+				$filter_field,
+				$filter_value,
+				$uuid,
+				$segment_order_or_attempt_id
+			);
 
 			// Apply modifier if present and content is not empty.
 			if ( ! empty( $content ) && ! empty( $modifier ) ) {
@@ -203,10 +210,10 @@ class Ieltssci_Merge_Tags_Processor {
 	 * @param string $filter_field  The field to filter by.
 	 * @param string $filter_value  The value to filter with.
 	 * @param string $uuid          The UUID of the essay (always required).
-	 * @param int    $segment_order Optional. The order of the segment to filter by.
+	 * @param int    $segment_order_or_attempt_id Optional. The order of the segment to filter by.
 	 * @return string|array|null The retrieved content, array of values, or null if not found.
 	 */
-	public function get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid, $segment_order = null ) {
+	public function get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid, $segment_order_or_attempt_id = null ) {
 		// Skip if any required parameter is missing.
 		if ( empty( $table ) || empty( $field ) || empty( $uuid ) ) {
 			return null;
@@ -220,6 +227,7 @@ class Ieltssci_Merge_Tags_Processor {
 			'segment_feedback',
 			'speech',
 			'speech_feedback',
+			'speech_attempt_feedback',
 		);
 
 		if ( ! in_array( $table, $supported_tables, true ) ) {
@@ -227,8 +235,15 @@ class Ieltssci_Merge_Tags_Processor {
 		}
 
 		// Handle speech tables.
-		if ( in_array( $table, array( 'speech', 'speech_feedback' ), true ) ) {
-			return $this->get_speech_content_from_database( $table, $field, $filter_field, $filter_value, $uuid );
+		if ( in_array( $table, array( 'speech', 'speech_feedback', 'speech_attempt_feedback' ), true ) ) {
+			return $this->get_speech_content_from_database(
+				$table,
+				$field,
+				$filter_field,
+				$filter_value,
+				$uuid,
+				$segment_order_or_attempt_id
+			);
 		}
 
 		// Initialize Essay DB.
@@ -286,8 +301,8 @@ class Ieltssci_Merge_Tags_Processor {
 				);
 
 				// Add segment_order filter if provided.
-				if ( null !== $segment_order ) {
-					$query_args['order'] = $segment_order;
+				if ( null !== $segment_order_or_attempt_id ) {
+					$query_args['order'] = $segment_order_or_attempt_id;
 				}
 
 				// Add additional filter if provided.
@@ -384,8 +399,8 @@ class Ieltssci_Merge_Tags_Processor {
 					'fields'   => array( 'id' ),
 				);
 
-				if ( null !== $segment_order ) {
-					$segment_query['order'] = $segment_order;
+				if ( null !== $segment_order_or_attempt_id ) {
+					$segment_query['order'] = $segment_order_or_attempt_id;
 				}
 
 				$segments = $essay_db->get_segments( $segment_query );
@@ -444,7 +459,7 @@ class Ieltssci_Merge_Tags_Processor {
 
 				// If segment_order was specified, we should have only one result.
 				// Or if we happened to get just one feedback anyway.
-				if ( null !== $segment_order || 1 === count( $collected_feedback_content ) ) {
+				if ( null !== $segment_order_or_attempt_id || 1 === count( $collected_feedback_content ) ) {
 					return $collected_feedback_content[0]; // Return just the first/only value.
 				} else {
 					// Return all collected feedback content as an array.
@@ -459,14 +474,15 @@ class Ieltssci_Merge_Tags_Processor {
 	/**
 	 * Get speech content from database based on parameters
 	 *
-	 * @param string $table         The table to fetch from (speech or speech_feedback).
+	 * @param string $table         The table to fetch from (speech, speech_feedback, speech_attempt_feedback).
 	 * @param string $field         The field to retrieve.
 	 * @param string $filter_field  The field to filter by.
 	 * @param string $filter_value  The value to filter with.
 	 * @param string $uuid          The UUID of the speech recording.
+	 * @param int    $attempt_id    Optional. The ID of the speech attempt.
 	 * @return string|array|null The retrieved content, array of values, or null if not found.
 	 */
-	private function get_speech_content_from_database( $table, $field, $filter_field, $filter_value, $uuid ) {
+	private function get_speech_content_from_database( $table, $field, $filter_field, $filter_value, $uuid, $attempt_id = null ) {
 		// Initialize Speech DB.
 		$speech_db = new Ieltssci_Speech_DB();
 
@@ -560,6 +576,85 @@ class Ieltssci_Merge_Tags_Processor {
 					return $filtered_feedbacks[0][ $field ];
 				}
 				break;
+
+			case 'speech_attempt_feedback':
+				// For speech_attempt_feedback table, constrain by speech via UUID first.
+				// We'll leverage get_speech_attempt_feedbacks with speech_uuid and optional field filters.
+				$query_args = array(
+					'speech_uuid' => $uuid,
+					'orderby'     => 'created_at',
+					'order'       => 'DESC',
+					'limit'       => 200,
+				);
+
+				// Add attempt_id filter if provided.
+				if ( null !== $attempt_id ) {
+					$query_args['attempt_id'] = (int) $attempt_id;
+				}
+
+				// Map requested field to include flags to avoid selecting unnecessary columns.
+				switch ( $field ) {
+					case 'cot_content':
+						$query_args['include_cot']      = true;
+						$query_args['include_score']    = false;
+						$query_args['include_feedback'] = false;
+						break;
+					case 'score_content':
+						$query_args['include_cot']      = false;
+						$query_args['include_score']    = true;
+						$query_args['include_feedback'] = false;
+						break;
+					case 'feedback_content':
+					default:
+						$query_args['include_cot']      = false;
+						$query_args['include_score']    = false;
+						$query_args['include_feedback'] = true;
+						break;
+				}
+
+				// Apply additional filter if provided and not the special 'uuid'.
+				if ( ! empty( $filter_field ) && ! empty( $filter_value ) && 'uuid' !== $filter_field ) {
+					$query_args[ $filter_field ] = $filter_value;
+				}
+
+				$attempt_feedbacks = $speech_db->get_speech_attempt_feedbacks( $query_args );
+				if ( is_wp_error( $attempt_feedbacks ) || empty( $attempt_feedbacks ) ) {
+					return null;
+				}
+
+				// Group by attempt_id to get at most one content per attempt, picking the first with non-empty field.
+				$by_attempt = array();
+				foreach ( $attempt_feedbacks as $fb ) {
+					if ( ! isset( $fb['attempt_id'] ) ) {
+						continue;
+					}
+					$aid = $fb['attempt_id'];
+					if ( ! isset( $by_attempt[ $aid ] ) && isset( $fb[ $field ] ) && ! empty( $fb[ $field ] ) ) {
+						$by_attempt[ $aid ] = $fb[ $field ];
+					}
+				}
+
+				if ( empty( $by_attempt ) ) {
+					return null;
+				}
+
+				// If a specific attempt_id filter was provided, return just the first matching content.
+				if ( ! empty( $query_args['attempt_id'] ) ) {
+					$id = $query_args['attempt_id'];
+					if ( isset( $by_attempt[ $id ] ) ) {
+						return $by_attempt[ $id ];
+					}
+					// If no matching attempt found, return null.
+					return null;
+				}
+
+				// If only one attempt has content, return it; otherwise, return an array ordered by attempt_id.
+				if ( 1 === count( $by_attempt ) ) {
+					return array_values( $by_attempt )[0];
+				}
+
+				ksort( $by_attempt );
+				return array_values( $by_attempt );
 		}
 
 		return null;
