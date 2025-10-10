@@ -108,6 +108,75 @@ class Ieltssci_Speaking_SSE_REST {
 				),
 			)
 		);
+
+		// Register route for speech attempt feedback.
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->base . '/attempt-feedback',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_attempt_feedback' ),
+				'permission_callback' => '__return_true',
+				'args'                => array(
+					'UUID'           => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'attempt_id'     => array(
+						'required'          => true,
+						'validate_callback' => function ( $param ) {
+							return is_numeric( $param ) && intval( $param ) > 0;
+						},
+						'sanitize_callback' => 'absint',
+					),
+					'feed_id'        => array(
+						'required'          => true,
+						'validate_callback' => function ( $param ) {
+							return is_numeric( $param ) && intval( $param ) > 0;
+						},
+						'sanitize_callback' => 'absint',
+					),
+					'language'       => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'feedback_style' => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'guide_score'    => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'guide_feedback' => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'refetch'        => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_string( $param );
+						},
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -175,6 +244,95 @@ class Ieltssci_Speaking_SSE_REST {
 		$result = $processor->process_feed_by_id(
 			$feed_id,
 			$uuid,
+			null, // No attempt_id for speech-level feedback.
+			$language,
+			$feedback_style,
+			$guide_score,
+			$guide_feedback,
+			$refetch
+		);
+
+		// Handle errors.
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		// Signal completion.
+		$this->send_done();
+
+		exit;
+	}
+
+	/**
+	 * Callback for the attempt feedback endpoint.
+	 *
+	 * Streams AI-generated feedback for a specific speech attempt.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 */
+	public function get_attempt_feedback( $request ) {
+		// Get parameters.
+		$uuid           = $request->get_param( 'UUID' );
+		$attempt_id     = $request->get_param( 'attempt_id' );
+		$feed_id        = $request->get_param( 'feed_id' );
+		$language       = $request->get_param( 'language' );
+		$feedback_style = $request->get_param( 'feedback_style' );
+		$guide_score    = $request->get_param( 'guide_score' );
+		$guide_feedback = $request->get_param( 'guide_feedback' );
+		$refetch        = $request->get_param( 'refetch' );
+
+		// If refetch is requested, check permission.
+		if ( $refetch ) {
+			// Get attempt by ID.
+			$submission_db = new Ieltssci_Submission_DB();
+			$attempt       = $submission_db->get_speech_attempt( $attempt_id );
+
+			if ( is_wp_error( $attempt ) || empty( $attempt ) ) {
+				return new \WP_Error( 'no_attempt', 'Speech attempt not found.', array( 'status' => 403 ) );
+			}
+
+			$current_user_id = get_current_user_id();
+			if ( (int) $attempt['created_by'] !== (int) $current_user_id && ! current_user_can( 'manage_options' ) ) {
+				return new \WP_Error( 'forbidden', 'You do not have permission to regenerate this speech attempt feedback because you are not the owner.', array( 'status' => 403 ) );
+			}
+		}
+
+		// Check rate limits before setting headers.
+		// Use UUID if provided, otherwise use attempt_id for rate limiting.
+		$rate_limit_key = ! empty( $uuid ) ? $uuid : 'attempt_' . $attempt_id;
+		$rate_limiter   = new Ieltssci_RateLimit();
+		$rate_check     = $rate_limiter->check_rate_limit( 'speech_attempt_feedback', $rate_limit_key, $feed_id, $attempt_id );
+		if ( is_wp_error( $rate_check ) ) {
+			return $rate_check;
+		}
+
+		// If this is a HEAD request, we've already checked rate limits, so just return success.
+		if ( isset( $_SERVER['REQUEST_METHOD'] ) && 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
+			return new \WP_REST_Response( null, 200 );
+		}
+
+		// Set up SSE headers.
+		$this->set_sse_headers();
+
+		// Create feedback processor with message callback.
+		$processor = new Ieltssci_Speaking_Feedback_Processor(
+			// Pass a callback that can handle all three message types.
+			function ( $event_type, $data, $is_error = false, $is_done = false ) {
+				if ( $is_done ) {
+					$this->send_done( $event_type );
+				} elseif ( $is_error ) {
+					$this->send_error( $event_type, $data );
+				} else {
+					$this->send_message( $event_type, $data );
+				}
+			}
+		);
+
+		// Process the specific feed for the attempt.
+		$result = $processor->process_feed_by_id(
+			$feed_id,
+			$uuid, // Can be null for standalone attempts.
+			$attempt_id,
 			$language,
 			$feedback_style,
 			$guide_score,
