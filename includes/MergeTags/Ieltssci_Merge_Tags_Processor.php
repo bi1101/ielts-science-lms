@@ -23,15 +23,15 @@ class Ieltssci_Merge_Tags_Processor {
 	/**
 	 * Process merge tags in a prompt string
 	 *
-	 * @param string $prompt       The prompt string containing merge tags.
-	 * @param string $uuid         The UUID of the essay to use for fetching content.
-	 * @param int    $segment_order_or_attempt_id Optional. The order of the segment or speech attempt id to filter by.
-	 * @param string $feedback_style The feedback style to use.
-	 * @param string $guide_score   Human-guided scoring for the AI to consider.
-	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param string      $prompt       The prompt string containing merge tags.
+	 * @param string|null $uuid         The UUID of the essay or speech. Can be null for standalone speech attempts.
+	 * @param int         $segment_order_or_attempt_id Optional. The order of the segment or speech attempt id to filter by.
+	 * @param string      $feedback_style The feedback style to use.
+	 * @param string      $guide_score   Human-guided scoring for the AI to consider.
+	 * @param string      $guide_feedback Human-guided feedback content for the AI to incorporate.
 	 * @return string|array The processed prompt with merge tags replaced, or an array if a modifier results in an array.
 	 */
-	public function process_merge_tags( $prompt, $uuid, $segment_order_or_attempt_id = null, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
+	public function process_merge_tags( $prompt, $uuid = null, $segment_order_or_attempt_id = null, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
 		// Regex to find merge tags in format {prefix|parameters|suffix}.
 		$regex = '/\{(?\'prefix\'.*?)\|(?\'parameters\'.*?)\|(?\'suffix\'.*?)\}/ms';
 
@@ -157,12 +157,12 @@ class Ieltssci_Merge_Tags_Processor {
 	/**
 	 * Fetch content for a merge tag based on parameters
 	 *
-	 * @param string $parameters    The parameters specifying what content to fetch.
-	 * @param string $uuid          The UUID of the essay.
-	 * @param int    $segment_order_or_attempt_id Optional. The order of the segment to filter by.
+	 * @param string      $parameters    The parameters specifying what content to fetch.
+	 * @param string|null $uuid          The UUID of the essay or speech. Can be null for standalone speech attempts.
+	 * @param int         $segment_order_or_attempt_id Optional. The order of the segment to filter by.
 	 * @return array|string|null The content to replace the merge tag with, or null if not found.
 	 */
-	private function fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id = null ) {
+	private function fetch_content_for_merge_tag( $parameters, $uuid = null, $segment_order_or_attempt_id = null ) {
 		// Regex to extract parameter components:
 		// table:field[filter_field:filter_value]:modifier.
 		$regex = '/(?\'table\'.*?):(?\'field\'[^:\[]+)(?:\[(?\'filter_field\'.*?):(?\'filter_value\'.*?)\])?(?::(?\'modifier\'.*))?/m';
@@ -205,17 +205,22 @@ class Ieltssci_Merge_Tags_Processor {
 	/**
 	 * Get content from database based on parameters
 	 *
-	 * @param string $table         The table/source to fetch from.
-	 * @param string $field         The field to retrieve.
-	 * @param string $filter_field  The field to filter by.
-	 * @param string $filter_value  The value to filter with.
-	 * @param string $uuid          The UUID of the essay (always required).
-	 * @param int    $segment_order_or_attempt_id Optional. The order of the segment to filter by.
+	 * @param string      $table         The table/source to fetch from.
+	 * @param string      $field         The field to retrieve.
+	 * @param string      $filter_field  The field to filter by.
+	 * @param string      $filter_value  The value to filter with.
+	 * @param string|null $uuid          The UUID of the essay or speech. Can be null for standalone speech attempts.
+	 * @param int         $segment_order_or_attempt_id Optional. The order of the segment to filter by.
 	 * @return string|array|null The retrieved content, array of values, or null if not found.
 	 */
-	public function get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid, $segment_order_or_attempt_id = null ) {
-		// Skip if any required parameter is missing.
-		if ( empty( $table ) || empty( $field ) || empty( $uuid ) ) {
+	public function get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid = null, $segment_order_or_attempt_id = null ) {
+		// Skip if any required parameter is missing (except uuid which can be null for speech attempts).
+		if ( empty( $table ) || empty( $field ) ) {
+			return null;
+		}
+
+		// For non-speech-attempt tables, UUID is required.
+		if ( empty( $uuid ) && ! in_array( $table, array( 'speech_attempt_feedback' ), true ) ) {
 			return null;
 		}
 
@@ -474,20 +479,25 @@ class Ieltssci_Merge_Tags_Processor {
 	/**
 	 * Get speech content from database based on parameters
 	 *
-	 * @param string $table         The table to fetch from (speech, speech_feedback, speech_attempt_feedback).
-	 * @param string $field         The field to retrieve.
-	 * @param string $filter_field  The field to filter by.
-	 * @param string $filter_value  The value to filter with.
-	 * @param string $uuid          The UUID of the speech recording.
-	 * @param int    $attempt_id    Optional. The ID of the speech attempt.
+	 * @param string      $table         The table to fetch from (speech, speech_feedback, speech_attempt_feedback).
+	 * @param string      $field         The field to retrieve.
+	 * @param string      $filter_field  The field to filter by.
+	 * @param string      $filter_value  The value to filter with.
+	 * @param string|null $uuid          The UUID of the speech recording. Can be null for standalone speech attempts.
+	 * @param int         $attempt_id    Optional. The ID of the speech attempt.
 	 * @return string|array|null The retrieved content, array of values, or null if not found.
 	 */
-	private function get_speech_content_from_database( $table, $field, $filter_field, $filter_value, $uuid, $attempt_id = null ) {
+	private function get_speech_content_from_database( $table, $field, $filter_field, $filter_value, $uuid = null, $attempt_id = null ) {
 		// Initialize Speech DB.
 		$speech_db = new Ieltssci_Speech_DB();
 
 		switch ( $table ) {
 			case 'speech':
+				// For speech table, UUID is required.
+				if ( empty( $uuid ) ) {
+					return null;
+				}
+
 				// For speech table.
 				$query_args = array();
 
@@ -531,6 +541,11 @@ class Ieltssci_Merge_Tags_Processor {
 				break;
 
 			case 'speech_feedback':
+				// For speech_feedback table, UUID is required to get speech_id.
+				if ( empty( $uuid ) ) {
+					return null;
+				}
+
 				// For speech_feedback table, get speech_id first.
 				$speeches = $speech_db->get_speeches(
 					array(
@@ -578,14 +593,18 @@ class Ieltssci_Merge_Tags_Processor {
 				break;
 
 			case 'speech_attempt_feedback':
-				// For speech_attempt_feedback table, constrain by speech via UUID first.
-				// We'll leverage get_speech_attempt_feedbacks with speech_uuid and optional field filters.
+				// For speech_attempt_feedback table, can work with or without UUID.
+				// If UUID is provided, constrain by speech; otherwise query by attempt_id only.
 				$query_args = array(
-					'speech_uuid' => $uuid,
-					'orderby'     => 'created_at',
-					'order'       => 'DESC',
-					'limit'       => 200,
+					'orderby' => 'created_at',
+					'order'   => 'DESC',
+					'limit'   => 200,
 				);
+
+				// Add speech constraint if UUID is provided.
+				if ( ! empty( $uuid ) ) {
+					$query_args['speech_uuid'] = $uuid;
+				}
 
 				// Add attempt_id filter if provided.
 				if ( null !== $attempt_id ) {

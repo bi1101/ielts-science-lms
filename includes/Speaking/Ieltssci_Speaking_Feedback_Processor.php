@@ -88,18 +88,18 @@ class Ieltssci_Speaking_Feedback_Processor {
 	/**
 	 * Process a specific feed by ID
 	 *
-	 * @param int    $feed_id       ID of the feed to process.
-	 * @param string $uuid          The UUID of the recording.
-	 * @param int    $attempt_id    Optional. ID of the speech attempt to process.
-	 * @param string $language      The language of the feedback.
-	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
-	 * @param string $guide_score   Human-guided scoring for the AI to consider.
-	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
-	 * @param string $refetch       Whether to refetch the content even if it exists.
+	 * @param int         $feed_id       ID of the feed to process.
+	 * @param string|null $uuid          The UUID of the recording. Can be null for standalone speech attempts.
+	 * @param int|null    $attempt_id    Optional. ID of the speech attempt to process.
+	 * @param string      $language      The language of the feedback.
+	 * @param string      $feedback_style The sample feedback style provided by the user for the AI to replicate.
+	 * @param string      $guide_score   Human-guided scoring for the AI to consider.
+	 * @param string      $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param string      $refetch       Whether to refetch the content even if it exists.
 	 * @return WP_Error|null Error or null on success.
 	 * @throws Exception When feed processing fails.
 	 */
-	public function process_feed_by_id( $feed_id, $uuid, $attempt_id = null, $language = 'en', $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
+	public function process_feed_by_id( $feed_id, $uuid = null, $attempt_id = null, $language = 'en', $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
 		// Get the specific feed that needs processing.
 		$feeds = $this->api_feeds_db->get_api_feeds(
 			array(
@@ -131,18 +131,18 @@ class Ieltssci_Speaking_Feedback_Processor {
 	/**
 	 * Process a feed
 	 *
-	 * @param array  $feed          The feed data.
-	 * @param string $uuid          The UUID of the recording.
-	 * @param int    $attempt_id    Optional. ID of the speech attempt to process.
-	 * @param string $language      The language of the feedback.
-	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
-	 * @param string $guide_score   Human-guided scoring for the AI to consider.
-	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
-	 * @param string $refetch       Whether to refetch the content even if it exists.
+	 * @param array       $feed          The feed data.
+	 * @param string|null $uuid          The UUID of the recording. Can be null for standalone speech attempts.
+	 * @param int         $attempt_id    Optional. ID of the speech attempt to process.
+	 * @param string      $language      The language of the feedback.
+	 * @param string      $feedback_style The sample feedback style provided by the user for the AI to replicate.
+	 * @param string      $guide_score   Human-guided scoring for the AI to consider.
+	 * @param string      $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param string      $refetch       Whether to refetch the content even if it exists.
 	 *
 	 * @throws Exception When feed processing fails.
 	 */
-	public function process_feed( $feed, $uuid, $attempt_id = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
+	public function process_feed( $feed, $uuid = null, $attempt_id = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
 		// Fetch attempt if provided.
 		$attempt = null;
 		if ( ! is_null( $attempt_id ) ) {
@@ -244,20 +244,20 @@ class Ieltssci_Speaking_Feedback_Processor {
 	/**
 	 * Process a single step from a feed
 	 *
-	 * @param array      $step     The step configuration.
-	 * @param string     $uuid     The UUID of the recording.
-	 * @param array      $feed     The feed data.
-	 * @param array|null $attempt  Optional. The attempt data array.
-	 * @param string     $language The language of the feedback.
-	 * @param string     $feedback_style The sample feedback style provided by the user for the AI to replicate.
-	 * @param string     $guide_score   Human-guided scoring for the AI to consider.
-	 * @param string     $guide_feedback Human-guided feedback content for the AI to incorporate.
-	 * @param string     $refetch       Whether to refetch the content even if it exists.
+	 * @param array       $step     The step configuration.
+	 * @param string|null $uuid     The UUID of the recording. Can be null for standalone speech attempts.
+	 * @param array       $feed     The feed data.
+	 * @param array|null  $attempt  Optional. The attempt data array.
+	 * @param string      $language The language of the feedback.
+	 * @param string      $feedback_style The sample feedback style provided by the user for the AI to replicate.
+	 * @param string      $guide_score   Human-guided scoring for the AI to consider.
+	 * @param string      $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param string      $refetch       Whether to refetch the content even if it exists.
 	 *
 	 * @return string The processed content.
 	 * @throws Exception Throw exception when requests fail.
 	 */
-	public function process_step( $step, $uuid, $feed, $attempt = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
+	public function process_step( $step, $uuid = null, $feed, $attempt = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
 		// Get settings from the step.
 		$step_type = isset( $step['step'] ) ? $step['step'] : 'feedback';
 		$sections  = isset( $step['sections'] ) ? $step['sections'] : array();

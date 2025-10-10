@@ -40,15 +40,15 @@ class Ieltssci_Speaking_Feedback_DB {
 	/**
 	 * Check if a step has already been processed and retrieve existing content.
 	 *
-	 * @param string $step_type     The type of step (chain-of-thought, scoring, feedback).
-	 * @param array  $feed          The feed data containing configuration.
-	 * @param string $uuid          The UUID of the speech recording.
-	 * @param array  $attempt       Optional. The attempt data if processing a specific attempt.
-	 * @param string $content_field The database field to retrieve.
+	 * @param string      $step_type     The type of step (chain-of-thought, scoring, feedback).
+	 * @param array       $feed          The feed data containing configuration.
+	 * @param string|null $uuid          The UUID of the speech recording. Can be null for standalone speech attempts.
+	 * @param array       $attempt       Optional. The attempt data if processing a specific attempt.
+	 * @param string      $content_field The database field to retrieve.
 	 *
 	 * @return string|null The existing content if found, null otherwise.
 	 */
-	public function get_existing_step_content( $step_type, $feed, $uuid, $attempt = null, $content_field = '' ) {
+	public function get_existing_step_content( $step_type, $feed, $uuid = null, $attempt = null, $content_field = '' ) {
 		// If content_field is not provided, determine it from the step_type.
 		if ( empty( $content_field ) ) {
 			// Map step_type to the appropriate database column.
@@ -105,7 +105,12 @@ class Ieltssci_Speaking_Feedback_DB {
 
 			case 'speech':
 			default:
-				// Speech-level: Get speech ID from UUID.
+				// Speech-level: UUID is required.
+				if ( empty( $uuid ) ) {
+					return null;
+				}
+
+				// Get speech ID from UUID.
 				$speeches = $this->speech_db->get_speeches(
 					array(
 						'uuid'     => $uuid,
@@ -149,17 +154,17 @@ class Ieltssci_Speaking_Feedback_DB {
 	/**
 	 * Save feedback results to the database
 	 *
-	 * @param string $feedback   The feedback content to save.
-	 * @param array  $feed       The feed configuration data.
-	 * @param string $uuid       The UUID of the speech recording.
-	 * @param string $step_type  The type of step being processed.
-	 * @param array  $attempt    Optional. The attempt data if processing a specific attempt.
-	 * @param string $language   The language of the feedback.
-	 * @param string $source     The source of the feedback, 'ai' or 'human'.
-	 * @param string $refetch    Whether to refetch content, 'all' or specific step type.
+	 * @param string      $feedback   The feedback content to save.
+	 * @param array       $feed       The feed configuration data.
+	 * @param string|null $uuid       The UUID of the speech recording. Can be null for standalone speech attempts.
+	 * @param string      $step_type  The type of step being processed.
+	 * @param array       $attempt    Optional. The attempt data if processing a specific attempt.
+	 * @param string      $language   The language of the feedback.
+	 * @param string      $source     The source of the feedback, 'ai' or 'human'.
+	 * @param string      $refetch    Whether to refetch content, 'all' or specific step type.
 	 * @return bool|int|WP_Error True or ID on success, WP_Error on failure.
 	 */
-	public function save_feedback_to_database( $feedback, $feed, $uuid, $step_type, $attempt = null, $language = 'en', $source = 'ai', $refetch = '' ) {
+	public function save_feedback_to_database( $feedback, $feed, $uuid = null, $step_type, $attempt = null, $language = 'en', $source = 'ai', $refetch = '' ) {
 		// Check if we have a valid feedback content.
 		if ( empty( $feedback ) ) {
 			return new WP_Error( 'empty_feedback', 'No feedback content provided.' );
@@ -184,16 +189,21 @@ class Ieltssci_Speaking_Feedback_DB {
 	/**
 	 * Save speech feedback to the database
 	 *
-	 * @param string $uuid       The UUID of the speech recording.
-	 * @param string $feedback   The feedback content to save.
-	 * @param array  $feed       The feed data (containing criteria, etc.).
-	 * @param string $step_type  The type of step (chain-of-thought, scoring, feedback).
-	 * @param string $language   The language of the feedback.
-	 * @param string $source     The source of the feedback, 'ai' or 'human'.
-	 * @param string $refetch    Whether to refetch content, 'all' or specific step type.
+	 * @param string|null $uuid       The UUID of the speech recording. Required for speech-level feedback.
+	 * @param string      $feedback   The feedback content to save.
+	 * @param array       $feed       The feed data (containing criteria, etc.).
+	 * @param string      $step_type  The type of step (chain-of-thought, scoring, feedback).
+	 * @param string      $language   The language of the feedback.
+	 * @param string      $source     The source of the feedback, 'ai' or 'human'.
+	 * @param string      $refetch    Whether to refetch content, 'all' or specific step type.
 	 * @return int|WP_Error ID of created feedback or error.
 	 */
-	private function save_speech_feedback( $uuid, $feedback, $feed, $step_type, $language = 'en', $source = 'ai', $refetch = '' ) {
+	private function save_speech_feedback( $uuid = null, $feedback, $feed, $step_type, $language = 'en', $source = 'ai', $refetch = '' ) {
+		// UUID is required for speech-level feedback.
+		if ( empty( $uuid ) ) {
+			return new WP_Error( 'missing_uuid', 'UUID is required for speech-level feedback.' );
+		}
+
 		// Get speech ID from UUID.
 		$speeches = $this->speech_db->get_speeches(
 			array(
@@ -244,17 +254,17 @@ class Ieltssci_Speaking_Feedback_DB {
 	/**
 	 * Save speech attempt feedback to the database
 	 *
-	 * @param string $uuid       The UUID of the speech recording.
-	 * @param string $feedback   The feedback content to save.
-	 * @param array  $feed       The feed data (containing criteria, etc.).
-	 * @param string $step_type  The type of step (chain-of-thought, scoring, feedback).
-	 * @param array  $attempt    The attempt data object.
-	 * @param string $language   The language of the feedback.
-	 * @param string $source     The source of the feedback, 'ai' or 'human'.
-	 * @param string $refetch    Whether to refetch content, 'all' or specific step type.
+	 * @param string|null $uuid       The UUID of the speech recording. Can be null for standalone speech attempts.
+	 * @param string      $feedback   The feedback content to save.
+	 * @param array       $feed       The feed data (containing criteria, etc.).
+	 * @param string      $step_type  The type of step (chain-of-thought, scoring, feedback).
+	 * @param array       $attempt    The attempt data object.
+	 * @param string      $language   The language of the feedback.
+	 * @param string      $source     The source of the feedback, 'ai' or 'human'.
+	 * @param string      $refetch    Whether to refetch content, 'all' or specific step type.
 	 * @return int|WP_Error|bool ID of created feedback, error, or false if skipped.
 	 */
-	private function save_speech_attempt_feedback( $uuid, $feedback, $feed, $step_type, $attempt, $language = 'en', $source = 'ai', $refetch = '' ) {
+	private function save_speech_attempt_feedback( $uuid = null, $feedback, $feed, $step_type, $attempt, $language = 'en', $source = 'ai', $refetch = '' ) {
 		// Check if attempt is null - if so, return false (nothing to save).
 		if ( empty( $attempt ) || empty( $attempt['id'] ) ) {
 			return false;
