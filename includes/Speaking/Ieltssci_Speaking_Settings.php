@@ -130,6 +130,21 @@ class Ieltssci_Speaking_Settings {
 				),
 			),
 			array(
+				'groupLabel' => 'Attempt Data',
+				'items'      => array(
+					array(
+						'label' => 'Attempt Title',
+						'info'  => 'Title of the current attempt',
+						'value' => '{|attempt_title|}',
+					),
+					array(
+						'label' => 'Attempt Transcript',
+						'info'  => 'Transcript text of the current attempt',
+						'value' => '{|attempt_transcript|}',
+					),
+				),
+			),
+			array(
 				'groupLabel' => 'Feedback Data',
 				'items'      => array(
 					array(
@@ -395,7 +410,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'vocabulary-suggestions-speaking',
 						'Vocabulary Suggestions Speaking',
-						'speech',
+						'attempt',
 						array( 'speaking' ),
 						array(
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
@@ -410,7 +425,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'grammar-suggestions-speaking',
 						'Grammar Suggestions Speaking',
-						'speech',
+						'attempt',
 						array( 'speaking' ),
 						array(
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
