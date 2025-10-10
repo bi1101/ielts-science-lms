@@ -332,6 +332,8 @@ class Ieltssci_Speaking_Settings {
 		$common_advanced_fields = array(
 			$settings_config_instance->create_field( 'maxToken', 'number', 'Max Token', 'The maximum number of tokens to generate.', 2048 ),
 			$settings_config_instance->create_field( 'temperature', 'number', 'Temperature', 'The value used to module the next token probabilities.', 0.1 ),
+			$settings_config_instance->create_field( 'top_p', 'number', 'Top P', 'Float that controls the cumulative probability of the top tokens to consider. Must be in (0, 1]. Set to 1 to consider all tokens.', 0.8 ),
+			$settings_config_instance->create_field( 'top_k', 'number', 'Top K', 'Integer that controls the number of top tokens to consider. Set to -1 to consider all tokens.', 20 ),
 			$settings_config_instance->create_field( 'guided_choice', 'text', 'Guided Choice', 'The output will be exactly one of the choices. Choices separate by `|` character', null ),
 			$settings_config_instance->create_field( 'guided_regex', 'text', 'Guided Regex', 'The output will follow the regex pattern.', null ),
 			$settings_config_instance->create_field( 'guided_json', 'textarea', 'Guided JSON', 'The output will follow the JSON schema. A valid schema must be provided.', null ),
@@ -353,7 +355,14 @@ class Ieltssci_Speaking_Settings {
 				array(
 					$settings_config_instance->create_field( 'maxToken', 'number', 'Max Token', 'The maximum number of tokens to generate.', 2048 ),
 					$settings_config_instance->create_field( 'temperature', 'number', 'Temperature', 'The value used to module the next token probabilities.', 0.1 ),
+					$settings_config_instance->create_field( 'top_p', 'number', 'Top P', 'Float that controls the cumulative probability of the top tokens to consider. Must be in (0, 1]. Set to 1 to consider all tokens.', 0.8 ),
+					$settings_config_instance->create_field( 'top_k', 'number', 'Top K', 'Integer that controls the number of top tokens to consider. Set to -1 to consider all tokens.', 20 ),
 					$settings_config_instance->create_field( 'scoreRegex', 'text', 'Score Regex', 'Regular expression to extract score from the model output.', '/\d+/' ),
+					$settings_config_instance->create_field( 'guided_choice', 'text', 'Guided Choice', 'The output will be exactly one of the choices. Choices separate by `|` character', null ),
+					$settings_config_instance->create_field( 'guided_regex', 'text', 'Guided Regex', 'The output will follow the regex pattern.', null ),
+					$settings_config_instance->create_field( 'guided_json', 'textarea', 'Guided JSON', 'The output will follow the JSON schema. A valid schema must be provided.', null ),
+					$settings_config_instance->create_field( 'guided_json_vi', 'textarea', 'Guided JSON (Vietnamese)', 'The output will follow the JSON schema for Vietnamese language. A valid schema must be provided.', null ),
+					$settings_config_instance->create_field( 'storing_json', 'textarea', 'Storing JSON Schema', 'Optional. The final JSON schema for aggregating parallel results. If provided, parallel responses will be merged into this structure.', null ),
 				)
 			),
 		);
@@ -419,12 +428,42 @@ class Ieltssci_Speaking_Settings {
 				),
 			),
 			array(
+				'groupName'  => 'vocabulary-range',
+				'groupTitle' => 'Vocabulary Range',
+				'feeds'      => array(
+					$settings_config_instance->create_feed(
+						'vocabulary-range-speaking',
+						'Vocabulary Range Speaking',
+						'attempt',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+				),
+			),
+			array(
 				'groupName'  => 'grammar-suggestions',
 				'groupTitle' => 'Grammar Suggestions',
 				'feeds'      => array(
 					$settings_config_instance->create_feed(
 						'grammar-suggestions-speaking',
 						'Grammar Suggestions Speaking',
+						'attempt',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'grammar-range',
+				'groupTitle' => 'Grammar Range',
+				'feeds'      => array(
+					$settings_config_instance->create_feed(
+						'grammar-range-speaking',
+						'Grammar Range Speaking',
 						'attempt',
 						array( 'speaking' ),
 						array(
@@ -443,7 +482,7 @@ class Ieltssci_Speaking_Settings {
 						'speech',
 						array( 'speaking' ),
 						array(
-							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
@@ -460,7 +499,7 @@ class Ieltssci_Speaking_Settings {
 						'speech',
 						array( 'speaking' ),
 						array(
-							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
@@ -471,7 +510,7 @@ class Ieltssci_Speaking_Settings {
 						'speech',
 						array( 'speaking' ),
 						array(
-							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
@@ -482,7 +521,7 @@ class Ieltssci_Speaking_Settings {
 						'speech',
 						array( 'speaking' ),
 						array(
-							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
@@ -514,7 +553,7 @@ class Ieltssci_Speaking_Settings {
 						'speech',
 						array( 'speaking' ),
 						array(
-							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
@@ -525,7 +564,7 @@ class Ieltssci_Speaking_Settings {
 						'speech',
 						array( 'speaking' ),
 						array(
-							// $settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
@@ -539,7 +578,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'improve-speech',
 						'Improve Speech',
-						'speech',
+						'attempt',
 						array( 'speaking' ),
 						array(
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
