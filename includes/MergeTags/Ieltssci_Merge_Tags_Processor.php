@@ -192,6 +192,20 @@ class Ieltssci_Merge_Tags_Processor {
 					$attachment_id = (int) $attempt['audio_id'];
 					$content       = $this->get_audio_transcript_text( $attachment_id );
 				}
+			} elseif ( 'attempt_question_title' === $table ) {
+				if ( ! is_null( $attempt ) && isset( $attempt['question_id'] ) ) {
+					$question_id = (int) $attempt['question_id'];
+					$raw_title   = get_the_title( $question_id );
+					$content     = is_string( $raw_title ) ? $raw_title : '';
+				}
+			} elseif ( 'attempt_question_content' === $table ) {
+				if ( ! is_null( $attempt ) && isset( $attempt['question_id'] ) ) {
+					$question_id = (int) $attempt['question_id'];
+					$post        = get_post( $question_id );
+					if ( $post && ! is_wp_error( $post ) ) {
+						$content = ! empty( $post->post_content ) ? $post->post_content : '';
+					}
+				}
 			} else {
 				// Special case: if filter_value is 'uuid', use the provided UUID.
 				if ( 'uuid' === $filter_value ) {
