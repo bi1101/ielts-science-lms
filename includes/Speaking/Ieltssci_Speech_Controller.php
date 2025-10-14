@@ -1264,6 +1264,44 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 
 		$response = rest_ensure_response( $data );
 
+		// Add author link so the creator can be embedded with _embed.
+		if ( ! empty( $data['created_by'] ) ) {
+			$author_id = absint( $data['created_by'] );
+			if ( $author_id > 0 ) {
+				$response->add_link(
+					'author',
+					rest_url( 'wp/v2/users/' . $author_id ),
+					array( 'embeddable' => true )
+				);
+			}
+		}
+
+		// Add audio file links and speech-attempts links for each audio file associated with the speech.
+		// These appear under the _links object and can be embedded with _embed if desired.
+		if ( ! empty( $data['audio_ids'] ) && is_array( $data['audio_ids'] ) ) {
+			foreach ( $data['audio_ids'] as $audio_id ) {
+				$audio_id = absint( $audio_id );
+				if ( $audio_id > 0 ) {
+					// Link to the audio attachment for embedding the media item.
+					$response->add_link(
+						'audio_files',
+						rest_url( 'wp/v2/media/' . $audio_id ),
+						array( 'embeddable' => true )
+					);
+
+					// Link to our attempts collection filtered by this audio attachment.
+					$response->add_link(
+						'speech_attempts',
+						add_query_arg(
+							array( 'audio_id' => $audio_id ),
+							rest_url( 'ieltssci/v1/speech-attempts' )
+						),
+						array( 'embeddable' => true )
+					);
+				}
+			}
+		}
+
 		return $response;
 	}
 
