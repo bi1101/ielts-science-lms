@@ -116,41 +116,24 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 			)
 		);
 
-		// Register route for updating speech feedback.
+		// Register route for getting specific speech feedback and updating it.
 		register_rest_route(
 			$this->namespace,
 			'/' . $this->rest_base . '/feedback/(?P<uuid>[a-zA-Z0-9-]+)',
 			array(
-				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => array( $this, 'update_speech_feedback' ),
-				'permission_callback' => array( $this, 'update_speech_feedback_permissions_check' ),
-				'args'                => $this->get_speech_feedback_args(),
-			)
-		);
-
-		// Register route for getting speech feedbacks.
-		register_rest_route(
-			$this->namespace,
-			'/' . $this->rest_base . '/feedbacks',
-			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'get_speech_feedbacks' ),
-				'permission_callback' => array( $this, 'get_speech_feedbacks_permissions_check' ),
-				'args'                => $this->get_speech_feedbacks_collection_params(),
-				'schema'              => array( $this, 'get_speech_feedbacks_schema' ),
-			)
-		);
-
-		// Register route for getting specific speech feedback.
-		register_rest_route(
-			$this->namespace,
-			'/' . $this->rest_base . '/feedback/(?P<uuid>[a-zA-Z0-9-]+)',
-			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'get_speech_feedback' ),
-				'permission_callback' => '__return_true', // Accessible to anyone.
-				'args'                => $this->get_single_speech_feedback_args(),
-				'schema'              => array( $this, 'get_speech_feedback_schema' ),
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'get_speech_feedback' ),
+					'permission_callback' => '__return_true', // Accessible to anyone.
+					'args'                => $this->get_single_speech_feedback_args(),
+				),
+				array(
+					'methods'             => WP_REST_Server::EDITABLE,
+					'callback'            => array( $this, 'update_speech_feedback' ),
+					'permission_callback' => array( $this, 'update_speech_feedback_permissions_check' ),
+					'args'                => $this->get_speech_feedback_args(),
+				),
+				'schema' => array( $this, 'get_speech_feedback_schema' ),
 			)
 		);
 
