@@ -49,6 +49,13 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 	protected $db;
 
 	/**
+	 * Feedback service instance.
+	 *
+	 * @var Ieltssci_Speaking_Feedback_DB
+	 */
+	protected $feedback_service;
+
+	/**
 	 * Constructor.
 	 *
 	 * Initializes the controller and registers hooks.
@@ -56,7 +63,8 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 	 * @since 1.0.0
 	 */
 	public function __construct() {
-		$this->db = new Ieltssci_Submission_DB();
+		$this->db               = new Ieltssci_Submission_DB();
+		$this->feedback_service = new Ieltssci_Speaking_Feedback_DB();
 		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
 		add_action( 'rest_api_init', array( $this, 'register_attachment_hooks' ) );
 	}
@@ -119,6 +127,18 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 					),
 				),
 				'schema' => array( $this, 'get_item_schema' ),
+			)
+		);
+
+		// Register route for updating speech attempt feedback.
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->resource_name . '/feedback/(?P<attempt_id>\d+)',
+			array(
+				'methods'             => WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'update_attempt_feedback' ),
+				'permission_callback' => array( $this, 'update_attempt_feedback_permissions_check' ),
+				'args'                => $this->get_attempt_feedback_args(),
 			)
 		);
 	}
@@ -645,6 +665,198 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 					'readonly'    => true,
 				),
 			),
+		);
+	}
+
+	/**
+	 * Get arguments for the update attempt feedback endpoint.
+	 *
+	 * @return array Argument definitions.
+	 */
+	public function get_attempt_feedback_args() {
+		return array(
+			'attempt_id'        => array(
+				'type'              => 'integer',
+				'required'          => true,
+				'description'       => 'The ID of the speech attempt.',
+				'sanitize_callback' => 'absint',
+			),
+			'feedback_criteria' => array(
+				'type'              => 'string',
+				'required'          => true,
+				'description'       => 'The feedback criteria.',
+				'sanitize_callback' => 'sanitize_key',
+			),
+			'language'          => array(
+				'type'              => 'string',
+				'required'          => true,
+				'description'       => 'The feedback language.',
+				'sanitize_callback' => 'sanitize_key',
+			),
+			'cot_content'       => array(
+				'type'              => 'string',
+				'required'          => false,
+				'description'       => 'Chain of thought content.',
+				'sanitize_callback' => 'sanitize_textarea_field',
+			),
+			'score_content'     => array(
+				'type'              => 'string',
+				'required'          => false,
+				'description'       => 'Score content.',
+				'sanitize_callback' => 'sanitize_text_field',
+			),
+			'feedback_content'  => array(
+				'type'              => 'string',
+				'required'          => false,
+				'description'       => 'Feedback content.',
+				'sanitize_callback' => 'sanitize_textarea_field',
+			),
+		);
+	}
+
+	/**
+	 * Check permissions for updating attempt feedback.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return bool|WP_Error True if allowed, WP_Error otherwise.
+	 */
+	public function update_attempt_feedback_permissions_check( WP_REST_Request $request ) {
+		return is_user_logged_in();
+	}
+
+	/**
+	 * Update attempt feedback.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response or error.
+	 */
+	public function update_attempt_feedback( WP_REST_Request $request ) {
+		$attempt_id        = $request->get_param( 'attempt_id' );
+		$feedback_criteria = $request->get_param( 'feedback_criteria' );
+		$language          = $request->get_param( 'language' );
+		$cot_content       = $request->get_param( 'cot_content' );
+		$score_content     = $request->get_param( 'score_content' );
+		$feedback_content  = $request->get_param( 'feedback_content' );
+
+		// Validate that at least one content field is provided.
+		if ( empty( $cot_content ) && empty( $score_content ) && empty( $feedback_content ) ) {
+			return new WP_Error(
+				'missing_content',
+				__( 'At least one of cot_content, score_content, or feedback_content must be provided.', 'ielts-science-lms' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// Load attempt to verify existence and ownership.
+		$submission_db = new Ieltssci_Submission_DB();
+		$attempt       = $submission_db->get_speech_attempt( (int) $attempt_id );
+
+		if ( is_wp_error( $attempt ) ) {
+			return $attempt;
+		}
+
+		if ( empty( $attempt ) ) {
+			return new WP_Error(
+				'attempt_not_found',
+				__( 'Speech attempt not found.', 'ielts-science-lms' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		// Verify ownership.
+		if ( get_current_user_id() !== (int) $attempt['created_by'] ) {
+			return new WP_Error(
+				'forbidden',
+				__( 'You do not have permission to update feedback for this speech attempt.', 'ielts-science-lms' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		// Set up feed array for feedback database function.
+		$feed = array(
+			'apply_to'          => 'attempt',
+			'feedback_criteria' => $feedback_criteria,
+		);
+
+		$success = array();
+		$errors  = array();
+
+		// Process each content type if provided.
+		if ( ! empty( $cot_content ) ) {
+			$result = $this->feedback_service->save_feedback_to_database(
+				$cot_content,
+				$feed,
+				null,
+				'chain-of-thought',
+				$attempt,
+				$language,
+				'human'
+			);
+
+			if ( is_wp_error( $result ) || false === $result ) {
+				$errors[] = 'cot';
+			} else {
+				$success[] = 'cot';
+			}
+		}
+
+		if ( ! empty( $score_content ) ) {
+			$result = $this->feedback_service->save_feedback_to_database(
+				$score_content,
+				$feed,
+				null,
+				'scoring',
+				$attempt,
+				$language,
+				'human'
+			);
+
+			if ( is_wp_error( $result ) || false === $result ) {
+				$errors[] = 'score';
+			} else {
+				$success[] = 'score';
+			}
+		}
+
+		if ( ! empty( $feedback_content ) ) {
+			$result = $this->feedback_service->save_feedback_to_database(
+				$feedback_content,
+				$feed,
+				null,
+				'feedback',
+				$attempt,
+				$language,
+				'human'
+			);
+
+			if ( is_wp_error( $result ) || false === $result ) {
+				$errors[] = 'feedback';
+			} else {
+				$success[] = 'feedback';
+			}
+		}
+
+		// Return appropriate response based on results.
+		if ( empty( $success ) ) {
+			return new WP_Error(
+				'update_failed',
+				__( 'Failed to update any attempt feedback content.', 'ielts-science-lms' ),
+				array(
+					'status' => 500,
+					'detail' => $errors,
+				)
+			);
+		}
+
+		return new WP_REST_Response(
+			array(
+				'status'     => 'success',
+				'message'    => __( 'Attempt feedback updated successfully.', 'ielts-science-lms' ),
+				'updated'    => $success,
+				'failed'     => $errors,
+				'attempt_id' => (int) $attempt['id'],
+			),
+			200
 		);
 	}
 }
