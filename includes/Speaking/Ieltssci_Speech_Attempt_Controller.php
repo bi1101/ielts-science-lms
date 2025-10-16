@@ -49,6 +49,13 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 	protected $db;
 
 	/**
+	 * Speech DB handler.
+	 *
+	 * @var Ieltssci_Speech_DB
+	 */
+	protected $speech_db;
+
+	/**
 	 * Feedback service instance.
 	 *
 	 * @var Ieltssci_Speaking_Feedback_DB
@@ -64,6 +71,7 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 	 */
 	public function __construct() {
 		$this->db               = new Ieltssci_Submission_DB();
+		$this->speech_db        = new Ieltssci_Speech_DB();
 		$this->feedback_service = new Ieltssci_Speaking_Feedback_DB();
 		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
 		add_action( 'rest_api_init', array( $this, 'register_attachment_hooks' ) );
@@ -130,15 +138,23 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 			)
 		);
 
-		// Register route for updating speech attempt feedback.
+		// Register route for speech attempt feedback.
 		register_rest_route(
 			$this->namespace,
 			'/' . $this->resource_name . '/feedback/(?P<attempt_id>\d+)',
 			array(
-				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => array( $this, 'update_attempt_feedback' ),
-				'permission_callback' => array( $this, 'update_attempt_feedback_permissions_check' ),
-				'args'                => $this->get_attempt_feedback_args(),
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'get_attempt_feedback' ),
+					'permission_callback' => array( $this, 'get_attempt_feedback_permissions_check' ),
+					'args'                => $this->get_attempt_feedback_query_args(),
+				),
+				array(
+					'methods'             => WP_REST_Server::EDITABLE,
+					'callback'            => array( $this, 'update_attempt_feedback' ),
+					'permission_callback' => array( $this, 'update_attempt_feedback_permissions_check' ),
+					'args'                => $this->get_attempt_feedback_args(),
+				),
 			)
 		);
 	}
@@ -669,6 +685,66 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 	}
 
 	/**
+	 * Get query arguments for the get attempt feedback endpoint.
+	 *
+	 * @return array Argument definitions.
+	 */
+	public function get_attempt_feedback_query_args() {
+		return array(
+			'feedback_criteria' => array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_key',
+				'description'       => 'Filter by feedback criteria.',
+			),
+			'language'          => array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_key',
+				'description'       => 'Filter by feedback language.',
+			),
+			'source'            => array(
+				'type'              => 'string',
+				'enum'              => array( 'ai', 'human' ),
+				'sanitize_callback' => 'sanitize_key',
+				'description'       => 'Filter by feedback source.',
+			),
+			'is_preferred'      => array(
+				'type'              => 'boolean',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'description'       => 'Filter by preferred feedback.',
+			),
+			'orderby'           => array(
+				'type'              => 'string',
+				'enum'              => array( 'id', 'attempt_id', 'created_at' ),
+				'default'           => 'id',
+				'sanitize_callback' => 'sanitize_key',
+				'description'       => 'Sort field.',
+			),
+			'order'             => array(
+				'type'              => 'string',
+				'enum'              => array( 'ASC', 'DESC' ),
+				'default'           => 'DESC',
+				'sanitize_callback' => 'sanitize_key',
+				'description'       => 'Sort order.',
+			),
+			'per_page'          => array(
+				'type'              => 'integer',
+				'default'           => 10,
+				'minimum'           => 1,
+				'maximum'           => 100,
+				'sanitize_callback' => 'absint',
+				'description'       => 'Number of results per page.',
+			),
+			'page'              => array(
+				'type'              => 'integer',
+				'default'           => 1,
+				'minimum'           => 1,
+				'sanitize_callback' => 'absint',
+				'description'       => 'Page number.',
+			),
+		);
+	}
+
+	/**
 	 * Get arguments for the update attempt feedback endpoint.
 	 *
 	 * @return array Argument definitions.
@@ -721,6 +797,16 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 	 * @return bool|WP_Error True if allowed, WP_Error otherwise.
 	 */
 	public function update_attempt_feedback_permissions_check( WP_REST_Request $request ) {
+		return is_user_logged_in();
+	}
+
+	/**
+	 * Check permissions for getting attempt feedback.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return bool|WP_Error True if allowed, WP_Error otherwise.
+	 */
+	public function get_attempt_feedback_permissions_check( WP_REST_Request $request ) {
 		return is_user_logged_in();
 	}
 
@@ -858,5 +944,77 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 			),
 			200
 		);
+	}
+
+	/**
+	 * Get attempt feedback.
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response|WP_Error Response or error.
+	 */
+	public function get_attempt_feedback( WP_REST_Request $request ) {
+		$attempt_id = $request->get_param( 'attempt_id' );
+
+		// Load attempt to verify existence.
+		$submission_db = new Ieltssci_Submission_DB();
+		$attempt       = $submission_db->get_speech_attempt( (int) $attempt_id );
+
+		if ( is_wp_error( $attempt ) ) {
+			return $attempt;
+		}
+
+		if ( empty( $attempt ) ) {
+			return new WP_Error(
+				'attempt_not_found',
+				__( 'Speech attempt not found.', 'ielts-science-lms' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		// Verify access.
+		if ( ! $this->can_access_attempt( $attempt, $request ) ) {
+			return new WP_Error(
+				'forbidden',
+				__( 'You do not have permission to view feedback for this speech attempt.', 'ielts-science-lms' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		// Build query args.
+		$args = array( 'attempt_id' => (int) $attempt_id );
+
+		if ( $request->has_param( 'feedback_criteria' ) ) {
+			$args['feedback_criteria'] = $request->get_param( 'feedback_criteria' );
+		}
+		if ( $request->has_param( 'language' ) ) {
+			$args['feedback_language'] = $request->get_param( 'language' );
+		}
+		if ( $request->has_param( 'source' ) ) {
+			$args['source'] = $request->get_param( 'source' );
+		}
+		if ( $request->has_param( 'is_preferred' ) ) {
+			$args['is_preferred'] = $request->get_param( 'is_preferred' );
+		}
+		if ( $request->has_param( 'orderby' ) ) {
+			$args['orderby'] = $request->get_param( 'orderby' );
+		}
+		if ( $request->has_param( 'order' ) ) {
+			$args['order'] = $request->get_param( 'order' );
+		}
+		if ( $request->has_param( 'per_page' ) ) {
+			$args['limit'] = $request->get_param( 'per_page' );
+		}
+		if ( $request->has_param( 'page' ) ) {
+			$page           = $request->get_param( 'page' );
+			$args['offset'] = ( $page - 1 ) * ( $args['limit'] ?? 10 );
+		}
+
+		$feedbacks = $this->speech_db->get_speech_attempt_feedbacks( $args );
+
+		if ( is_wp_error( $feedbacks ) ) {
+			return $feedbacks;
+		}
+
+		return rest_ensure_response( $feedbacks );
 	}
 }
