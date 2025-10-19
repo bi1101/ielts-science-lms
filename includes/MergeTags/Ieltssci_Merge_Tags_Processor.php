@@ -815,6 +815,7 @@ class Ieltssci_Merge_Tags_Processor {
 
 		// Build the formatted text with pause indicators.
 		$formatted_parts = array();
+		$pauses_detected = false;
 
 		foreach ( $timed_words as $index => $word_data ) {
 			// Add the word.
@@ -829,11 +830,19 @@ class Ieltssci_Merge_Tags_Processor {
 				if ( $pause_duration > $pause_threshold['threshold'] && ! $this->ends_with_punctuation( $word_data['word'] ) ) {
 					$pause_seconds     = round( $pause_duration, 1 );
 					$formatted_parts[] = '[' . $pause_seconds . 's PAUSE]';
+					$pauses_detected   = true;
 				}
 			}
 		}
 
-		return implode( ' ', $formatted_parts );
+		$formatted_text = implode( ' ', $formatted_parts );
+
+		// If no pauses were detected, append a message.
+		if ( ! $pauses_detected ) {
+			$formatted_text .= "\n\n[No significant pauses detected in this recording]";
+		}
+
+		return $formatted_text;
 	}
 
 	/**
