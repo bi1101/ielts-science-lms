@@ -180,48 +180,21 @@ class Ieltssci_Merge_Tags_Processor {
 			$filter_value = isset( $match['filter_value'] ) ? trim( $match['filter_value'] ) : '';
 			$modifier     = isset( $match['modifier'] ) ? trim( $match['modifier'] ) : '';
 
-			// Handle attempt-specific merge tags.
-			if ( 'attempt_title' === $table ) {
-				if ( ! is_null( $attempt ) && isset( $attempt['audio_id'] ) ) {
-					$attachment_id = (int) $attempt['audio_id'];
-					$raw_title     = get_the_title( $attachment_id );
-					$content       = is_string( $raw_title ) ? $raw_title : '';
-				}
-			} elseif ( 'attempt_transcript' === $table ) {
-				if ( ! is_null( $attempt ) && isset( $attempt['audio_id'] ) ) {
-					$attachment_id = (int) $attempt['audio_id'];
-					$content       = $this->get_audio_transcript_text( $attachment_id );
-				}
-			} elseif ( 'attempt_question_title' === $table ) {
-				if ( ! is_null( $attempt ) && isset( $attempt['question_id'] ) ) {
-					$question_id = (int) $attempt['question_id'];
-					$raw_title   = get_the_title( $question_id );
-					$content     = is_string( $raw_title ) ? $raw_title : '';
-				}
-			} elseif ( 'attempt_question_content' === $table ) {
-				if ( ! is_null( $attempt ) && isset( $attempt['question_id'] ) ) {
-					$question_id = (int) $attempt['question_id'];
-					$post        = get_post( $question_id );
-					if ( $post && ! is_wp_error( $post ) ) {
-						$content = ! empty( $post->post_content ) ? $post->post_content : '';
-					}
-				}
-			} else {
-				// Special case: if filter_value is 'uuid', use the provided UUID.
-				if ( 'uuid' === $filter_value ) {
-					$filter_value = $uuid;
-				}
-
-				// Get content based on extracted parameters.
-				$content = $this->get_content_from_database(
-					$table,
-					$field,
-					$filter_field,
-					$filter_value,
-					$uuid,
-					$segment_order_or_attempt_id
-				);
+			// Special case: if filter_value is 'uuid', use the provided UUID.
+			if ( 'uuid' === $filter_value ) {
+				$filter_value = $uuid;
 			}
+
+			// Get content based on extracted parameters.
+			$content = $this->get_content_from_database(
+				$table,
+				$field,
+				$filter_field,
+				$filter_value,
+				$uuid,
+				$segment_order_or_attempt_id,
+				$attempt
+			);
 
 			// Apply modifier if present and content is not empty.
 			if ( ! empty( $content ) && ! empty( $modifier ) ) {
@@ -241,16 +214,17 @@ class Ieltssci_Merge_Tags_Processor {
 	 * @param string      $filter_value  The value to filter with.
 	 * @param string|null $uuid          The UUID of the essay or speech. Can be null for standalone speech attempts.
 	 * @param int         $segment_order_or_attempt_id Optional. The order of the segment to filter by.
+	 * @param array|null  $attempt       Optional. The attempt data array for attempt-specific merge tags.
 	 * @return string|array|null The retrieved content, array of values, or null if not found.
 	 */
-	public function get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid = null, $segment_order_or_attempt_id = null ) {
+	public function get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid = null, $segment_order_or_attempt_id = null, $attempt = null ) {
 		// Skip if any required parameter is missing (except uuid which can be null for speech attempts).
 		if ( empty( $table ) || empty( $field ) ) {
 			return null;
 		}
 
-		// For non-speech-attempt tables, UUID is required.
-		if ( empty( $uuid ) && ! in_array( $table, array( 'speech_attempt_feedback' ), true ) ) {
+		// For non-speech-attempt and non-attempt tables, UUID is required.
+		if ( empty( $uuid ) && ! in_array( $table, array( 'speech_attempt_feedback', 'attempt' ), true ) ) {
 			return null;
 		}
 
@@ -263,10 +237,16 @@ class Ieltssci_Merge_Tags_Processor {
 			'speech',
 			'speech_feedback',
 			'speech_attempt_feedback',
+			'attempt',
 		);
 
 		if ( ! in_array( $table, $supported_tables, true ) ) {
 			return null;
+		}
+
+		// Handle attempt table.
+		if ( 'attempt' === $table ) {
+			return $this->get_speech_attempt_content( $field, $attempt );
 		}
 
 		// Handle speech tables.
@@ -719,6 +699,63 @@ class Ieltssci_Merge_Tags_Processor {
 
 				ksort( $by_attempt );
 				return array_values( $by_attempt );
+		}
+
+		return null;
+	}
+
+	/**
+	 * Get attempt-specific content
+	 *
+	 * Handles merge tags for attempt data like audio title, transcript, question title, and question content.
+	 *
+	 * @param string     $field   The field to retrieve (title, transcript, question_title, question_content).
+	 * @param array|null $attempt Optional. The attempt data array.
+	 * @return string|null The retrieved content, or null if not found.
+	 */
+	private function get_speech_attempt_content( $field, $attempt = null ) {
+		// If no attempt data provided, return null.
+		if ( is_null( $attempt ) ) {
+			return null;
+		}
+
+		switch ( $field ) {
+			case 'title':
+				// Get audio attachment title.
+				if ( isset( $attempt['audio_id'] ) ) {
+					$attachment_id = (int) $attempt['audio_id'];
+					$raw_title     = get_the_title( $attachment_id );
+					return is_string( $raw_title ) ? $raw_title : '';
+				}
+				break;
+
+			case 'transcript':
+				// Get audio transcript text.
+				if ( isset( $attempt['audio_id'] ) ) {
+					$attachment_id = (int) $attempt['audio_id'];
+					return $this->get_audio_transcript_text( $attachment_id );
+				}
+				break;
+
+			case 'question_title':
+				// Get question post title.
+				if ( isset( $attempt['question_id'] ) ) {
+					$question_id = (int) $attempt['question_id'];
+					$raw_title   = get_the_title( $question_id );
+					return is_string( $raw_title ) ? $raw_title : '';
+				}
+				break;
+
+			case 'question_content':
+				// Get question post content.
+				if ( isset( $attempt['question_id'] ) ) {
+					$question_id = (int) $attempt['question_id'];
+					$post        = get_post( $question_id );
+					if ( $post && ! is_wp_error( $post ) ) {
+						return ! empty( $post->post_content ) ? $post->post_content : '';
+					}
+				}
+				break;
 		}
 
 		return null;
