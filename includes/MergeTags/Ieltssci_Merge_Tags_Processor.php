@@ -709,9 +709,9 @@ class Ieltssci_Merge_Tags_Processor {
 	 *
 	 * Handles merge tags for attempt data like audio title, transcript, question title, and question content.
 	 *
-	 * @param string     $field   The field to retrieve (title, transcript, question_title, question_content).
+	 * @param string     $field   The field to retrieve (title, transcript, transcript_with_pause, speaking_rate, question_title, question_content).
 	 * @param array|null $attempt Optional. The attempt data array.
-	 * @return string|null The retrieved content, or null if not found.
+	 * @return string|int|null The retrieved content, or null if not found.
 	 */
 	private function get_speech_attempt_content( $field, $attempt = null ) {
 		// If no attempt data provided, return null.
@@ -734,6 +734,32 @@ class Ieltssci_Merge_Tags_Processor {
 				if ( isset( $attempt['audio_id'] ) ) {
 					$attachment_id = (int) $attempt['audio_id'];
 					return $this->get_audio_transcript_text( $attachment_id );
+				}
+				break;
+
+			case 'transcript_with_pause':
+				// Get audio transcript with pause indicators.
+				if ( isset( $attempt['audio_id'] ) ) {
+					$attachment_id   = (int) $attempt['audio_id'];
+					$transcript_data = get_post_meta( $attachment_id, 'ieltssci_audio_transcription', true );
+
+					if ( ! empty( $transcript_data ) && is_array( $transcript_data ) ) {
+						return $this->format_transcript_with_pauses( $attachment_id, $transcript_data );
+					}
+				}
+				break;
+
+			case 'speaking_rate':
+				// Calculate speaking rate from audio transcript.
+				if ( isset( $attempt['audio_id'] ) ) {
+					$attachment_id   = (int) $attempt['audio_id'];
+					$transcript_data = get_post_meta( $attachment_id, 'ieltssci_audio_transcription', true );
+
+					if ( ! empty( $transcript_data ) && is_array( $transcript_data ) ) {
+						// Wrap in array keyed by attachment ID to match expected format.
+						$wrapped_data = array( $attachment_id => $transcript_data );
+						return $this->calculate_speaking_rate( $wrapped_data );
+					}
 				}
 				break;
 
