@@ -543,7 +543,7 @@ class Ieltssci_Merge_Tags_Processor {
 				if ( ! is_wp_error( $speeches ) && ! empty( $speeches ) ) {
 					if ( 1 === count( $speeches ) ) {
 						// Handle special case for transcript field.
-						if ( 'transcript' === $field || 'transcript_text' === $field ) {
+						if ( 'transcript' === $field || 'transcript_text' === $field || 'transcript_with_pause' === $field ) {
 							if ( isset( $speeches[0]['transcript'] ) && is_array( $speeches[0]['transcript'] ) ) {
 								// For transcript_text, return just the text content.
 								if ( 'transcript_text' === $field ) {
@@ -554,6 +554,17 @@ class Ieltssci_Merge_Tags_Processor {
 										}
 									}
 									return implode( "\n\n", $texts );
+								}
+								// For transcript_with_pause, return formatted text with pause indicators.
+								if ( 'transcript_with_pause' === $field ) {
+									$formatted_texts = array();
+									foreach ( $speeches[0]['transcript'] as $attachment_id => $transcript_data ) {
+										$formatted_text = $this->format_transcript_with_pauses( $attachment_id, $transcript_data );
+										if ( ! empty( $formatted_text ) ) {
+											$formatted_texts[] = $formatted_text;
+										}
+									}
+									return ! empty( $formatted_texts ) ? implode( "\n\n", $formatted_texts ) : null;
 								}
 								return $speeches[0]['transcript'];
 							}
@@ -707,6 +718,247 @@ class Ieltssci_Merge_Tags_Processor {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Format transcript with pause indicators
+	 *
+	 * Processes transcription data to insert pause indicators between words,
+	 * replicating the frontend logic from LeftPanelFC.tsx.
+	 *
+	 * @param int|string $media_id The media/attachment ID.
+	 * @param array      $transcript_data The transcription data for this media file.
+	 * @return string|null Formatted transcript with pause indicators, or null if no data.
+	 */
+	private function format_transcript_with_pauses( $media_id, $transcript_data ) {
+		if ( empty( $transcript_data ) || ! is_array( $transcript_data ) ) {
+			return null;
+		}
+
+		// Extract timed words from the transcript data.
+		$timed_words = $this->get_timed_words_for_media( $media_id, $transcript_data );
+
+		if ( empty( $timed_words ) ) {
+			// Fallback to plain text if no word timing data.
+			return isset( $transcript_data['text'] ) ? $transcript_data['text'] : null;
+		}
+
+		// Calculate pause threshold for this media.
+		$pause_threshold = $this->calculate_pause_threshold( $media_id, $transcript_data );
+
+		// Build the formatted text with pause indicators.
+		$formatted_parts = array();
+
+		foreach ( $timed_words as $index => $word_data ) {
+			// Add the word.
+			$formatted_parts[] = $word_data['word'];
+
+			// Check if we should add a pause indicator.
+			if ( $index < count( $timed_words ) - 1 ) {
+				$next_word      = $timed_words[ $index + 1 ];
+				$pause_duration = $next_word['start'] - $word_data['end'];
+
+				// Only add pause if it exceeds threshold and current word doesn't end with punctuation.
+				if ( $pause_duration > $pause_threshold['threshold'] && ! $this->ends_with_punctuation( $word_data['word'] ) ) {
+					$pause_seconds     = round( $pause_duration, 1 );
+					$formatted_parts[] = '[' . $pause_seconds . 's PAUSE]';
+				}
+			}
+		}
+
+		return implode( ' ', $formatted_parts );
+	}
+
+	/**
+	 * Get timed words for a specific media ID from transcript data
+	 *
+	 * @param int|string $media_id The media/attachment ID.
+	 * @param array      $transcript_data The transcription data.
+	 * @return array Array of word objects with timing information.
+	 */
+	private function get_timed_words_for_media( $media_id, $transcript_data ) {
+		if ( empty( $transcript_data ) ) {
+			return array();
+		}
+
+		$timed_words = array();
+		$time_ranges = array();
+
+		// Helper function to check if a word overlaps with existing words.
+		$is_overlapping = function ( $start, $end ) use ( &$time_ranges ) {
+			$word_duration     = $end - $start;
+			$overlap_threshold = $word_duration * 0.5;
+
+			foreach ( $time_ranges as $range ) {
+				$overlap_start    = max( $range['start'], $start );
+				$overlap_end      = min( $range['end'], $end );
+				$overlap_duration = $overlap_end - $overlap_start;
+				if ( $overlap_duration > $overlap_threshold ) {
+					return true;
+				}
+			}
+			return false;
+		};
+
+		// Prefer using words from segments if available.
+		if ( ! empty( $transcript_data['segments'] ) && is_array( $transcript_data['segments'] ) ) {
+			foreach ( $transcript_data['segments'] as $segment ) {
+				if ( ! empty( $segment['words'] ) && is_array( $segment['words'] ) ) {
+					foreach ( $segment['words'] as $word ) {
+						if ( ! $is_overlapping( $word['start'], $word['end'] ) ) {
+							$timed_words[] = array(
+								'word'  => $word['word'],
+								'start' => $word['start'],
+								'end'   => $word['end'],
+								'score' => isset( $word['score'] ) ? $word['score'] : null,
+							);
+							$time_ranges[] = array(
+								'start' => $word['start'],
+								'end'   => $word['end'],
+							);
+						}
+					}
+				}
+			}
+		}
+
+		// Add top-level words only if they don't overlap with segment words.
+		if ( ! empty( $transcript_data['words'] ) && is_array( $transcript_data['words'] ) ) {
+			foreach ( $transcript_data['words'] as $word ) {
+				if ( ! $is_overlapping( $word['start'], $word['end'] ) ) {
+					$timed_words[] = array(
+						'word'  => $word['word'],
+						'start' => $word['start'],
+						'end'   => $word['end'],
+						'score' => isset( $word['score'] ) ? $word['score'] : null,
+					);
+					$time_ranges[] = array(
+						'start' => $word['start'],
+						'end'   => $word['end'],
+					);
+				}
+			}
+		}
+
+		// Sort by start time.
+		usort(
+			$timed_words,
+			function ( $a, $b ) {
+				return $a['start'] <=> $b['start'];
+			}
+		);
+
+		return $timed_words;
+	}
+
+	/**
+	 * Calculate pause threshold for transcript data
+	 *
+	 * Calculates dynamic pause threshold based on pauses between words within segments.
+	 *
+	 * @param int|string $media_id The media/attachment ID.
+	 * @param array      $transcript_data The transcription data.
+	 * @return array Array with 'average' and 'threshold' pause durations.
+	 */
+	private function calculate_pause_threshold( $media_id, $transcript_data ) {
+		$default_threshold = array(
+			'average'   => 0,
+			'threshold' => 0.7,
+		);
+
+		if ( empty( $transcript_data ) ) {
+			return $default_threshold;
+		}
+
+		// Get timed words.
+		$words = $this->get_timed_words_for_media( $media_id, $transcript_data );
+
+		if ( count( $words ) < 2 ) {
+			return $default_threshold;
+		}
+
+		if ( empty( $transcript_data['segments'] ) ) {
+			return $default_threshold;
+		}
+
+		// Create a map of word time ranges to their containing segment.
+		$word_segment_map = array();
+
+		foreach ( $transcript_data['segments'] as $segment_index => $segment ) {
+			if ( ! empty( $segment['words'] ) && is_array( $segment['words'] ) ) {
+				foreach ( $segment['words'] as $word ) {
+					$word_segment_map[ $word['start'] ] = $segment_index;
+				}
+			}
+		}
+
+		// Calculate pauses only between words in the same segment.
+		$pauses      = array();
+		$words_count = count( $words );
+
+		for ( $i = 1; $i < $words_count; $i++ ) {
+			$prev_word    = $words[ $i - 1 ];
+			$current_word = $words[ $i ];
+
+			$prev_segment_index    = isset( $word_segment_map[ $prev_word['start'] ] ) ? $word_segment_map[ $prev_word['start'] ] : null;
+			$current_segment_index = isset( $word_segment_map[ $current_word['start'] ] ) ? $word_segment_map[ $current_word['start'] ] : null;
+
+			// Only include pauses between words in the same segment.
+			if ( null !== $prev_segment_index && null !== $current_segment_index && $prev_segment_index === $current_segment_index ) {
+				$pause_duration = $current_word['start'] - $prev_word['end'];
+				if ( $pause_duration > 0 ) {
+					$pauses[] = $pause_duration;
+				}
+			}
+		}
+
+		// If we don't have enough pauses within segments, use a fallback approach.
+		if ( count( $pauses ) < 3 ) {
+			$all_pauses = array();
+			for ( $i = 1; $i < $words_count; $i++ ) {
+				$pause = max( 0, $words[ $i ]['start'] - $words[ $i - 1 ]['end'] );
+				if ( $pause > 0 ) {
+					$all_pauses[] = $pause;
+				}
+			}
+
+			if ( empty( $all_pauses ) ) {
+				return $default_threshold;
+			}
+
+			$average_pause = array_sum( $all_pauses ) / count( $all_pauses );
+			return array(
+				'average'   => $average_pause,
+				'threshold' => max( 0.7, $average_pause * 2 ),
+			);
+		}
+
+		// Calculate statistics based on within-segment pauses.
+		$average_pause = array_sum( $pauses ) / count( $pauses );
+
+		$variance = 0;
+		foreach ( $pauses as $pause ) {
+			$variance += pow( $pause - $average_pause, 2 );
+		}
+		$std_dev_pause = sqrt( $variance / count( $pauses ) );
+
+		// Dynamic threshold: average + 3 * stdDev, with a minimum threshold.
+		$threshold = max( $average_pause + 3 * $std_dev_pause, 0.7 );
+
+		return array(
+			'average'   => $average_pause,
+			'threshold' => $threshold,
+		);
+	}
+
+	/**
+	 * Check if a word ends with punctuation
+	 *
+	 * @param string $word The word to check.
+	 * @return bool True if word ends with punctuation.
+	 */
+	private function ends_with_punctuation( $word ) {
+		return (bool) preg_match( '/[.,:;!?]$/', $word );
 	}
 
 	/**
