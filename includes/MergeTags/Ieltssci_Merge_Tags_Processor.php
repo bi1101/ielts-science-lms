@@ -543,7 +543,7 @@ class Ieltssci_Merge_Tags_Processor {
 				if ( ! is_wp_error( $speeches ) && ! empty( $speeches ) ) {
 					if ( 1 === count( $speeches ) ) {
 						// Handle special case for transcript field.
-						if ( 'transcript' === $field || 'transcript_text' === $field || 'transcript_with_pause' === $field ) {
+						if ( 'transcript' === $field || 'transcript_text' === $field || 'transcript_with_pause' === $field || 'speaking_rate' === $field ) {
 							if ( isset( $speeches[0]['transcript'] ) && is_array( $speeches[0]['transcript'] ) ) {
 								// For transcript_text, return just the text content.
 								if ( 'transcript_text' === $field ) {
@@ -565,6 +565,10 @@ class Ieltssci_Merge_Tags_Processor {
 										}
 									}
 									return ! empty( $formatted_texts ) ? implode( "\n\n", $formatted_texts ) : null;
+								}
+								// For speaking_rate, calculate WPM from transcript data.
+								if ( 'speaking_rate' === $field ) {
+									return $this->calculate_speaking_rate( $speeches[0]['transcript'] );
 								}
 								return $speeches[0]['transcript'];
 							}
@@ -959,6 +963,77 @@ class Ieltssci_Merge_Tags_Processor {
 	 */
 	private function ends_with_punctuation( $word ) {
 		return (bool) preg_match( '/[.,:;!?]$/', $word );
+	}
+
+	/**
+	 * Calculate speaking rate in words per minute (WPM) from transcription data
+	 *
+	 * Uses only segments with actual speech to avoid counting long pauses.
+	 * Replicates the frontend logic from calculateSpeakingRate in transcriptionPostProcess.ts.
+	 *
+	 * @param array $transcript_data Array of transcription data keyed by attachment ID.
+	 * @return int|null Speaking rate in words per minute, or null if data is insufficient.
+	 */
+	private function calculate_speaking_rate( $transcript_data ) {
+		if ( empty( $transcript_data ) || ! is_array( $transcript_data ) ) {
+			return null;
+		}
+
+		$total_words    = 0;
+		$total_duration = 0; // in seconds.
+
+		// Process each media file's transcription.
+		foreach ( $transcript_data as $attachment_id => $file_data ) {
+			if ( empty( $file_data ) || ! is_array( $file_data ) ) {
+				continue;
+			}
+
+			// If segments are available, use them for more accurate calculation.
+			if ( ! empty( $file_data['segments'] ) && is_array( $file_data['segments'] ) ) {
+				foreach ( $file_data['segments'] as $segment ) {
+					// Calculate segment duration and word count.
+					$segment_duration = $segment['end'] - $segment['start'];
+
+					// Count words in this segment.
+					$segment_word_count = 0;
+					if ( ! empty( $segment['words'] ) && is_array( $segment['words'] ) ) {
+						$segment_word_count = count( $segment['words'] );
+					} elseif ( ! empty( $segment['text'] ) ) {
+						$words              = preg_split( '/\s+/', trim( $segment['text'] ) );
+						$segment_word_count = count( array_filter( $words ) );
+					}
+
+					$total_duration += $segment_duration;
+					$total_words    += $segment_word_count;
+				}
+			} elseif ( ! empty( $file_data['words'] ) && is_array( $file_data['words'] ) ) {
+				// If no segments but we have words array at the file level.
+				$total_words += count( $file_data['words'] );
+
+				// Use the duration between first and last word.
+				if ( count( $file_data['words'] ) > 1 ) {
+					$first_word      = $file_data['words'][0];
+					$last_word       = $file_data['words'][ count( $file_data['words'] ) - 1 ];
+					$total_duration += $last_word['end'] - $first_word['start'];
+				}
+			} elseif ( ! empty( $file_data['text'] ) && isset( $file_data['duration'] ) ) {
+				// Fallback to full text and overall duration if available.
+				$words           = preg_split( '/\s+/', trim( $file_data['text'] ) );
+				$total_words    += count( array_filter( $words ) );
+				$total_duration += $file_data['duration'];
+			}
+		}
+
+		// Calculate WPM, avoiding division by zero.
+		if ( $total_duration <= 0 || 0 === $total_words ) {
+			return null;
+		}
+
+		// Convert seconds to minutes and calculate WPM.
+		$duration_in_minutes = $total_duration / 60;
+		$wpm                 = round( $total_words / $duration_in_minutes );
+
+		return (int) $wpm;
 	}
 
 	/**
