@@ -376,7 +376,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'transcribe',
 						'Transcribe',
-						'audio',
+						'attempt',
 						array( 'speaking' ),
 						array(
 							$settings_config_instance->create_step(
@@ -477,8 +477,63 @@ class Ieltssci_Speaking_Settings {
 				'groupTitle' => 'Fluency & Coherence',
 				'feeds'      => array(
 					$settings_config_instance->create_feed(
+						'coherence-analysis',
+						'Coherence Analysis',
+						'attempt',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'speech-length-analysis',
+						'Speech Length Analysis',
+						'attempt',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'pacing-analysis',
+						'Pacing Analysis',
+						'attempt',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
 						'coherence',
 						'Coherence',
+						'speech',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'speech-length',
+						'Speech Length',
+						'speech',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'pacing',
+						'Pacing',
 						'speech',
 						array( 'speaking' ),
 						array(
