@@ -1543,4 +1543,196 @@ class Ieltssci_Submission_DB {
 			return new WP_Error( 'db_error', $e->getMessage(), array( 'status' => 500 ) );
 		}
 	}
+
+	/**
+	 * Fork (duplicate) a speech attempt and optionally its feedback.
+	 *
+	 * Creates a new speech attempt with a new audio attachment that references the same file on disk.
+	 * This is disk-space efficient as it reuses the original audio file. Optionally copies all
+	 * feedback entries associated with the original attempt.
+	 *
+	 * @param int   $attempt_id The ID of the speech attempt to fork.
+	 * @param int   $user_id    Optional. The user ID to own the fork. Defaults to current user.
+	 * @param array $options    Optional. Control forking behavior.
+	 *     @var int|null $submission_id         Attach to a different part submission. Default keeps original.
+	 *     @var int|null $question_id           Attach to a different question. Default keeps original.
+	 *     @var bool     $copy_feedback         Copy all attempt feedback entries. Default true.
+	 *     @var bool     $copy_attachment_meta  Copy WordPress attachment metadata. Default true.
+	 * @throws Exception When a database error occurs.
+	 * @return array|WP_Error Details of the forked attempt or WP_Error on failure.
+	 */
+	public function fork_speech_attempt( $attempt_id, $user_id = null, $options = array() ) {
+		$attempt_id = absint( $attempt_id );
+		if ( ! $attempt_id ) {
+			return new WP_Error( 'invalid_id', 'Invalid speech attempt ID.', array( 'status' => 400 ) );
+		}
+
+		if ( null === $user_id ) {
+			$user_id = get_current_user_id();
+		}
+		$user_id = absint( $user_id );
+		if ( ! $user_id ) {
+			return new WP_Error( 'invalid_user', 'Invalid user ID.', array( 'status' => 400 ) );
+		}
+
+		$defaults = array(
+			'submission_id'        => null,
+			'question_id'          => null,
+			'copy_feedback'        => true,
+			'copy_attachment_meta' => true,
+		);
+		$options  = wp_parse_args( $options, $defaults );
+
+		$original = $this->get_speech_attempt( $attempt_id );
+		if ( is_wp_error( $original ) ) {
+			return $original; // Propagate error.
+		}
+		if ( empty( $original ) ) {
+			return new WP_Error( 'not_found', 'Original speech attempt not found.', array( 'status' => 404 ) );
+		}
+
+		$this->wpdb->query( 'START TRANSACTION' );
+		try {
+			// Get original attachment details.
+			$original_audio = get_post( $original['audio_id'] );
+			if ( ! $original_audio ) {
+				throw new Exception( 'Original audio attachment not found.' );
+			}
+
+			// Get the file path (but don't copy the file).
+			$file_path = get_attached_file( $original['audio_id'] );
+			if ( ! $file_path ) {
+				throw new Exception( 'Could not retrieve file path for original audio.' );
+			}
+
+			// Create new attachment post with SAME file path (disk-space efficient).
+			$new_attachment = array(
+				'post_mime_type' => $original_audio->post_mime_type,
+				'post_title'     => $original_audio->post_title . ' (Copy)',
+				'post_content'   => $original_audio->post_content,
+				'post_status'    => 'inherit',
+				'post_parent'    => $original_audio->post_parent,
+				'guid'           => $original_audio->guid,
+			);
+
+			$new_audio_id = wp_insert_attachment( $new_attachment, $file_path );
+			if ( is_wp_error( $new_audio_id ) ) {
+				throw new Exception( 'Failed to create new audio attachment: ' . $new_audio_id->get_error_message() );
+			}
+			if ( ! $new_audio_id ) {
+				throw new Exception( 'Failed to create new audio attachment.' );
+			}
+
+			// Copy attachment metadata if requested.
+			if ( $options['copy_attachment_meta'] ) {
+				$attachment_meta = wp_get_attachment_metadata( $original['audio_id'] );
+				if ( $attachment_meta ) {
+					wp_update_attachment_metadata( $new_audio_id, $attachment_meta );
+				}
+
+				// Copy other post meta (excluding _wp_attachment_metadata which was already copied above).
+				$all_meta = get_post_meta( $original['audio_id'] );
+				if ( is_array( $all_meta ) ) {
+					foreach ( $all_meta as $key => $values ) {
+						if ( '_wp_attachment_metadata' !== $key ) {
+							foreach ( (array) $values as $value ) {
+								add_post_meta( $new_audio_id, $key, maybe_unserialize( $value ) );
+							}
+						}
+					}
+				}
+			}
+
+			// Add meta to link the new attachment back to the original.
+			add_post_meta( $new_audio_id, '_forked_from_attachment_id', $original['audio_id'] );
+
+			// Determine submission_id and question_id for new attempt.
+			$new_submission_id = is_null( $options['submission_id'] )
+				? ( ! empty( $original['submission_id'] ) ? (int) $original['submission_id'] : null )
+				: (int) $options['submission_id'];
+
+			$new_question_id = is_null( $options['question_id'] )
+				? ( ! empty( $original['question_id'] ) ? (int) $original['question_id'] : null )
+				: (int) $options['question_id'];
+
+			// Create new speech attempt.
+			$attempt_data = array(
+				'audio_id'   => $new_audio_id,
+				'created_by' => $user_id,
+			);
+
+			if ( ! is_null( $new_submission_id ) ) {
+				$attempt_data['submission_id'] = $new_submission_id;
+			}
+			if ( ! is_null( $new_question_id ) ) {
+				$attempt_data['question_id'] = $new_question_id;
+			}
+
+			$new_attempt_id = $this->add_speech_attempt( $attempt_data );
+			if ( is_wp_error( $new_attempt_id ) ) {
+				// Clean up the attachment we created.
+				wp_delete_attachment( $new_audio_id, true );
+				throw new Exception( 'Failed to create new speech attempt: ' . $new_attempt_id->get_error_message() );
+			}
+
+			// Copy feedback if requested.
+			$forked_feedbacks = array();
+			if ( $options['copy_feedback'] ) {
+				$speech_db = new Ieltssci_Speech_DB();
+				$feedbacks = $speech_db->get_speech_attempt_feedbacks(
+					array(
+						'attempt_id'       => $attempt_id,
+						'limit'            => 999,
+						'include_cot'      => true,
+						'include_score'    => true,
+						'include_feedback' => true,
+					)
+				);
+
+				if ( is_wp_error( $feedbacks ) ) {
+					// Don't fail the entire operation, just log.
+					error_log( 'Failed to retrieve feedbacks for forking: ' . $feedbacks->get_error_message() );
+				} elseif ( ! empty( $feedbacks ) && is_array( $feedbacks ) ) {
+					foreach ( $feedbacks as $feedback ) {
+						$feedback_data = array(
+							'attempt_id'        => $new_attempt_id,
+							'feedback_criteria' => $feedback['feedback_criteria'],
+							'feedback_language' => $feedback['feedback_language'],
+							'source'            => $feedback['source'],
+							'created_by'        => $feedback['created_by'],
+							'cot_content'       => $feedback['cot_content'] ?? null,
+							'score_content'     => $feedback['score_content'] ?? null,
+							'feedback_content'  => $feedback['feedback_content'] ?? null,
+							'is_preferred'      => $feedback['is_preferred'] ?? 0,
+						);
+
+						$new_feedback = $speech_db->create_speech_attempt_feedback( $feedback_data );
+						if ( ! is_wp_error( $new_feedback ) ) {
+							$forked_feedbacks[] = $new_feedback;
+						} else {
+							// Log but continue with other feedbacks.
+							error_log( 'Failed to fork feedback: ' . $new_feedback->get_error_message() );
+						}
+					}
+				}
+			}
+
+			$this->wpdb->query( 'COMMIT' );
+
+			return array(
+				'speech_attempt'    => $this->get_speech_attempt( $new_attempt_id ),
+				'new_audio_id'      => $new_audio_id,
+				'original_audio_id' => $original['audio_id'],
+				'forked_feedbacks'  => $forked_feedbacks,
+				'feedbacks_count'   => count( $forked_feedbacks ),
+			);
+		} catch ( Exception $e ) {
+			$this->wpdb->query( 'ROLLBACK' );
+			// Clean up attachment if it was created.
+			if ( isset( $new_audio_id ) && $new_audio_id ) {
+				wp_delete_attachment( $new_audio_id, true );
+			}
+			return new WP_Error( 'fork_error', $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
 }
