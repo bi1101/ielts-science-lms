@@ -648,6 +648,17 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 					return true;
 				},
 			),
+			'meta'       => array(
+				'type'              => 'object',
+				'required'          => false,
+				'description'       => 'Meta data for the speech.',
+				'validate_callback' => function ( $param ) {
+					if ( ! is_array( $param ) ) {
+						return false;
+					}
+					return true;
+				},
+			),
 		);
 	}
 
@@ -678,6 +689,17 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 				'type'              => 'object',
 				'required'          => false,
 				'description'       => 'Transcript data as an object with attachment IDs as keys.',
+				'validate_callback' => function ( $param ) {
+					if ( ! is_array( $param ) ) {
+						return false;
+					}
+					return true;
+				},
+			),
+			'meta'       => array(
+				'type'              => 'object',
+				'required'          => false,
+				'description'       => 'Meta data for the speech.',
 				'validate_callback' => function ( $param ) {
 					if ( ! is_array( $param ) ) {
 						return false;
@@ -906,6 +928,24 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 			return $result;
 		}
 
+		// Handle meta data if provided.
+		$meta_data = $request['meta'];
+		if ( ! empty( $meta_data ) && is_array( $meta_data ) ) {
+			foreach ( $meta_data as $meta_key => $meta_value ) {
+				$meta_result = $this->speech_service->update_speech_meta( $result['id'], $meta_key, $meta_value );
+				if ( is_wp_error( $meta_result ) ) {
+					// Log the error but don't fail the whole request.
+					error_log( 'Failed to update meta data for speech ' . $result['id'] . ': ' . $meta_result->get_error_message() );
+				}
+			}
+		}
+
+		// Add meta data to the result for the response.
+		$speech_meta = $this->speech_service->get_speech_meta( $result['id'] );
+		if ( ! is_wp_error( $speech_meta ) && ! empty( $speech_meta ) ) {
+			$result['meta'] = $speech_meta;
+		}
+
 		$response = $this->prepare_item_for_response( $result, $request );
 
 		return rest_ensure_response( $response );
@@ -1007,11 +1047,45 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 			$update_data['transcript'] = $transcript;
 		}
 
-		// Update the speech.
-		$result = $this->speech_service->update_speech( $where, $update_data );
+		// Check if there's either speech data or meta data to update.
+		$meta_data = $request['meta'];
+		if ( empty( $update_data ) && ( empty( $meta_data ) || ! is_array( $meta_data ) ) ) {
+			return new WP_Error(
+				'no_data_to_update',
+				__( 'No speech data or meta data provided for update.', 'ielts-science-lms' ),
+				array( 'status' => 400 )
+			);
+		}
 
-		if ( is_wp_error( $result ) ) {
-			return $result;
+		// Only update speech data if there are fields to update.
+		if ( ! empty( $update_data ) ) {
+			$result = $this->speech_service->update_speech( $where, $update_data );
+
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+		} else {
+			// No speech data to update, just use the existing speech data.
+			$result = $speech;
+		}
+
+		// Handle meta data if provided.
+		$meta_data = $request['meta'];
+		if ( ! empty( $meta_data ) && is_array( $meta_data ) ) {
+			foreach ( $meta_data as $meta_key => $meta_value ) {
+				// Use update_speech_meta which handles both adding and updating.
+				$meta_result = $this->speech_service->update_speech_meta( $result['id'], $meta_key, $meta_value );
+				if ( is_wp_error( $meta_result ) ) {
+					// Log the error but don't fail the whole request.
+					error_log( 'Failed to update meta data for speech ' . $result['id'] . ': ' . $meta_result->get_error_message() );
+				}
+			}
+		}
+
+		// Add meta data to the result for the response.
+		$speech_meta = $this->speech_service->get_speech_meta( $result['id'] );
+		if ( ! is_wp_error( $speech_meta ) && ! empty( $speech_meta ) ) {
+			$result['meta'] = $speech_meta;
 		}
 
 		$response = $this->prepare_item_for_response( $result, $request );
