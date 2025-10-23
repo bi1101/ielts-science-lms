@@ -1074,7 +1074,10 @@ class Ieltssci_Speech_DB {
 	 * @param int      $speech_id ID of the speech to fork.
 	 * @param int|null $user_id Optional. User ID creating the fork.
 	 * @param array    $options Optional. Fork options.
-	 *     @var bool $copy_speech_feedback  Whether to copy speech feedback. Default true.
+	 *     @var bool $copy_speech_feedback   Whether to copy speech feedback. Default true.
+	 *     @var bool $fork_speech_attempts    Whether to fork associated speech attempts. Default true.
+	 *     @var bool $copy_attempt_feedback   Whether to copy attempt feedback when forking attempts. Default true.
+	 *     @var bool $copy_attachment_meta    Whether to copy attachment metadata when forking attempts. Default true.
 	 * @return array|WP_Error New speech data or error.
 	 * @throws Exception If there is a database error.
 	 */
@@ -1086,7 +1089,10 @@ class Ieltssci_Speech_DB {
 
 		// Set default options.
 		$defaults = array(
-			'copy_speech_feedback' => true,
+			'copy_speech_feedback'  => true,
+			'fork_speech_attempts'  => true,
+			'copy_attempt_feedback' => true,
+			'copy_attachment_meta'  => true,
 		);
 		$options  = wp_parse_args( $options, $defaults );
 
@@ -1116,6 +1122,7 @@ class Ieltssci_Speech_DB {
 			$result = array(
 				'speech'   => $new_speech,
 				'feedback' => array(),
+				'attempts' => array(),
 			);
 
 			if ( $options['copy_speech_feedback'] ) {
@@ -1137,6 +1144,72 @@ class Ieltssci_Speech_DB {
 						throw new Exception( $new_feedback->get_error_message() );
 					}
 					$result['feedback'][] = $new_feedback;
+				}
+			}
+
+			// Fork speech attempts if requested.
+			if ( $options['fork_speech_attempts'] && ! empty( $original['audio_ids'] ) ) {
+				// Get submission DB instance to access attempt methods.
+				$submission_db = new Ieltssci_Submission_DB();
+
+				// Find all attempts associated with the original speech's audio_ids.
+				$attempts = $submission_db->get_speech_attempts(
+					array(
+						'audio_id' => $original['audio_ids'],
+						'number'   => 999,
+					)
+				);
+
+				if ( is_wp_error( $attempts ) ) {
+					throw new Exception( 'Failed to retrieve speech attempts: ' . $attempts->get_error_message() );
+				}
+
+				if ( ! empty( $attempts ) && is_array( $attempts ) ) {
+					// Track new audio IDs created from forked attempts.
+					$new_audio_ids = array();
+
+					foreach ( $attempts as $attempt ) {
+						$forked_attempt = $submission_db->fork_speech_attempt(
+							$attempt['id'],
+							$user_id,
+							array(
+								'submission_id'        => $attempt['submission_id'], // Keep same submission if any.
+								'question_id'          => $attempt['question_id'],   // Keep same question if any.
+								'copy_feedback'        => (bool) $options['copy_attempt_feedback'],
+								'copy_attachment_meta' => (bool) $options['copy_attachment_meta'],
+							)
+						);
+
+						if ( is_wp_error( $forked_attempt ) ) {
+							// Log but don't fail the entire operation.
+							error_log( 'Failed to fork speech attempt ' . $attempt['id'] . ': ' . $forked_attempt->get_error_message() );
+						} else {
+							$result['attempts'][] = array(
+								'original_attempt_id' => $attempt['id'],
+								'forked_attempt'      => $forked_attempt,
+							);
+
+							// Collect the new audio ID from the forked attempt.
+							if ( ! empty( $forked_attempt['new_audio_id'] ) ) {
+								$new_audio_ids[] = (int) $forked_attempt['new_audio_id'];
+							}
+						}
+					}
+
+					// Update the new speech with the new audio IDs from forked attempts.
+					if ( ! empty( $new_audio_ids ) ) {
+						$update_result = $this->update_speech(
+							array( 'id' => $new_speech['id'] ),
+							array( 'audio_ids' => $new_audio_ids )
+						);
+
+						if ( is_wp_error( $update_result ) ) {
+							throw new Exception( 'Failed to update speech with new audio IDs: ' . $update_result->get_error_message() );
+						}
+
+						// Update the result speech data with new audio IDs.
+						$result['speech']['audio_ids'] = $new_audio_ids;
+					}
 				}
 			}
 

@@ -172,7 +172,7 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 					'type'        => 'object',
 					'properties'  => $speech_properties,
 				),
-				'speech_feedback' => array(
+				'feedback'        => array(
 					'description' => 'Array of copied speech feedback.',
 					'type'        => 'array',
 					'items'       => array(
@@ -192,6 +192,45 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 							),
 							'source'            => array(
 								'type' => 'string',
+							),
+						),
+					),
+				),
+				'attempts'        => array(
+					'description' => 'Array of forked speech attempts.',
+					'type'        => 'array',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'original_attempt_id' => array(
+								'type'        => 'integer',
+								'description' => 'ID of the original speech attempt.',
+							),
+							'forked_attempt'      => array(
+								'type'        => 'object',
+								'description' => 'Details of the forked attempt.',
+								'properties'  => array(
+									'speech_attempt'    => array(
+										'type'        => 'object',
+										'description' => 'The new speech attempt record.',
+									),
+									'new_audio_id'      => array(
+										'type'        => 'integer',
+										'description' => 'New audio attachment ID.',
+									),
+									'original_audio_id' => array(
+										'type'        => 'integer',
+										'description' => 'Original audio attachment ID.',
+									),
+									'forked_feedbacks'  => array(
+										'type'        => 'array',
+										'description' => 'Array of copied attempt feedbacks.',
+									),
+									'feedbacks_count'   => array(
+										'type'        => 'integer',
+										'description' => 'Count of feedbacks copied.',
+									),
+								),
 							),
 						),
 					),
@@ -696,6 +735,27 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 				'description'       => 'Whether to copy speech feedback.',
 				'sanitize_callback' => 'rest_sanitize_boolean',
 			),
+			'fork_speech_attempts' => array(
+				'type'              => 'boolean',
+				'required'          => false,
+				'default'           => true,
+				'description'       => 'Whether to fork associated speech attempts.',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_attempt_feedback' => array(
+				'type'              => 'boolean',
+				'required'          => false,
+				'default'           => true,
+				'description'       => 'Whether to copy attempt feedback when forking attempts.',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_attachment_meta' => array(
+				'type'              => 'boolean',
+				'required'          => false,
+				'default'           => true,
+				'description'       => 'Whether to copy attachment metadata when forking attempts.',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
 		);
 	}
 
@@ -1089,16 +1149,22 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error Response or error.
 	 */
 	public function fork_speech( WP_REST_Request $request ) {
-		$speech_id            = (int) $request->get_param( 'id' );
-		$copy_speech_feedback = $request->get_param( 'copy_speech_feedback' );
-		$current_user_id      = get_current_user_id();
+		$speech_id             = (int) $request->get_param( 'id' );
+		$copy_speech_feedback  = $request->get_param( 'copy_speech_feedback' );
+		$fork_speech_attempts  = $request->get_param( 'fork_speech_attempts' );
+		$copy_attempt_feedback = $request->get_param( 'copy_attempt_feedback' );
+		$copy_attachment_meta  = $request->get_param( 'copy_attachment_meta' );
+		$current_user_id       = get_current_user_id();
 
 		// Fork the speech.
 		$result = $this->speech_service->fork_speech(
 			$speech_id,
 			$current_user_id,
 			array(
-				'copy_speech_feedback' => $copy_speech_feedback,
+				'copy_speech_feedback'  => $copy_speech_feedback,
+				'fork_speech_attempts'  => $fork_speech_attempts,
+				'copy_attempt_feedback' => $copy_attempt_feedback,
+				'copy_attachment_meta'  => $copy_attachment_meta,
 			)
 		);
 
