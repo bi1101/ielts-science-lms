@@ -1358,6 +1358,18 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 			}
 		}
 
+		// Add link to original speech if this is a forked speech.
+		if ( ! empty( $data['id'] ) ) {
+			$original_speech_id = $this->speech_service->get_speech_meta( $data['id'], 'original_speech', true );
+			if ( ! empty( $original_speech_id ) && ! is_wp_error( $original_speech_id ) ) {
+				$response->add_link(
+					'original_speech',
+					rest_url( $this->namespace . '/' . $this->rest_base . '/' . absint( $original_speech_id ) ),
+					array( 'embeddable' => true )
+				);
+			}
+		}
+
 		return $response;
 	}
 

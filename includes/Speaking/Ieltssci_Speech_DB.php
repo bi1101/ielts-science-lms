@@ -1120,6 +1120,13 @@ class Ieltssci_Speech_DB {
 				throw new Exception( $new_speech->get_error_message() );
 			}
 
+			// Add meta to track the original speech.
+			$meta_result = $this->add_speech_meta( $new_speech['id'], 'original_speech', $speech_id, true );
+			if ( is_wp_error( $meta_result ) ) {
+				// Log but don't fail the operation.
+				error_log( 'Failed to add fork meta to speech ' . $new_speech['id'] . ': ' . $meta_result->get_error_message() );
+			}
+
 			// Copy feedback if requested.
 			$result = array(
 				'speech'   => $new_speech,
