@@ -167,12 +167,12 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 			'title'      => 'fork_speech',
 			'type'       => 'object',
 			'properties' => array(
-				'speech'          => array(
+				'speech'   => array(
 					'description' => 'The newly forked speech object.',
 					'type'        => 'object',
 					'properties'  => $speech_properties,
 				),
-				'feedback'        => array(
+				'feedback' => array(
 					'description' => 'Array of copied speech feedback.',
 					'type'        => 'array',
 					'items'       => array(
@@ -196,7 +196,7 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 						),
 					),
 				),
-				'attempts'        => array(
+				'attempts' => array(
 					'description' => 'Array of forked speech attempts.',
 					'type'        => 'array',
 					'items'       => array(
@@ -728,14 +728,14 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 	 */
 	public function get_fork_speech_args() {
 		return array(
-			'copy_speech_feedback' => array(
+			'copy_speech_feedback'  => array(
 				'type'              => 'boolean',
 				'required'          => false,
 				'default'           => true,
 				'description'       => 'Whether to copy speech feedback.',
 				'sanitize_callback' => 'rest_sanitize_boolean',
 			),
-			'fork_speech_attempts' => array(
+			'fork_speech_attempts'  => array(
 				'type'              => 'boolean',
 				'required'          => false,
 				'default'           => true,
@@ -749,12 +749,19 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 				'description'       => 'Whether to copy attempt feedback when forking attempts.',
 				'sanitize_callback' => 'rest_sanitize_boolean',
 			),
-			'copy_attachment_meta' => array(
+			'copy_attachment_meta'  => array(
 				'type'              => 'boolean',
 				'required'          => false,
 				'default'           => true,
 				'description'       => 'Whether to copy attachment metadata when forking attempts.',
 				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'submission_id'         => array(
+				'type'              => 'integer',
+				'required'          => false,
+				'default'           => null,
+				'description'       => 'Submission ID to associate forked attempts with. If not provided, uses original attempt\'s submission_id.',
+				'sanitize_callback' => 'absint',
 			),
 		);
 	}

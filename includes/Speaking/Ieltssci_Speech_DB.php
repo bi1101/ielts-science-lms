@@ -1078,6 +1078,7 @@ class Ieltssci_Speech_DB {
 	 *     @var bool $fork_speech_attempts    Whether to fork associated speech attempts. Default true.
 	 *     @var bool $copy_attempt_feedback   Whether to copy attempt feedback when forking attempts. Default true.
 	 *     @var bool $copy_attachment_meta    Whether to copy attachment metadata when forking attempts. Default true.
+	 *     @var int  $submission_id           Optional. Submission ID to associate forked attempts with. If not provided, uses original attempt's submission_id.
 	 * @return array|WP_Error New speech data or error.
 	 * @throws Exception If there is a database error.
 	 */
@@ -1093,6 +1094,7 @@ class Ieltssci_Speech_DB {
 			'fork_speech_attempts'  => true,
 			'copy_attempt_feedback' => true,
 			'copy_attachment_meta'  => true,
+			'submission_id'         => null,
 		);
 		$options  = wp_parse_args( $options, $defaults );
 
@@ -1173,7 +1175,7 @@ class Ieltssci_Speech_DB {
 							$attempt['id'],
 							$user_id,
 							array(
-								'submission_id'        => $attempt['submission_id'], // Keep same submission if any.
+								'submission_id'        => $options['submission_id'] ?? $attempt['submission_id'], // Keep same submission if any.
 								'question_id'          => $attempt['question_id'],   // Keep same question if any.
 								'copy_feedback'        => (bool) $options['copy_attempt_feedback'],
 								'copy_attachment_meta' => (bool) $options['copy_attachment_meta'],
