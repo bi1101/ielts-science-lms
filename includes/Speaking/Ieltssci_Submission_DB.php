@@ -1626,7 +1626,7 @@ class Ieltssci_Submission_DB {
 			// Create new attachment post with SAME file path (disk-space efficient).
 			$new_attachment = array(
 				'post_mime_type' => $original_audio->post_mime_type,
-				'post_title'     => $original_audio->post_title . ' (Copy)',
+				'post_title'     => $original_audio->post_title,
 				'post_content'   => $original_audio->post_content,
 				'post_status'    => 'inherit',
 				'post_parent'    => $original_audio->post_parent,
