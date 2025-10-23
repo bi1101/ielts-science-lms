@@ -1056,11 +1056,14 @@ class Ieltssci_Submission_DB {
 	 * @param int   $part_submission_id The ID of the part submission to fork.
 	 * @param int   $user_id            Optional. The user ID to own the fork. Defaults to current user.
 	 * @param array $options            Optional. Control cloning behavior.
-	 *     @var int|null $test_submission_id Attach the new part to this test submission ID. Default keeps original.
-	 *     @var bool     $fork_speech         Fork associated speech. Default true.
-	 *    @var bool     $copy_speech_feedback Copy feedback when forking speech. Default true.
-	 *     @var bool     $copy_part_meta      Copy part submission meta. Default true.
-	 *     @var bool     $keep_status         Keep the original part submission status. If false, set to 'in-progress'. Default true.
+	 *     @var int|null $test_submission_id   Attach the new part to this test submission ID. Default keeps original.
+	 *     @var bool     $fork_speech           Fork associated speech. Default true.
+	 *     @var bool     $copy_speech_feedback  Copy feedback when forking speech. Default true.
+	 *     @var bool     $fork_speech_attempts  Fork speech attempts when forking speech. Default true.
+	 *     @var bool     $copy_attempt_feedback Copy attempt feedback when forking attempts. Default true.
+	 *     @var bool     $copy_attachment_meta  Copy attachment metadata when forking attempts. Default true.
+	 *     @var bool     $copy_part_meta        Copy part submission meta. Default true.
+	 *     @var bool     $keep_status           Keep the original part submission status. If false, set to 'in-progress'. Default true.
 	 * @throws Exception When a database error occurs.
 	 * @return array|WP_Error Details of the forked part submission or WP_Error on failure.
 	 */
@@ -1079,11 +1082,14 @@ class Ieltssci_Submission_DB {
 		}
 
 		$defaults = array(
-			'test_submission_id'   => null,
-			'fork_speech'          => true,
-			'copy_part_meta'       => true,
-			'keep_status'          => true,
-			'copy_speech_feedback' => true,
+			'test_submission_id'    => null,
+			'fork_speech'           => true,
+			'copy_part_meta'        => true,
+			'keep_status'           => true,
+			'copy_speech_feedback'  => true,
+			'fork_speech_attempts'  => true,
+			'copy_attempt_feedback' => true,
+			'copy_attachment_meta'  => true,
 		);
 		$options  = wp_parse_args( $options, $defaults );
 
@@ -1100,6 +1106,30 @@ class Ieltssci_Submission_DB {
 			$forked_speech = null;
 			$copied_meta   = array();
 
+			$new_status       = $options['keep_status'] ? $original['status'] : 'in-progress';
+			$new_completed_at = $options['keep_status'] ? $original['completed_at'] : null;
+			$new_uuid         = wp_generate_uuid4();
+			$new_test_id      = is_null( $options['test_submission_id'] ) ? ( (int) $original['test_submission_id'] ? (int) $original['test_submission_id'] : null ) : (int) $options['test_submission_id'];
+
+			// Create new part submission first with original speech_id.
+			$data = array(
+				'user_id'            => $user_id,
+				'part_id'            => (int) $original['part_id'],
+				'speech_id'          => (int) $original['speech_id'], // Temporarily use original speech_id.
+				'test_submission_id' => $new_test_id,
+				'uuid'               => $new_uuid,
+				'status'             => $new_status,
+				'started_at'         => current_time( 'mysql', true ),
+				'completed_at'       => $new_completed_at,
+			);
+
+			$result = $this->add_part_submission( $data );
+			if ( is_wp_error( $result ) ) {
+				throw new Exception( $result->get_error_message() );
+			}
+			$new_part_id = $result;
+
+			// Now fork speech if requested, associating attempts with the new part submission.
 			$new_speech_id = (int) $original['speech_id'];
 			if ( $options['fork_speech'] && ! empty( $original['speech_id'] ) ) {
 				$speech_db     = new Ieltssci_Speech_DB();
@@ -1116,7 +1146,11 @@ class Ieltssci_Submission_DB {
 					(int) $original['speech_id'],
 					$user_id,
 					array(
-						'copy_speech_feedback' => (bool) $options['copy_speech_feedback'],
+						'copy_speech_feedback'  => (bool) $options['copy_speech_feedback'],
+						'fork_speech_attempts'  => (bool) $options['fork_speech_attempts'],
+						'copy_attempt_feedback' => (bool) $options['copy_attempt_feedback'],
+						'copy_attachment_meta'  => (bool) $options['copy_attachment_meta'],
+						'submission_id'         => $new_part_id, // Associate forked attempts with the new part submission.
 					)
 				);
 				if ( is_wp_error( $forked ) ) {
@@ -1127,29 +1161,13 @@ class Ieltssci_Submission_DB {
 				if ( ! $new_speech_id ) {
 					throw new Exception( 'Failed to fork speech for part submission.' );
 				}
+
+				// Update the part submission with the new speech_id.
+				$update_result = $this->update_part_submission( $new_part_id, array( 'speech_id' => $new_speech_id ) );
+				if ( is_wp_error( $update_result ) ) {
+					throw new Exception( 'Failed to update part submission with new speech ID: ' . $update_result->get_error_message() );
+				}
 			}
-
-			$new_status       = $options['keep_status'] ? $original['status'] : 'in-progress';
-			$new_completed_at = $options['keep_status'] ? $original['completed_at'] : null;
-			$new_uuid         = wp_generate_uuid4();
-			$new_test_id      = is_null( $options['test_submission_id'] ) ? ( (int) $original['test_submission_id'] ? (int) $original['test_submission_id'] : null ) : (int) $options['test_submission_id'];
-
-			$data = array(
-				'user_id'            => $user_id,
-				'part_id'            => (int) $original['part_id'],
-				'speech_id'          => $new_speech_id,
-				'test_submission_id' => $new_test_id,
-				'uuid'               => $new_uuid,
-				'status'             => $new_status,
-				'started_at'         => current_time( 'mysql', true ),
-				'completed_at'       => $new_completed_at,
-			);
-
-			$result = $this->add_part_submission( $data );
-			if ( is_wp_error( $result ) ) {
-				throw new Exception( $result->get_error_message() );
-			}
-			$new_part_id = $result;
 
 			// Add original_id meta to link back to the original.
 			$add_meta_result = $this->add_part_submission_meta( $new_part_id, 'original_id', $part_submission_id );

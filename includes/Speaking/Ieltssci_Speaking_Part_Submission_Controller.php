@@ -813,12 +813,15 @@ class Ieltssci_Speaking_Part_Submission_Controller extends WP_REST_Controller {
 
 		// Get options from request body.
 		$options = array(
-			'fork_speech'          => $request->get_param( 'fork_speech' ) !== null ? $request->get_param( 'fork_speech' ) : true,
-			'copy_speech_meta'     => $request->get_param( 'copy_speech_meta' ) !== null ? $request->get_param( 'copy_speech_meta' ) : true,
-			'copy_speech_feedback' => $request->get_param( 'copy_speech_feedback' ) !== null ? $request->get_param( 'copy_speech_feedback' ) : true,
-			'copy_meta'            => $request->get_param( 'copy_meta' ) !== null ? $request->get_param( 'copy_meta' ) : true,
-			'keep_status'          => $request->get_param( 'keep_status' ) !== null ? $request->get_param( 'keep_status' ) : true,
-			'test_submission_id'   => $request->get_param( 'test_submission_id' ),
+			'fork_speech'           => $request->get_param( 'fork_speech' ) !== null ? $request->get_param( 'fork_speech' ) : true,
+			'copy_speech_meta'      => $request->get_param( 'copy_speech_meta' ) !== null ? $request->get_param( 'copy_speech_meta' ) : true,
+			'copy_speech_feedback'  => $request->get_param( 'copy_speech_feedback' ) !== null ? $request->get_param( 'copy_speech_feedback' ) : true,
+			'fork_speech_attempts'  => $request->get_param( 'fork_speech_attempts' ) !== null ? $request->get_param( 'fork_speech_attempts' ) : true,
+			'copy_attempt_feedback' => $request->get_param( 'copy_attempt_feedback' ) !== null ? $request->get_param( 'copy_attempt_feedback' ) : true,
+			'copy_attachment_meta'  => $request->get_param( 'copy_attachment_meta' ) !== null ? $request->get_param( 'copy_attachment_meta' ) : true,
+			'copy_part_meta'        => $request->get_param( 'copy_part_meta' ) !== null ? $request->get_param( 'copy_part_meta' ) : true,
+			'keep_status'           => $request->get_param( 'keep_status' ) !== null ? $request->get_param( 'keep_status' ) : true,
+			'test_submission_id'    => $request->get_param( 'test_submission_id' ),
 		);
 
 		// Get the part submission to check if it exists.
@@ -1068,7 +1071,7 @@ class Ieltssci_Speaking_Part_Submission_Controller extends WP_REST_Controller {
 	 */
 	public function get_fork_part_submission_args() {
 		return array(
-			'id'                   => array(
+			'id'                    => array(
 				'required'          => true,
 				'description'       => 'The ID of the part submission to fork.',
 				'type'              => 'integer',
@@ -1077,7 +1080,7 @@ class Ieltssci_Speaking_Part_Submission_Controller extends WP_REST_Controller {
 				},
 				'sanitize_callback' => 'absint',
 			),
-			'test_submission_id'   => array(
+			'test_submission_id'    => array(
 				'required'          => false,
 				'description'       => 'Override the parent test submission ID.',
 				'type'              => 'integer',
@@ -1086,35 +1089,56 @@ class Ieltssci_Speaking_Part_Submission_Controller extends WP_REST_Controller {
 				},
 				'sanitize_callback' => 'absint',
 			),
-			'copy_meta'            => array(
+			'copy_part_meta'        => array(
 				'required'          => false,
 				'description'       => 'Whether to copy part submission meta data.',
 				'type'              => 'boolean',
 				'default'           => true,
 				'sanitize_callback' => 'rest_sanitize_boolean',
 			),
-			'fork_speech'          => array(
+			'fork_speech'           => array(
 				'required'          => false,
 				'description'       => 'Whether to fork the associated speech.',
 				'type'              => 'boolean',
 				'default'           => true,
 				'sanitize_callback' => 'rest_sanitize_boolean',
 			),
-			'copy_speech_meta'     => array(
+			'copy_speech_meta'      => array(
 				'required'          => false,
 				'description'       => 'Whether to copy meta data on the forked speech.',
 				'type'              => 'boolean',
 				'default'           => true,
 				'sanitize_callback' => 'rest_sanitize_boolean',
 			),
-			'copy_speech_feedback' => array(
+			'copy_speech_feedback'  => array(
 				'required'          => false,
 				'description'       => 'Whether to copy speech feedback to the forked speech.',
 				'type'              => 'boolean',
 				'default'           => true,
 				'sanitize_callback' => 'rest_sanitize_boolean',
 			),
-			'keep_status'          => array(
+			'fork_speech_attempts'  => array(
+				'required'          => false,
+				'description'       => 'Whether to fork speech attempts when forking speech.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_attempt_feedback' => array(
+				'required'          => false,
+				'description'       => 'Whether to copy attempt feedback when forking attempts.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'copy_attachment_meta'  => array(
+				'required'          => false,
+				'description'       => 'Whether to copy attachment metadata when forking attempts.',
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			),
+			'keep_status'           => array(
 				'required'          => false,
 				'description'       => 'Whether to keep the original status or reset to in-progress.',
 				'type'              => 'boolean',
