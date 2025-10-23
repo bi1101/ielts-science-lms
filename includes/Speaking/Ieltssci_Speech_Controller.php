@@ -342,6 +342,12 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 			'required'    => false,
 		);
 
+		$params['include_meta'] = array(
+			'description' => __( 'Include meta data in the response. Pass true to include all meta, or an array of meta keys to include.', 'ielts-science-lms' ),
+			'type'        => array( 'boolean', 'array' ),
+			'required'    => false,
+		);
+
 		return $params;
 	}
 
@@ -368,6 +374,7 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 			'per_page',
 			'page',
 			'meta_query',
+			'include_meta',
 		);
 
 		foreach ( $direct_params as $param ) {
@@ -917,8 +924,12 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 		$args = array();
 		if ( is_numeric( $identifier ) ) {
 			$args['id'] = (int) $identifier;
+			// Include meta data by default for single essay requests.
+			$args['include_meta'] = true;
 		} else {
 			$args['uuid'] = $identifier;
+			// Include meta data by default for single essay requests.
+			$args['include_meta'] = true;
 		}
 
 		$results = $this->speech_service->get_speeches( $args );

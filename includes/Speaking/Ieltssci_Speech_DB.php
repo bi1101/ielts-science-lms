@@ -296,6 +296,8 @@ class Ieltssci_Speech_DB {
 	 *     @var int                $per_page   Optional.   Number of records per page. Default 10.
 	 *     @var int                $page       Optional.   Page number for pagination. Default 1.
 	 *     @var bool               $count      Optional.   Whether to return only the count. Default false.
+	 *     @var array|bool         $include_meta Optional. Array of meta keys to include in results. If false, no meta included, if true all are included. Default false.
+	 *     @var array|null         $meta_query   Optional. SQL-level meta query to filter speeches by meta key/value pair. Example: ['key' => 'original_speech', 'value' => '123'].
 	 * }
 	 * @return array|int|WP_Error Speech data array with transcript info, count of records, or error.
 	 * @throws Exception If there is a database error.
@@ -303,33 +305,47 @@ class Ieltssci_Speech_DB {
 	public function get_speeches( $args = array() ) {
 		try {
 			$defaults = array(
-				'id'         => null,
-				'uuid'       => null,
-				'created_by' => null,
-				'date_query' => null,
-				'orderby'    => 'id',
-				'order'      => 'DESC',
-				'per_page'   => 10,
-				'page'       => 1,
-				'count'      => false,
+				'id'           => null,
+				'uuid'         => null,
+				'created_by'   => null,
+				'date_query'   => null,
+				'orderby'      => 'id',
+				'order'        => 'DESC',
+				'per_page'     => 10,
+				'page'         => 1,
+				'count'        => false,
+				'include_meta' => false,
+				'meta_query'   => null,
 			);
 
 			$args = wp_parse_args( $args, $defaults );
 
 			// Determine what to select.
-			$select         = $args['count'] ? 'COUNT(*)' : '*';
-			$from           = $this->speech_table;
+			$select         = $args['count'] ? 'COUNT(*)' : 's.*';
+			$from           = $this->speech_table . ' s';
 			$where          = array( '1=1' );
 			$prepare_values = array();
+
+			// SQL-level meta query support for a single meta key/value pair.
+			if ( ! empty( $args['meta_query'] ) && is_array( $args['meta_query'] ) ) {
+				$meta_key   = $args['meta_query']['key'] ?? '';
+				$meta_value = $args['meta_query']['value'] ?? null;
+				if ( '' !== $meta_key && null !== $meta_value ) {
+					$from            .= " INNER JOIN {$this->speech_meta_table} sm ON sm.ieltssci_speech_id = s.id";
+					$where[]          = 'sm.meta_key = %s AND sm.meta_value = %s';
+					$prepare_values[] = $meta_key;
+					$prepare_values[] = $meta_value;
+				}
+			}
 
 			// Process ID filter.
 			if ( ! is_null( $args['id'] ) ) {
 				if ( is_array( $args['id'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['id'] ), '%d' );
-					$where[]        = 'id IN (' . implode( ',', $placeholders ) . ')';
+					$where[]        = 's.id IN (' . implode( ',', $placeholders ) . ')';
 					$prepare_values = array_merge( $prepare_values, $args['id'] );
 				} else {
-					$where[]          = 'id = %d';
+					$where[]          = 's.id = %d';
 					$prepare_values[] = $args['id'];
 				}
 			}
@@ -338,10 +354,10 @@ class Ieltssci_Speech_DB {
 			if ( ! is_null( $args['uuid'] ) ) {
 				if ( is_array( $args['uuid'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['uuid'] ), '%s' );
-					$where[]        = 'uuid IN (' . implode( ',', $placeholders ) . ')';
+					$where[]        = 's.uuid IN (' . implode( ',', $placeholders ) . ')';
 					$prepare_values = array_merge( $prepare_values, $args['uuid'] );
 				} else {
-					$where[]          = 'uuid = %s';
+					$where[]          = 's.uuid = %s';
 					$prepare_values[] = $args['uuid'];
 				}
 			}
@@ -350,10 +366,10 @@ class Ieltssci_Speech_DB {
 			if ( ! is_null( $args['created_by'] ) ) {
 				if ( is_array( $args['created_by'] ) ) {
 					$placeholders   = array_fill( 0, count( $args['created_by'] ), '%d' );
-					$where[]        = 'created_by IN (' . implode( ',', $placeholders ) . ')';
+					$where[]        = 's.created_by IN (' . implode( ',', $placeholders ) . ')';
 					$prepare_values = array_merge( $prepare_values, $args['created_by'] );
 				} else {
-					$where[]          = 'created_by = %d';
+					$where[]          = 's.created_by = %d';
 					$prepare_values[] = $args['created_by'];
 				}
 			}
@@ -361,11 +377,11 @@ class Ieltssci_Speech_DB {
 			// Process date query.
 			if ( ! is_null( $args['date_query'] ) && is_array( $args['date_query'] ) ) {
 				if ( ! empty( $args['date_query']['after'] ) ) {
-					$where[]          = 'created_at >= %s';
+					$where[]          = 's.created_at >= %s';
 					$prepare_values[] = $args['date_query']['after'];
 				}
 				if ( ! empty( $args['date_query']['before'] ) ) {
-					$where[]          = 'created_at <= %s';
+					$where[]          = 's.created_at <= %s';
 					$prepare_values[] = $args['date_query']['before'];
 				}
 			}
@@ -378,6 +394,7 @@ class Ieltssci_Speech_DB {
 				// Sanitize orderby field.
 				$allowed_orderby = array( 'id', 'uuid', 'created_at', 'created_by' );
 				$orderby         = in_array( $args['orderby'], $allowed_orderby, true ) ? $args['orderby'] : 'id';
+				$orderby         = 's.' . $orderby;
 
 				// Sanitize order direction.
 				$order = strtoupper( $args['order'] ) === 'ASC' ? 'ASC' : 'DESC';
@@ -419,6 +436,20 @@ class Ieltssci_Speech_DB {
 					} else {
 						$speech['audio_ids']  = array();
 						$speech['transcript'] = null;
+					}
+
+					// Include meta data if requested.
+					if ( $args['include_meta'] ) {
+						if ( is_array( $args['include_meta'] ) ) {
+							// Include specific meta keys.
+							$speech['meta'] = array();
+							foreach ( $args['include_meta'] as $meta_key ) {
+								$speech['meta'][ $meta_key ] = $this->get_speech_meta( $speech['id'], $meta_key );
+							}
+						} elseif ( true === $args['include_meta'] ) {
+							// Include all meta data.
+							$speech['meta'] = $this->get_speech_meta( $speech['id'] );
+						}
 					}
 				}
 
