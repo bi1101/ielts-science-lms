@@ -285,9 +285,6 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 	 * @return bool|WP_Error Whether the user can read attempts.
 	 */
 	public function get_items_permissions_check( $request ) {
-		if ( ! is_user_logged_in() ) {
-			return new WP_Error( 'rest_forbidden', 'You must be logged in.', array( 'status' => 401 ) );
-		}
 		return true;
 	}
 
@@ -300,9 +297,6 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 	 * @return bool|WP_Error Whether the user can read the attempt.
 	 */
 	public function get_item_permissions_check( $request ) {
-		if ( ! is_user_logged_in() ) {
-			return new WP_Error( 'rest_forbidden', 'You must be logged in.', array( 'status' => 401 ) );
-		}
 		return true;
 	}
 
@@ -434,11 +428,9 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 
 		$data = array();
 		foreach ( $attempts as $attempt ) {
-			if ( $this->can_access_attempt( $attempt, $request ) ) {
-				$response = $this->prepare_item_for_response( $attempt, $request );
-				// Follow core pattern: wrap item responses so _links are preserved in collections.
-				$data[] = $this->prepare_response_for_collection( $response );
-			}
+			$response = $this->prepare_item_for_response( $attempt, $request );
+			// Follow core pattern: wrap item responses so _links are preserved in collections.
+			$data[] = $this->prepare_response_for_collection( $response );
 		}
 
 		return rest_ensure_response( $data );
@@ -462,10 +454,6 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 
 		if ( ! $attempt ) {
 			return new WP_Error( 'rest_not_found', 'Speech attempt not found.', array( 'status' => 404 ) );
-		}
-
-		if ( ! $this->can_access_attempt( $attempt, $request ) ) {
-			return new WP_Error( 'rest_forbidden', 'You do not have permission to view this attempt.', array( 'status' => 403 ) );
 		}
 
 		return $this->prepare_item_for_response( $attempt, $request );
@@ -807,7 +795,7 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 	 * @return bool|WP_Error True if allowed, WP_Error otherwise.
 	 */
 	public function get_attempt_feedback_permissions_check( WP_REST_Request $request ) {
-		return is_user_logged_in();
+		return true;
 	}
 
 	/**
@@ -968,15 +956,6 @@ class Ieltssci_Speech_Attempt_Controller extends WP_REST_Controller {
 				'attempt_not_found',
 				__( 'Speech attempt not found.', 'ielts-science-lms' ),
 				array( 'status' => 404 )
-			);
-		}
-
-		// Verify access.
-		if ( ! $this->can_access_attempt( $attempt, $request ) ) {
-			return new WP_Error(
-				'forbidden',
-				__( 'You do not have permission to view feedback for this speech attempt.', 'ielts-science-lms' ),
-				array( 'status' => 403 )
 			);
 		}
 
