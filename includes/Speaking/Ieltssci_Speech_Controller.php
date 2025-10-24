@@ -1455,6 +1455,18 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 			}
 		}
 
+		// Add link to part submissions associated with this speech.
+		if ( ! empty( $data['id'] ) ) {
+			$response->add_link(
+				'part_submissions',
+				add_query_arg(
+					array( 'speech_id' => $data['id'] ),
+					rest_url( 'ieltssci/v1/speaking-part-submissions' )
+				),
+				array( 'embeddable' => true )
+			);
+		}
+
 		return $response;
 	}
 
