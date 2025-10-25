@@ -153,6 +153,34 @@ class Ieltssci_TTS_Controller extends WP_REST_Attachments_Controller {
 			);
 		}
 
+		// Check if an attachment with the same TTS metadata already exists.
+		$existing_attachment_id = $this->find_existing_tts_attachment( $input, $model, $voice, $speed );
+
+		if ( $existing_attachment_id ) {
+			// Return the existing attachment.
+			$attachment = get_post( $existing_attachment_id );
+
+			if ( $attachment ) {
+				$request->set_param( 'context', 'edit' );
+				$response = parent::prepare_item_for_response( $attachment, $request );
+
+				// Add custom TTS metadata to the response.
+				$data               = $response->get_data();
+				$data['tts_meta']   = array(
+					'input' => get_post_meta( $attachment->ID, '_ieltssci_tts_input', true ),
+					'model' => get_post_meta( $attachment->ID, '_ieltssci_tts_model', true ),
+					'voice' => get_post_meta( $attachment->ID, '_ieltssci_tts_voice', true ),
+					'speed' => get_post_meta( $attachment->ID, '_ieltssci_tts_speed', true ),
+				);
+				$data['from_cache'] = true;
+				$response->set_data( $data );
+
+				$response->set_status( 200 );
+
+				return $response;
+			}
+		}
+
 		// Call the TTS API.
 		$audio_data = $this->api_client->make_tts_api_call( $input, $model, $voice, $response_format, $speed );
 
@@ -297,6 +325,60 @@ class Ieltssci_TTS_Controller extends WP_REST_Attachments_Controller {
 		update_post_meta( $attachment_id, '_ieltssci_tts_speed', $speed );
 
 		return $attachment_id;
+	}
+
+	/**
+	 * Find an existing TTS attachment with matching metadata.
+	 *
+	 * Searches for an attachment that was generated with the same TTS parameters.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $input The input text.
+	 * @param string $model The TTS model.
+	 * @param string $voice The voice.
+	 * @param float  $speed The speech speed.
+	 * @return int|false Attachment ID if found, false otherwise.
+	 */
+	protected function find_existing_tts_attachment( $input, $model, $voice, $speed ) {
+		global $wpdb;
+
+		// Query for attachments with matching TTS metadata.
+		$query = $wpdb->prepare(
+			"SELECT p.ID
+			FROM {$wpdb->posts} p
+			INNER JOIN {$wpdb->postmeta} pm1 ON p.ID = pm1.post_id AND pm1.meta_key = '_ieltssci_tts_input'
+			INNER JOIN {$wpdb->postmeta} pm2 ON p.ID = pm2.post_id AND pm2.meta_key = '_ieltssci_tts_model'
+			INNER JOIN {$wpdb->postmeta} pm3 ON p.ID = pm3.post_id AND pm3.meta_key = '_ieltssci_tts_voice'
+			INNER JOIN {$wpdb->postmeta} pm4 ON p.ID = pm4.post_id AND pm4.meta_key = '_ieltssci_tts_speed'
+			WHERE p.post_type = 'attachment'
+			AND p.post_status = 'inherit'
+			AND pm1.meta_value = %s
+			AND pm2.meta_value = %s
+			AND pm3.meta_value = %s
+			AND pm4.meta_value = %s
+			LIMIT 1",
+			$input,
+			$model,
+			$voice,
+			$speed
+		);
+
+		$attachment_id = $wpdb->get_var( $query );
+
+		if ( $attachment_id ) {
+			// Verify the attachment file still exists.
+			$file_path = get_attached_file( $attachment_id );
+			if ( $file_path && file_exists( $file_path ) ) {
+				return (int) $attachment_id;
+			} else {
+				// File doesn't exist, delete the attachment record.
+				wp_delete_attachment( $attachment_id, true );
+				return false;
+			}
+		}
+
+		return false;
 	}
 
 	/**
