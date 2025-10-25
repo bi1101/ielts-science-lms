@@ -1080,6 +1080,58 @@ class Ieltssci_API_Client {
 	}
 
 	/**
+	 * Call the phonemize API to convert text to phonemes
+	 *
+	 * @param string $text The text to phonemize.
+	 * @param string $language The language code (default: 'a').
+	 * @return array|WP_Error Array containing 'phonemes' and 'tokens', or WP_Error on failure.
+	 * @throws Exception If API call fails.
+	 */
+	public function make_phonemize_api_call( $text, $language = 'a' ) {
+		try {
+			// Create Guzzle client with appropriate settings.
+			$client_settings = array(
+				'base_uri'        => 'https://api3.ieltsscience.fun/',
+				'connect_timeout' => 30,
+				'timeout'         => 30,
+			);
+
+			$client = new Client( $client_settings );
+
+			// Prepare request payload.
+			$payload = array(
+				'text'     => $text,
+				'language' => $language,
+			);
+
+			// Make the API request.
+			$response = $client->post(
+				'dev/phonemize',
+				array(
+					'headers' => array(
+						'Content-Type' => 'application/json',
+						'Accept'       => 'application/json',
+					),
+					'json'    => $payload,
+				)
+			);
+
+			// Parse response.
+			$response_body = $response->getBody()->getContents();
+			$result        = json_decode( $response_body, true );
+
+			if ( JSON_ERROR_NONE !== json_last_error() ) {
+				throw new Exception( 'Failed to parse phonemize response: ' . json_last_error_msg() );
+			}
+
+			return $result;
+
+		} catch ( Exception $e ) {
+			return new WP_Error( 'phonemize_api_error', $e->getMessage() );
+		}
+	}
+
+	/**
 	 * Make parallel API calls to transcribe multiple audio files
 	 *
 	 * @param string $api_provider The API provider to use.
