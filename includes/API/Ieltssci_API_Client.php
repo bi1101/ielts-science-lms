@@ -1132,6 +1132,57 @@ class Ieltssci_API_Client {
 	}
 
 	/**
+	 * Call the text-to-speech API to synthesize audio from text
+	 *
+	 * @param string $input The text to synthesize.
+	 * @param string $model The TTS model to use (default: 'kokoro').
+	 * @param string $voice The voice to use (default: 'af_heart').
+	 * @param string $response_format Audio format (default: 'mp3').
+	 * @param float  $speed Speech speed (default: 1.0).
+	 * @return string|WP_Error Binary audio data on success, or WP_Error on failure.
+	 * @throws Exception If API call fails.
+	 */
+	public function make_tts_api_call( $input, $model = 'kokoro', $voice = 'af_heart', $response_format = 'mp3', $speed = 1.0 ) {
+		try {
+			// Create Guzzle client with appropriate settings.
+			$client_settings = array(
+				'base_uri'        => 'https://api3.ieltsscience.fun/',
+				'connect_timeout' => 60,
+				'timeout'         => 60,
+			);
+
+			$client = new Client( $client_settings );
+
+			// Prepare request payload.
+			$payload = array(
+				'model'           => $model,
+				'input'           => $input,
+				'voice'           => $voice,
+				'response_format' => $response_format,
+				'speed'           => (string) $speed,
+			);
+
+			// Make the API request.
+			$response = $client->post(
+				'v1/audio/speech',
+				array(
+					'headers' => array(
+						'Content-Type' => 'application/json',
+						'Accept'       => 'audio/*',
+					),
+					'json'    => $payload,
+				)
+			);
+
+			// Return the binary audio data.
+			return $response->getBody()->getContents();
+
+		} catch ( Exception $e ) {
+			return new WP_Error( 'tts_api_error', $e->getMessage() );
+		}
+	}
+
+	/**
 	 * Make parallel API calls to transcribe multiple audio files
 	 *
 	 * @param string $api_provider The API provider to use.
