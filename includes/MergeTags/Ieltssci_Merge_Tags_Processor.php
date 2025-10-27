@@ -523,7 +523,7 @@ class Ieltssci_Merge_Tags_Processor {
 				if ( ! is_wp_error( $speeches ) && ! empty( $speeches ) ) {
 					if ( 1 === count( $speeches ) ) {
 						// Handle special case for transcript field.
-						if ( 'transcript' === $field || 'transcript_text' === $field || 'transcript_with_pause' === $field || 'speaking_rate' === $field ) {
+						if ( 'transcript' === $field || 'transcript_text' === $field || 'transcript_with_pause' === $field || 'transcript_with_chunking' === $field || 'speaking_rate' === $field ) {
 							if ( isset( $speeches[0]['transcript'] ) && is_array( $speeches[0]['transcript'] ) ) {
 								// For transcript_text, return just the text content.
 								if ( 'transcript_text' === $field ) {
@@ -540,6 +540,17 @@ class Ieltssci_Merge_Tags_Processor {
 									$formatted_texts = array();
 									foreach ( $speeches[0]['transcript'] as $attachment_id => $transcript_data ) {
 										$formatted_text = $this->format_transcript_with_pauses( $attachment_id, $transcript_data );
+										if ( ! empty( $formatted_text ) ) {
+											$formatted_texts[] = $formatted_text;
+										}
+									}
+									return ! empty( $formatted_texts ) ? implode( "\n\n", $formatted_texts ) : null;
+								}
+								// For transcript_with_chunking, return formatted text with pause/hesitation indicators.
+								if ( 'transcript_with_chunking' === $field ) {
+									$formatted_texts = array();
+									foreach ( $speeches[0]['transcript'] as $attachment_id => $transcript_data ) {
+										$formatted_text = $this->format_transcript_with_chunking( $attachment_id, $transcript_data );
 										if ( ! empty( $formatted_text ) ) {
 											$formatted_texts[] = $formatted_text;
 										}
@@ -745,6 +756,18 @@ class Ieltssci_Merge_Tags_Processor {
 
 					if ( ! empty( $transcript_data ) && is_array( $transcript_data ) ) {
 						return $this->format_transcript_with_pauses( $attachment_id, $transcript_data );
+					}
+				}
+				break;
+
+			case 'transcript_with_chunking':
+				// Get audio transcript with natural pause and hesitation indicators.
+				if ( isset( $attempt['audio_id'] ) ) {
+					$attachment_id   = (int) $attempt['audio_id'];
+					$transcript_data = get_post_meta( $attachment_id, 'ieltssci_audio_transcription', true );
+
+					if ( ! empty( $transcript_data ) && is_array( $transcript_data ) ) {
+						return $this->format_transcript_with_chunking( $attachment_id, $transcript_data );
 					}
 				}
 				break;
@@ -1035,6 +1058,75 @@ class Ieltssci_Merge_Tags_Processor {
 	 */
 	private function ends_with_punctuation( $word ) {
 		return (bool) preg_match( '/[.,:;!?]$/', $word );
+	}
+
+	/**
+	 * Format transcript with chunking (natural pauses vs hesitations)
+	 *
+	 * Processes transcription data to differentiate between:
+	 * - Natural pauses (after punctuation): marked as [X.Xs PAUSE]
+	 * - Unnatural pauses/hesitations (not after punctuation): marked as [X.Xs HESITATION]
+	 *
+	 * @param int|string $media_id The media/attachment ID.
+	 * @param array      $transcript_data The transcription data for this media file.
+	 * @return string|null Formatted transcript with pause/hesitation indicators, or null if no data.
+	 */
+	private function format_transcript_with_chunking( $media_id, $transcript_data ) {
+		if ( empty( $transcript_data ) || ! is_array( $transcript_data ) ) {
+			return null;
+		}
+
+		// Extract timed words from the transcript data.
+		$timed_words = $this->get_timed_words_for_media( $media_id, $transcript_data );
+
+		if ( empty( $timed_words ) ) {
+			// Fallback to plain text if no word timing data.
+			return isset( $transcript_data['text'] ) ? $transcript_data['text'] : null;
+		}
+
+		// Calculate pause threshold for this media.
+		$pause_threshold = $this->calculate_pause_threshold( $media_id, $transcript_data );
+
+		// Build the formatted text with pause/hesitation indicators.
+		$formatted_parts      = array();
+		$pauses_detected      = false;
+		$hesitations_detected = false;
+
+		foreach ( $timed_words as $index => $word_data ) {
+			// Add the word.
+			$formatted_parts[] = $word_data['word'];
+
+			// Check if we should add a pause/hesitation indicator.
+			if ( $index < count( $timed_words ) - 1 ) {
+				$next_word      = $timed_words[ $index + 1 ];
+				$pause_duration = $next_word['start'] - $word_data['end'];
+
+				// Only add indicator if pause exceeds threshold.
+				if ( $pause_duration > $pause_threshold['threshold'] ) {
+					$pause_seconds = round( $pause_duration, 1 );
+
+					// Check if current word ends with punctuation.
+					if ( $this->ends_with_punctuation( $word_data['word'] ) ) {
+						// Natural pause after punctuation.
+						$formatted_parts[] = '[' . $pause_seconds . 's NATURAL PAUSE]';
+						$pauses_detected   = true;
+					} else {
+						// Unnatural pause/hesitation (not after punctuation).
+						$formatted_parts[]    = '[' . $pause_seconds . 's HESITATION]';
+						$hesitations_detected = true;
+					}
+				}
+			}
+		}
+
+		$formatted_text = implode( ' ', $formatted_parts );
+
+		// Add summary message if no pauses or hesitations were detected.
+		if ( ! $pauses_detected && ! $hesitations_detected ) {
+			$formatted_text .= "\n\n[No significant pauses or hesitations detected in this recording]";
+		}
+
+		return $formatted_text;
 	}
 
 	/**
