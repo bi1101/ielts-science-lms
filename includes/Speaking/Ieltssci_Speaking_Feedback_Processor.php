@@ -262,6 +262,10 @@ class Ieltssci_Speaking_Feedback_Processor {
 		$step_type = isset( $step['step'] ) ? $step['step'] : 'feedback';
 		$sections  = isset( $step['sections'] ) ? $step['sections'] : array();
 
+		// Check if feed has 'manual' suffix - if so, skip API processing.
+		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : '';
+		$is_manual         = substr( $feedback_criteria, -6 ) === 'manual';
+
 		// Default settings.
 		$api_provider = 'google';
 		$model        = 'gemini-2.0-flash-lite';
@@ -335,6 +339,47 @@ class Ieltssci_Speaking_Feedback_Processor {
 			default:
 				$content_field = 'feedback_content';
 				break;
+		}
+
+		// If feed is manual, only return existing content or empty data.
+		if ( $is_manual ) {
+			// Check for existing content.
+			$existing_content = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $attempt, $content_field );
+
+			// If this step has thinking enabled, check for existing chain-of-thought content.
+			$enable_thinking = isset( $config['general-setting']['enable_thinking'] ) ? $config['general-setting']['enable_thinking'] : false;
+			if ( $enable_thinking ) {
+				$existing_cot = $this->feedback_db->get_existing_step_content( 'chain-of-thought', $feed, $uuid, $attempt, 'cot_content' );
+
+				if ( $existing_cot ) {
+					// Stream the existing chain-of-thought content to the client.
+					$this->send_message(
+						'CHAIN_OF_THOUGHT',
+						array(
+							'content' => $existing_cot,
+							'reused'  => true,
+							'manual'  => true,
+						)
+					);
+				}
+				// Send DONE message to indicate completion of chain-of-thought.
+				$this->send_done( 'CHAIN_OF_THOUGHT' );
+			}
+
+			// Send the content (existing or empty).
+			$this->send_message(
+				$this->transform_case( $step_type, 'snake_upper' ),
+				array(
+					'content' => ! empty( $existing_content ) ? $existing_content : '',
+					'reused'  => ! empty( $existing_content ),
+					'manual'  => true,
+				)
+			);
+
+			// Send DONE message to indicate completion.
+			$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
+
+			return ! empty( $existing_content ) ? $existing_content : '';
 		}
 
 		// Check if we should skip checking existing content based on refetch parameter.
