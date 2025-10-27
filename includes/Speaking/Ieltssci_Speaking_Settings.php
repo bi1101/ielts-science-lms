@@ -641,6 +641,72 @@ class Ieltssci_Speaking_Settings {
 					),
 				),
 			),
+			array(
+				'groupName'  => 'pronunciation',
+				'groupTitle' => 'Pronunciation',
+				'feeds'      => array(
+					$settings_config_instance->create_feed(
+						'pronunciation-analysis-manual',
+						'Pronunciation Analysis Manual',
+						'attempt',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'feedback', array() ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'pronunciation-accuracy-manual',
+						'Pronunciation Accuracy Manual',
+						'speech',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'intelligibility-manual',
+						'Intelligibility Manual',
+						'speech',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'rhythm-manual',
+						'Rhythm Manual',
+						'speech',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'intonation-stress-manual',
+						'Intonation & Stress Manual',
+						'speech',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'phonological-features-manual',
+						'Phonological Features Manual',
+						'speech',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+				),
+			),
+
 		);
 
 		return $speaking_apis_settings;
