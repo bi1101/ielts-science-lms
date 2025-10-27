@@ -341,8 +341,11 @@ class Ieltssci_Speaking_Feedback_Processor {
 				break;
 		}
 
-		// If feed is manual, only return existing content or empty data.
-		if ( $is_manual ) {
+		// Check if we're refetching - if so, skip the manual check and process normally.
+		$is_refetching = ! empty( $refetch ) && ( 'all' === $refetch || $step_type === $refetch );
+
+		// If feed is manual and we're NOT refetching, only return existing content or empty data.
+		if ( $is_manual && ! $is_refetching ) {
 			// Check for existing content.
 			$existing_content = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $attempt, $content_field );
 
