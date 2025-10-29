@@ -504,6 +504,21 @@ class Ieltssci_Speaking_Part_Submission_Controller extends WP_REST_Controller {
 			return $submission_id;
 		}
 
+		// Handle meta data creation.
+		if ( isset( $request['meta'] ) && is_array( $request['meta'] ) ) {
+			foreach ( $request['meta'] as $meta_key => $meta_value ) {
+				// Ensure consistent meta value format - always store as string.
+				$sanitized_value = is_string( $meta_value ) ? $meta_value : (string) $meta_value;
+
+				// Add new meta.
+				$meta_result = $this->db->add_part_submission_meta( $submission_id, $meta_key, $sanitized_value );
+
+				if ( is_wp_error( $meta_result ) ) {
+					error_log( 'Failed to add meta data: ' . $meta_result->get_error_message() );
+				}
+			}
+		}
+
 		// Get the created submission.
 		$created_submission = $this->db->get_part_submission( $submission_id );
 
@@ -1012,6 +1027,10 @@ class Ieltssci_Speaking_Part_Submission_Controller extends WP_REST_Controller {
 				'type'        => 'string',
 				'format'      => 'date-time',
 			),
+			'meta'               => array(
+				'description' => 'Meta data to associate with the submission.',
+				'type'        => 'object',
+			),
 		);
 	}
 
@@ -1058,6 +1077,10 @@ class Ieltssci_Speaking_Part_Submission_Controller extends WP_REST_Controller {
 				'description' => 'The timestamp when the submission was completed (GMT).',
 				'type'        => 'string',
 				'format'      => 'date-time',
+			),
+			'meta'               => array(
+				'description' => 'Meta data to update for the submission.',
+				'type'        => 'object',
 			),
 		);
 	}
