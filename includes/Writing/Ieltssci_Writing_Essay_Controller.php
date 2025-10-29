@@ -108,18 +108,6 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			)
 		);
 
-		// Register route for updating essay feedback.
-		register_rest_route(
-			$this->namespace,
-			'/' . $this->rest_base . '/feedback/(?P<uuid>[a-zA-Z0-9-]+)',
-			array(
-				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => array( $this, 'update_essay_feedback' ),
-				'permission_callback' => array( $this, 'update_essay_feedback_permissions_check' ),
-				'args'                => $this->get_essay_feedback_args(),
-			)
-		);
-
 		// Register route for updating segment feedback.
 		register_rest_route(
 			$this->namespace,
@@ -132,29 +120,24 @@ class Ieltssci_Writing_Essay_Controller extends WP_REST_Controller {
 			)
 		);
 
-		// Register route for getting essay feedbacks.
-		register_rest_route(
-			$this->namespace,
-			'/' . $this->rest_base . '/feedbacks',
-			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'get_essay_feedbacks' ),
-				'permission_callback' => array( $this, 'get_essay_feedbacks_permissions_check' ),
-				'args'                => $this->get_essay_feedbacks_collection_params(),
-				'schema'              => array( $this, 'get_essay_feedbacks_schema' ),
-			)
-		);
-
 		// Register route for getting specific essay feedback.
 		register_rest_route(
 			$this->namespace,
 			'/' . $this->rest_base . '/feedback/(?P<uuid>[a-zA-Z0-9-]+)',
 			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'get_essay_feedback' ),
-				'permission_callback' => '__return_true', // Accessible to anyone.
-				'args'                => $this->get_single_essay_feedback_args(),
-				'schema'              => array( $this, 'get_essay_feedback_schema' ),
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'get_essay_feedback' ),
+					'permission_callback' => '__return_true', // Accessible to anyone.
+					'args'                => $this->get_single_essay_feedback_args(),
+				),
+				array(
+					'methods'             => WP_REST_Server::EDITABLE,
+					'callback'            => array( $this, 'update_essay_feedback' ),
+					'permission_callback' => array( $this, 'update_essay_feedback_permissions_check' ),
+					'args'                => $this->get_essay_feedback_args(),
+				),
+				'schema' => array( $this, 'get_essay_feedback_schema' ),
 			)
 		);
 
