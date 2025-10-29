@@ -1701,6 +1701,7 @@ class Ieltssci_Submission_DB {
 					array(
 						'attempt_id'       => $attempt_id,
 						'limit'            => 999,
+						'order'            => 'ASC',
 						'include_cot'      => true,
 						'include_score'    => true,
 						'include_feedback' => true,

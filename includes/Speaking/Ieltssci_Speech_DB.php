@@ -1166,7 +1166,13 @@ class Ieltssci_Speech_DB {
 			);
 
 			if ( $options['copy_speech_feedback'] ) {
-				$feedbacks = $this->get_speech_feedbacks( array( 'speech_id' => $speech_id ) );
+				$feedbacks = $this->get_speech_feedbacks(
+					array(
+						'speech_id' => $speech_id,
+						'number'    => 999,
+						'order'     => 'ASC',
+					)
+				);
 				foreach ( $feedbacks as $feedback ) {
 					$new_feedback = $this->create_speech_feedback(
 						array(
