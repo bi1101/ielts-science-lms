@@ -55,8 +55,8 @@ class Ieltssci_Core_Module {
 		add_action( 'wp_enqueue_scripts', array( $this, 'dequeue_assets_for_react_template' ), 100 );
 
 		// Add template overrides for writing tasks and tests.
-		add_filter( 'single_template', array( $this, 'override_writing_post_templates' ) );
-		add_filter( 'archive_template', array( $this, 'override_writing_archive_templates' ) );
+		add_filter( 'single_template', array( $this, 'override_post_templates' ) );
+		add_filter( 'archive_template', array( $this, 'override_archive_templates' ) );
 		add_action( 'ieltssci_process_db_update', array( $this, 'process_db_update' ) );
 		add_filter(
 			'rest_endpoints',
@@ -147,32 +147,54 @@ class Ieltssci_Core_Module {
 	 * Hooked into 'plugins_loaded'.
 	 */
 	public function run_database_updates() {
-		if ( $this->db_schema->needs_upgrade() ) {
-			// Check if Action Scheduler is available.
-			if ( function_exists( 'as_schedule_single_action' ) && ! defined( 'WP_INSTALLING' ) ) {
-				// Check if update is already scheduled.
-				$scheduled_actions = as_get_scheduled_actions(
-					array(
-						'hook'   => 'ieltssci_process_db_update',
-						'status' => 'pending',
-					),
-					'ids'
-				);
-
-				if ( empty( $scheduled_actions ) ) {
-					// Schedule update to run in background (30 seconds later to ensure Action Scheduler is fully loaded).
-					as_schedule_single_action( time() + 30, 'ieltssci_process_db_update' );
-
-					// Add admin notice that updates are scheduled.
-					if ( is_admin() && current_user_can( 'manage_options' ) ) {
-						add_action( 'admin_notices', array( $this, 'display_update_scheduled_notice' ) );
-					}
-				}
-			} else {
-				// Fallback to direct update if Action Scheduler isn't available.
-				$this->process_db_update();
-			}
+		if ( ! $this->db_schema->needs_upgrade() ) {
+			return;
 		}
+
+		// Prefer immediate async dispatch if Action Scheduler is present.
+		if ( function_exists( 'as_enqueue_async_action' ) && ! defined( 'WP_INSTALLING' ) ) {
+
+			// Avoid duplicates (covers pending, in-progress, or failed).
+			if ( ! as_has_scheduled_action( 'ieltssci_process_db_update' ) ) {
+				as_enqueue_async_action( 'ieltssci_process_db_update' );
+				// Show notice if in admin.
+				if ( is_admin() && current_user_can( 'manage_options' ) ) {
+					add_action( 'admin_notices', array( $this, 'display_update_scheduled_notice' ) );
+				}
+			}
+			return;
+		}
+
+		// Fallback to delayed scheduling if async helper absent.
+		if ( function_exists( 'as_schedule_single_action' ) && ! defined( 'WP_INSTALLING' ) ) {
+
+			if ( ! as_has_scheduled_action( 'ieltssci_process_db_update' ) ) {
+				as_schedule_single_action( time() + 30, 'ieltssci_process_db_update' );
+				if ( is_admin() && current_user_can( 'manage_options' ) ) {
+					add_action( 'admin_notices', array( $this, 'display_update_scheduled_notice' ) );
+				}
+			}
+
+			// Safety fallback: if an older pending action exists too long, run inline.
+			$cutoff        = time() - 300; // 5 minutes.
+			$stale_actions = as_get_scheduled_actions(
+				array(
+					'hook'         => 'ieltssci_process_db_update',
+					'status'       => 'pending',
+					'date'         => gmdate( 'Y-m-d H:i:s', $cutoff ),
+					'date_compare' => '<=',
+				),
+				'ids'
+			);
+			if ( ! empty( $stale_actions ) ) {
+				$this->process_db_update(); // Run directly as a fallback.
+			}
+
+			return;
+		}
+
+		// Ultimate fallback: run inline if Action Scheduler unavailable.
+		$this->process_db_update();
 	}
 
 	/**
@@ -308,16 +330,16 @@ class Ieltssci_Core_Module {
 	}
 
 	/**
-	 * Override writing post templates to use React template.
+	 * Override writing and speaking post templates to use React template.
 	 *
 	 * @param string $template Current template path.
-	 * @return string Modified template path for writing-task and writing-test posts.
+	 * @return string Modified template path for writing-task, writing-test, speaking-part, and speaking-test posts.
 	 */
-	public function override_writing_post_templates( $template ) {
+	public function override_post_templates( $template ) {
 		global $post;
 
-		// Check if we're viewing a writing-task or writing-test post.
-		if ( is_singular( array( 'writing-task', 'writing-test' ) ) ) {
+		// Check if we're viewing a writing-task, writing-test, speaking-part, or speaking-test post.
+		if ( is_singular( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ) {
 			$react_template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
 
 			// Check if our React template file exists.
@@ -330,14 +352,14 @@ class Ieltssci_Core_Module {
 	}
 
 	/**
-	 * Override writing archive templates to use React template.
+	 * Override writing and speaking archive templates to use React template.
 	 *
 	 * @param string $template Current template path.
-	 * @return string Modified template path for writing-task and writing-test archives.
+	 * @return string Modified template path for writing-task, writing-test, speaking-part, and speaking-test archives.
 	 */
-	public function override_writing_archive_templates( $template ) {
-		// Check if we're viewing writing-task or writing-test archive pages.
-		if ( is_post_type_archive( array( 'writing-task', 'writing-test' ) ) ) {
+	public function override_archive_templates( $template ) {
+		// Check if we're viewing writing-task, writing-test, speaking-part, or speaking-test archive pages.
+		if ( is_post_type_archive( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ) {
 			$react_template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
 
 			// Check if our React template file exists.
@@ -354,8 +376,8 @@ class Ieltssci_Core_Module {
 	 */
 	public function dequeue_assets_for_react_template() {
 		if ( is_page_template( 'template-react-page.php' ) ||
-			is_singular( array( 'writing-task', 'writing-test' ) ) ||
-			is_post_type_archive( array( 'writing-task', 'writing-test' ) ) ) {
+			is_singular( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ||
+			is_post_type_archive( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ) {
 
 			// Dequeue Stylesheets.
 			wp_dequeue_style( 'bb_theme_block-buddypanel-style-css' );

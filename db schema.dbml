@@ -202,6 +202,8 @@ Ref: ieltssci_api_feed.id < ieltssci_api_feed_rate_limit_rule.api_feed_id
 Ref: ieltssci_rate_limit_rule.id < ieltssci_api_feed_rate_limit_rule.rate_limit_rule_id
 Ref: ieltssci_api_feed.feedback_criteria < ieltssci_segment_feedback.feedback_criteria
 Ref: ieltssci_api_feed.feedback_criteria < ieltssci_essay_feedback.feedback_criteria
+Ref: ieltssci_api_feed.feedback_criteria < ieltssci_speech_feedback.feedback_criteria
+Ref: ieltssci_api_feed.feedback_criteria < ieltssci_speech_attempt_feedback.feedback_criteria
 Ref: ieltssci_api_feed.id < ieltssci_api_request_log.api_feed_id
 Ref: ieltssci_rate_limit_rule.id < ieltssci_role_rate_limit_rule.rate_limit_rule_id
 Ref: ieltssci_api_feed.id < ieltssci_api_feed_essay_type.api_feed_id
@@ -214,6 +216,29 @@ Table ieltssci_speech {
   audio_ids text [not null, note: 'ID của file audio người dùng upload']
   created_at timestamp [default: `now()`]
   created_by integer [not null, note: 'ID người tạo bài, nếu fork từ bài khác thì là ID của người fork']
+}
+
+Table ieltssci_speech_attempt {
+  id integer [primary key, increment]
+  submission_id integer [not null, note: 'ID của bài nộp từ ieltssci_speaking_part_submissions']
+  question_id integer [not null, note: 'ID của câu hỏi']
+  audio_id integer [not null, note: 'ID của file audio người dùng record cho lần thử này']
+  created_at timestamp [default: `now()`]
+  created_by integer [not null, note: 'ID người tạo bài']
+}
+
+Table ieltssci_speech_attempt_feedback {
+  id integer [primary key, increment]
+  feedback_criteria varchar [not null, note: 'tiêu chí feedback e.g relevance, clearAnswer (score, Cot, feedback), rewrite, logicDepth, etc.']
+  attempt_id integer [not null]
+  feedback_language varchar [not null, note: 'Ngôn ngữ của feedback']
+  source FeedbackSource [not null]
+  cot_content text [note: 'Nội dung phần COT']
+  score_content text [note: 'Nội dung phần điểm số']
+  feedback_content text [note: 'Nội dung phần feedback']
+  created_at timestamp [default: `now()`]
+  created_by integer [not null, note: 'ID của người call API hoặc update MANUAL feedback']
+  is_preferred boolean [note: 'Feedback được chọn làm feedback mặc định cho lần thử này']
 }
 
 // Speech meta data
@@ -242,9 +267,15 @@ Table ieltssci_speech_feedback {
 
 // Relationships
 Ref: ieltssci_speech.id < ieltssci_speech_feedback.speech_id
+Ref: ieltssci_speech_attempt.id < ieltssci_speech_attempt_feedback.attempt_id
 
 // Speaking Parts as CPT
 Table wp_speaking_parts {
+  id integer [primary key, increment]
+  question_ids integer[] [not null, note: 'ID của các câu hỏi trong wp_speaking_questions']
+}
+
+Table wp_speaking_questions {
   id integer [primary key, increment]
 }
 
@@ -299,3 +330,5 @@ Ref: wp_speaking_parts.id < ieltssci_speaking_part_submissions.part_id
 Ref: ieltssci_speech.id < ieltssci_speaking_part_submissions.speech_id
 Ref: ieltssci_speaking_test_submissions.id < ieltssci_speaking_test_submission_meta.ieltssci_speaking_test_submission_id
 Ref: ieltssci_speaking_part_submissions.id < ieltssci_speaking_part_submission_meta.ieltssci_speaking_part_submission_id
+Ref: wp_speaking_questions.id < ieltssci_speech_attempt.question_id
+Ref: ieltssci_speaking_part_submissions.id < ieltssci_speech_attempt.submission_id

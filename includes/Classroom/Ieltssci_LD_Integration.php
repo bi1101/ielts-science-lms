@@ -111,6 +111,10 @@ class Ieltssci_LD_Integration {
 		$writing_module    = new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
 		$module_pages_data = $writing_module->provide_module_pages_data( $module_pages_data );
 
+		// Also get speaking module pages data.
+		$speaking_module   = new \IeltsScienceLMS\Speaking\Ieltssci_Speaking_Module();
+		$module_pages_data = $speaking_module->provide_module_pages_data( $module_pages_data );
+
 		// Also get dashboard module pages data.
 		$dashboard_module  = new \IeltsScienceLMS\Dashboard\Ieltssci_Dashboard_Module();
 		$module_pages_data = $dashboard_module->provide_module_pages_data( $module_pages_data );
@@ -119,6 +123,12 @@ class Ieltssci_LD_Integration {
 		$writing_module_pages = array();
 		if ( isset( $module_pages_data['writing_module']['pages'] ) ) {
 			$writing_module_pages = $module_pages_data['writing_module']['pages'];
+		}
+
+		// Extract speaking module pages.
+		$speaking_module_pages = array();
+		if ( isset( $module_pages_data['speaking_module']['pages'] ) ) {
+			$speaking_module_pages = $module_pages_data['speaking_module']['pages'];
 		}
 
 		// Extract dashboard module pages.
@@ -152,6 +162,19 @@ class Ieltssci_LD_Integration {
 			// Prepare data for localization using writing module pages.
 			$page_data_for_js = array();
 			foreach ( $writing_module_pages as $page_key => $page_label ) {
+				if ( isset( $ielts_pages[ $page_key ] ) ) {
+					$page_id = $ielts_pages[ $page_key ];
+					// Check if this page is set as the front page - ensure consistent types for comparison.
+					$front_page_id = get_option( 'page_on_front' );
+					$is_front_page = ( (int) $page_id === (int) $front_page_id );
+					// Use empty string for homepage URI to match root route.
+					$uri                           = $is_front_page ? '' : get_page_uri( $page_id );
+					$page_data_for_js[ $page_key ] = $uri;
+				}
+			}
+
+			// Add speaking module pages to the localized data.
+			foreach ( $speaking_module_pages as $page_key => $page_label ) {
 				if ( isset( $ielts_pages[ $page_key ] ) ) {
 					$page_id = $ielts_pages[ $page_key ];
 					// Check if this page is set as the front page - ensure consistent types for comparison.

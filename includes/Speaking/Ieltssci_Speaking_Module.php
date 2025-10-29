@@ -9,6 +9,9 @@
 
 namespace IeltsScienceLMS\Speaking;
 
+use WP_REST_Users_Controller;
+use WP_REST_Request;
+
 /**
  * Class Ieltssci_Speaking_Module
  *
@@ -23,8 +26,13 @@ class Ieltssci_Speaking_Module {
 	 */
 	public function __construct() {
 		new Ieltssci_Speaking_Settings();
-		new Ieltssci_Speaking_REST();
 		new Ieltssci_Speaking_SSE_REST();
+		new Ieltssci_Speaking_Part_Submission_Controller();
+		new Ieltssci_Speaking_Test_Submission_Controller();
+		new Ieltssci_Speech_Attempt_Controller();
+		new Ieltssci_Speech_Controller();
+		new Ieltssci_Phonemize_Controller();
+		new Ieltssci_TTS_Controller();
 
 		// Register post meta for audio transcription.
 		add_action( 'init', array( $this, 'register_audio_transcription_meta' ) );
@@ -297,9 +305,11 @@ class Ieltssci_Speaking_Module {
 			'section_title' => __( 'Speaking Module Pages', 'ielts-science-lms' ),
 			'section_desc'  => __( 'Select the pages for the Speaking Module.', 'ielts-science-lms' ),
 			'pages'         => array(
-				'speaking_submission' => __( 'IELTS Science Speaking', 'ielts-science-lms' ),
-				'speaking_result'     => __( 'Speaking Results', 'ielts-science-lms' ),
-				'speaking_history'    => __( 'Speaking History', 'ielts-science-lms' ),
+				'speaking_submission'    => __( 'IELTS Science Speaking', 'ielts-science-lms' ),
+				'speaking_result'        => __( 'Speaking Results', 'ielts-science-lms' ),
+				'speaking_history'       => __( 'Speaking History', 'ielts-science-lms' ),
+				'speaking_part_practice' => __( 'Speaking Part Practice', 'ielts-science-lms' ),
+				'speaking_test_practice' => __( 'Speaking Test Practice', 'ielts-science-lms' ),
 			),
 		);
 
@@ -342,27 +352,102 @@ class Ieltssci_Speaking_Module {
 		// Get module pages data for the current module.
 		$module_pages_data = $this->provide_module_pages_data( array() );
 
+		// Also get dashboard module pages data.
+		$dashboard_module  = new \IeltsScienceLMS\Dashboard\Ieltssci_Dashboard_Module();
+		$module_pages_data = $dashboard_module->provide_module_pages_data( $module_pages_data );
+
 		// Extract speaking module pages.
 		$speaking_module_pages = array();
 		if ( isset( $module_pages_data['speaking_module']['pages'] ) ) {
 			$speaking_module_pages = $module_pages_data['speaking_module']['pages'];
 		}
 
+		// Extract dashboard module pages.
+		$dashboard_module_pages = array();
+		if ( isset( $module_pages_data['dashboard_module']['pages'] ) ) {
+			$dashboard_module_pages = $module_pages_data['dashboard_module']['pages'];
+		}
+
 		// Check if the current page is one of the assigned speaking module pages.
 		$should_enqueue = false;
+		$script_type    = 'index'; // Default script type.
+
 		if ( ! empty( $ielts_pages ) && ! empty( $speaking_module_pages ) ) {
 			foreach ( $speaking_module_pages as $page_key => $page_label ) {
 				if ( isset( $ielts_pages[ $page_key ] ) && is_page( $ielts_pages[ $page_key ] ) ) {
 					$should_enqueue = true;
+					// Set specific script type for practice pages.
+					if ( 'speaking_part_practice' === $page_key ) {
+						$script_type = 'speaking-part-practice';
+					} elseif ( 'speaking_test_practice' === $page_key ) {
+						$script_type = 'speaking-test-practice';
+					}
 					break;
 				}
 			}
 		}
 
+		// Check for speaking part/test pages and archives.
+		if ( ! $should_enqueue ) {
+			if ( is_singular( 'speaking-part' ) ) {
+				// Dequeue styles with handle matching 'elementor-post-*'.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
+				$should_enqueue = true;
+				$script_type    = 'speaking-part-single';
+			} elseif ( is_singular( 'speaking-test' ) ) {
+				// Dequeue styles with handle matching 'elementor-post-*'.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
+				$should_enqueue = true;
+				$script_type    = 'speaking-test-single';
+			} elseif ( is_post_type_archive( 'speaking-part' ) || ( is_home() && get_option( 'page_for_posts' ) && get_post_type( get_option( 'page_for_posts' ) ) === 'speaking-part' ) ) {
+				// Dequeue styles with handle matching 'elementor-post-*'.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
+				$should_enqueue = true;
+				$script_type    = 'speaking-part-archive';
+			} elseif ( is_post_type_archive( 'speaking-test' ) || ( is_home() && get_option( 'page_for_posts' ) && get_post_type( get_option( 'page_for_posts' ) ) === 'speaking-test' ) ) {
+				// Dequeue styles with handle matching 'elementor-post-*'.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
+				$should_enqueue = true;
+				$script_type    = 'speaking-test-archive';
+			}
+		}
+
 		if ( $should_enqueue ) {
-			// Define the handle for the index script and style.
-			$script_handle  = 'ielts-science-speaking-index';
-			$style_handle   = 'ielts-science-speaking-index-css';
+			// Define the handle for the script and style based on type.
+			$script_handle  = 'ielts-science-speaking-' . $script_type;
+			$style_handle   = 'ielts-science-speaking-' . $script_type . '-css';
 			$runtime_handle = 'ielts-science-speaking-runtime';
 
 			// Enqueue the runtime script if it's registered.
@@ -379,9 +464,55 @@ class Ieltssci_Speaking_Module {
 				wp_enqueue_style( $style_handle );
 			}
 
+			// --- Post Data Retrieval ---.
+			$post_data = null;
+			if ( is_singular( array( 'speaking-part', 'speaking-test' ) ) ) {
+				$current_post = get_queried_object();
+
+				if ( $current_post && is_a( $current_post, 'WP_Post' ) ) {
+					try {
+						// Build the proper REST route.
+						$route = '/wp/v2/' . $current_post->post_type . '/' . $current_post->ID;
+
+						// Create a REST request that mimics a normal API request.
+						$request = new WP_REST_Request( 'GET', $route );
+						$request->set_param( 'acf_format', 'standard' ); // Ensure ACF fields are included in the response.
+						// Set the route on the request.
+						$request->set_route( $route );
+
+						// Dispatch the request through the REST server to get ACF fields.
+						$response = rest_do_request( $request );
+
+						if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
+							$server    = rest_get_server();
+							$post_data = $server->response_to_data( $response, true );
+
+							// Add permalink to post data.
+							$post_data['permalink_template'] = get_permalink( $current_post->ID, true );
+						}
+					} catch ( \Exception $e ) {
+						// Log error but continue execution.
+						error_log( 'Post data preparation failed: ' . $e->getMessage() );
+					}
+				}
+			}
+
 			// Prepare data for localization using speaking module pages.
 			$page_data_for_js = array();
 			foreach ( $speaking_module_pages as $page_key => $page_label ) {
+				if ( isset( $ielts_pages[ $page_key ] ) ) {
+					$page_id = $ielts_pages[ $page_key ];
+					// Check if this page is set as the front page - ensure consistent types for comparison.
+					$front_page_id = get_option( 'page_on_front' );
+					$is_front_page = ( (int) $page_id === (int) $front_page_id );
+					// Use empty string for homepage URI to match root route.
+					$uri                           = $is_front_page ? '' : get_page_uri( $page_id );
+					$page_data_for_js[ $page_key ] = $uri;
+				}
+			}
+
+			// Add dashboard module pages to the localized data.
+			foreach ( $dashboard_module_pages as $page_key => $page_label ) {
 				if ( isset( $ielts_pages[ $page_key ] ) ) {
 					$page_id = $ielts_pages[ $page_key ];
 					// Check if this page is set as the front page - ensure consistent types for comparison.
@@ -437,7 +568,18 @@ class Ieltssci_Speaking_Module {
 			$user_roles              = array(); // Initialize user roles array.
 			$has_subscription_active = false; // Initialize subscription status.
 
+			// Prepare safe user data using WordPress REST API user preparation.
+			$safe_user_data = null;
+
 			if ( is_user_logged_in() ) {
+				$users_controller = new WP_REST_Users_Controller();
+				$request          = new WP_REST_Request();
+				$request->set_param( 'context', 'edit' ); // Use 'edit' context for more comprehensive data.
+
+				// Prepare user data using WordPress's own REST API methods.
+				$user_data      = $users_controller->prepare_item_for_response( $current_user, $request );
+				$safe_user_data = $user_data->get_data();
+
 				// BuddyBoss-specific functions (if BuddyBoss is active).
 				if ( function_exists( 'bp_core_get_user_domain' ) ) {
 					$user_link = bp_core_get_user_domain( $current_user->ID );
@@ -479,11 +621,42 @@ class Ieltssci_Speaking_Module {
 			}
 
 			// Get current page information.
+			$queried_object = get_queried_object();
+			$slug           = '';
+			$page_id        = 0;
+			$page_url       = '';
+			$page_title     = '';
+			$page_path      = ''; // Initialize page path.
+
+			if ( $queried_object ) {
+				if ( is_a( $queried_object, 'WP_Post' ) ) {
+					// It's a post object.
+					$slug       = $queried_object->post_name;
+					$page_id    = get_queried_object_id();
+					$page_url   = get_permalink( $page_id );
+					$page_path  = wp_make_link_relative( $page_url );
+					$page_title = get_the_title();
+				} elseif ( is_post_type_archive() ) {
+					$page_id    = 0; // Archive pages don't have a specific ID.
+					$page_url   = get_post_type_archive_link( $queried_object->name );
+					$page_title = $queried_object->labels->name ?? $queried_object->label ?? '';
+					$page_path  = wp_make_link_relative( $page_url ); // Get relative path.
+					$slug       = $queried_object->has_archive ? $queried_object->has_archive : $queried_object->name;
+				} elseif ( is_tax() || is_category() || is_tag() ) {
+					$page_id    = $queried_object->term_id;
+					$page_url   = get_term_link( $queried_object );
+					$page_path  = wp_make_link_relative( $page_url ); // Get relative path.
+					$page_title = $queried_object->name;
+					$slug       = $queried_object->slug;
+				}
+			}
+
 			$current_page = array(
-				'id'    => get_queried_object_id(),
-				'url'   => get_permalink( get_queried_object_id() ),
-				'title' => get_the_title(),
-				'slug'  => get_queried_object() ? get_queried_object()->post_name : '',
+				'id'    => $page_id,
+				'url'   => $page_url,
+				'title' => $page_title,
+				'path'  => $page_path, // Use relative path.
+				'slug'  => $slug,
 			);
 
 			$setting_instance = new Ieltssci_Speaking_Settings();
@@ -526,8 +699,9 @@ class Ieltssci_Speaking_Module {
 
 			// Get Google Console client ID.
 			$google_console_client_id = '';
-			$api_keys_db        = new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_DB();
-			$google_console_key = $api_keys_db->get_api_key(
+			$facebook_app_id          = '';
+			$api_keys_db              = new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_DB();
+			$google_console_key       = $api_keys_db->get_api_key(
 				0,
 				array(
 					'provider' => 'google-console',
@@ -536,6 +710,16 @@ class Ieltssci_Speaking_Module {
 			if ( ! empty( $google_console_key ) && ! empty( $google_console_key['meta'] ) && ! empty( $google_console_key['meta']['client-id'] ) ) {
 				$google_console_client_id = $google_console_key['meta']['client-id'];
 			}
+			// Get Facebook App ID.
+			$facebook_key = $api_keys_db->get_api_key(
+				0,
+				array(
+					'provider' => 'facebook',
+				)
+			);
+			if ( ! empty( $facebook_key ) && ! empty( $facebook_key['meta'] ) && ! empty( $facebook_key['meta']['app-id'] ) ) {
+				$facebook_app_id = $facebook_key['meta']['app-id'];
+			}
 
 			// Combine all data to be localized.
 			$localized_data = array(
@@ -543,6 +727,7 @@ class Ieltssci_Speaking_Module {
 				'nonce'                    => $nonce,
 				'root_url'                 => $root_url,
 				'is_logged_in'             => is_user_logged_in(),
+				'current_user'             => $safe_user_data, // Use safe user data prepared by WordPress REST API.
 				'header_menu'              => $formatted_header_menu_items,
 				'account_menu'             => $formatted_account_menu_items,
 				'user_link'                => $user_link,
@@ -557,6 +742,9 @@ class Ieltssci_Speaking_Module {
 				'register_url'             => $register_url,
 				'ajax_url'                 => admin_url( 'admin-ajax.php' ), // Add AJAX URL for custom login.
 				'current_page'             => $current_page,
+				'post_data'                => $post_data,
+				// Check if Nextend Social Login plugin is active.
+				'social_login_active'      => class_exists( 'NextendSocialLogin' ),
 				// New logo data.
 				'site_logo_url'            => $logo_url,
 				'site_logo_dark_url'       => $logo_dark_url,
@@ -579,7 +767,10 @@ class Ieltssci_Speaking_Module {
 				'footer_tagline'           => buddyboss_theme_get_option( 'footer_tagline' ),
 				'footer_style'             => (int) buddyboss_theme_get_option( 'footer_style' ),
 				'footer_logo_url'          => wp_get_attachment_image_url( buddyboss_theme_get_option( 'footer_logo', 'id' ), 'full' ),
+				// Google Console client ID.
 				'google_console_client_id' => $google_console_client_id,
+				// Facebook App ID.
+				'facebook_app_id'          => $facebook_app_id,
 			);
 
 			// Get footer menu items.
@@ -610,20 +801,32 @@ class Ieltssci_Speaking_Module {
 	}
 
 	/**
-	 * Register custom rewrite rules for UUID child slugs
+	 * Register custom rewrite rules for UUID child slugs.
+	 *
+	 * Sets up rewrite rules to support URL patterns with UUIDs for entry identification.
+	 *
+	 * @return void
 	 */
 	public function register_custom_rewrite_rules() {
 		$ielts_pages = get_option( 'ielts_science_lms_pages', array() );
 
-		// List of result pages to add rewrite rules for.
-		$result_pages = array( 'speaking_result', 'speaking_history' );
+		// List of result pages and practice pages to add rewrite rules for.
+		$uuid_pages = array(
+			'speaking_result',
+			'speaking_history',
+			'speaking_part_practice',
+			'speaking_test_practice',
+		);
 
-		foreach ( $result_pages as $page_key ) {
+		foreach ( $uuid_pages as $page_key ) {
+			// Check if the page is set.
 			if ( ! empty( $ielts_pages[ $page_key ] ) ) {
-				$result_page = get_post( $ielts_pages[ $page_key ] );
+				$page = get_post( $ielts_pages[ $page_key ] );
 
-				if ( $result_page ) {
-					$slug = $result_page->post_name;
+				if ( $page ) {
+					$slug = $page->post_name;
+
+					// Add rewrite rule for UUIDs (8-4-4-4-12 format).
 					add_rewrite_rule(
 						'^' . $slug . '/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/?$',
 						'index.php?pagename=' . $slug . '&entry_id=$matches[1]',
@@ -633,6 +836,7 @@ class Ieltssci_Speaking_Module {
 			}
 		}
 
+		// Register the query var only once.
 		add_filter(
 			'query_vars',
 			function ( $query_vars ) {

@@ -38,16 +38,58 @@ class Ieltssci_Speaking_Feedback_DB {
 	}
 
 	/**
+	 * Resolve the user ID that should be credited for feedback on a given speech.
+	 *
+	 * Follows the same pattern used in rate-limit checks: if the speech is linked
+	 * to a task submission that has an 'instructor_id' meta value, then use that
+	 * instructor ID; otherwise, return 0 so callers can fall back to current user.
+	 *
+	 * @param int $speech_id The speech ID.
+	 * @return int The instructor user ID if available, or 0 if none found.
+	 */
+	private function resolve_feedback_creator_user_id( $speech_id ) {
+		if ( empty( $speech_id ) ) {
+			return 0; // Invalid speech ID, no override.
+		}
+
+		try {
+			$submission_db   = new Ieltssci_Submission_DB();
+			$task_submission = $submission_db->get_part_submissions(
+				array(
+					'speech_id' => (int) $speech_id,
+					'number'    => 1,
+					'orderby'   => 'id',
+					'order'     => 'DESC',
+				)
+			);
+			if ( is_wp_error( $task_submission ) ) {
+				return 0; // DB error, skip override.
+			}
+			if ( $task_submission && is_array( $task_submission ) && ! empty( $task_submission ) && ! empty( $task_submission[0]['id'] ) ) {
+				$instructor_id = $submission_db->get_part_submission_meta( $task_submission[0]['id'], 'instructor_id', true );
+				return $instructor_id ? (int) $instructor_id : 0; // Return instructor or 0.
+			}
+		} catch ( \Exception $e ) {
+			// Log exception if needed, but return 0 to avoid blocking feedback saving.
+			error_log( 'Error resolving feedback creator user ID: ' . $e->getMessage() );
+			return 0;
+		}
+
+		return 0; // No instructor found.
+	}
+
+	/**
 	 * Check if a step has already been processed and retrieve existing content.
 	 *
-	 * @param string $step_type     The type of step (chain-of-thought, scoring, feedback).
-	 * @param array  $feed          The feed data containing configuration.
-	 * @param string $uuid          The UUID of the speech recording.
-	 * @param string $content_field The database field to retrieve.
+	 * @param string      $step_type     The type of step (chain-of-thought, scoring, feedback).
+	 * @param array       $feed          The feed data containing configuration.
+	 * @param string|null $uuid          The UUID of the speech recording. Can be null for standalone speech attempts.
+	 * @param array       $attempt       Optional. The attempt data if processing a specific attempt.
+	 * @param string      $content_field The database field to retrieve.
 	 *
 	 * @return string|null The existing content if found, null otherwise.
 	 */
-	public function get_existing_step_content( $step_type, $feed, $uuid, $content_field = '' ) {
+	public function get_existing_step_content( $step_type, $feed, $uuid = null, $attempt = null, $content_field = '' ) {
 		// If content_field is not provided, determine it from the step_type.
 		if ( empty( $content_field ) ) {
 			// Map step_type to the appropriate database column.
@@ -68,82 +110,141 @@ class Ieltssci_Speaking_Feedback_DB {
 		// Initialize variables for existing content.
 		$existing_content  = null;
 		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
+		$apply_to          = isset( $feed['apply_to'] ) ? $feed['apply_to'] : 'speech';
 
-		// Get speech ID from UUID.
-		$speeches = $this->speech_db->get_speeches(
-			array(
-				'uuid'     => $uuid,
-				'per_page' => 1,
-			)
-		);
-
-		if ( is_wp_error( $speeches ) || empty( $speeches ) ) {
-			return null;
-		}
-
-		$speech_id = $speeches[0]['id'];
-
-		// Get feedback ordered by creation date (newest first).
-		$feedback_results = $this->speech_db->get_speech_feedbacks(
-			array(
-				'speech_id'         => $speech_id,
-				'feedback_criteria' => $feedback_criteria,
-				'include_cot'       => ( 'cot_content' === $content_field ),
-				'include_score'     => ( 'score_content' === $content_field ),
-				'include_feedback'  => ( 'feedback_content' === $content_field ),
-				'orderby'           => 'created_at',
-				'order'             => 'DESC',
-			)
-		);
-
-		// Use the first feedback that has content in the required field.
-		if ( ! is_wp_error( $feedback_results ) && ! empty( $feedback_results ) ) {
-			foreach ( $feedback_results as $feedback ) {
-				if ( ! empty( $feedback[ $content_field ] ) ) {
-					$existing_content = $feedback[ $content_field ];
-					break;
+		// Switch based on apply_to for extendability.
+		switch ( $apply_to ) {
+			case 'attempt':
+				if ( empty( $attempt ) || empty( $attempt['id'] ) ) {
+					return null; // No attempt context provided, cannot check attempt-level content.
 				}
-			}
-		}
 
-		return $existing_content;
+				$feedback_results = $this->speech_db->get_speech_attempt_feedbacks(
+					array(
+						'attempt_id'        => (int) $attempt['id'],
+						'feedback_criteria' => $feedback_criteria,
+						'include_cot'       => ( 'cot_content' === $content_field ),
+						'include_score'     => ( 'score_content' === $content_field ),
+						'include_feedback'  => ( 'feedback_content' === $content_field ),
+						'orderby'           => 'created_at',
+						'order'             => 'DESC',
+						'limit'             => 10,
+					)
+				);
+
+				// Use the first feedback that has content in the required field.
+				if ( ! is_wp_error( $feedback_results ) && ! empty( $feedback_results ) ) {
+					foreach ( $feedback_results as $feedback ) {
+						if ( ! empty( $feedback[ $content_field ] ) ) {
+							$existing_content = $feedback[ $content_field ];
+							break;
+						}
+					}
+				}
+
+				return $existing_content;
+
+			case 'speech':
+			default:
+				// Speech-level: UUID is required.
+				if ( empty( $uuid ) ) {
+					return null;
+				}
+
+				// Get speech ID from UUID.
+				$speeches = $this->speech_db->get_speeches(
+					array(
+						'uuid'     => $uuid,
+						'per_page' => 1,
+					)
+				);
+
+				if ( is_wp_error( $speeches ) || empty( $speeches ) ) {
+					return null;
+				}
+
+				$speech_id = $speeches[0]['id'];
+
+				// Get feedback ordered by creation date (newest first).
+				$feedback_results = $this->speech_db->get_speech_feedbacks(
+					array(
+						'speech_id'         => $speech_id,
+						'feedback_criteria' => $feedback_criteria,
+						'include_cot'       => ( 'cot_content' === $content_field ),
+						'include_score'     => ( 'score_content' === $content_field ),
+						'include_feedback'  => ( 'feedback_content' === $content_field ),
+						'orderby'           => 'created_at',
+						'order'             => 'DESC',
+					)
+				);
+
+				// Use the first feedback that has content in the required field.
+				if ( ! is_wp_error( $feedback_results ) && ! empty( $feedback_results ) ) {
+					foreach ( $feedback_results as $feedback ) {
+						if ( ! empty( $feedback[ $content_field ] ) ) {
+							$existing_content = $feedback[ $content_field ];
+							break;
+						}
+					}
+				}
+
+				return $existing_content;
+		}
 	}
 
 	/**
 	 * Save feedback results to the database
 	 *
-	 * @param string $feedback   The feedback content to save.
-	 * @param array  $feed       The feed configuration data.
-	 * @param string $uuid       The UUID of the speech recording.
-	 * @param string $step_type  The type of step being processed.
-	 * @param string $language   The language of the feedback.
-	 * @param string $source     The source of the feedback, 'ai' or 'human'.
-	 * @param string $refetch    Whether to refetch content, 'all' or specific step type.
+	 * @param string      $feedback   The feedback content to save.
+	 * @param array       $feed       The feed configuration data.
+	 * @param string|null $uuid       The UUID of the speech recording. Can be null for standalone speech attempts.
+	 * @param string      $step_type  The type of step being processed.
+	 * @param array       $attempt    Optional. The attempt data if processing a specific attempt.
+	 * @param string      $language   The language of the feedback.
+	 * @param string      $source     The source of the feedback, 'ai' or 'human'.
+	 * @param string      $refetch    Whether to refetch content, 'all' or specific step type.
 	 * @return bool|int|WP_Error True or ID on success, WP_Error on failure.
 	 */
-	public function save_feedback_to_database( $feedback, $feed, $uuid, $step_type, $language = 'en', $source = 'ai', $refetch = '' ) {
+	public function save_feedback_to_database( $feedback, $feed, $uuid = null, $step_type, $attempt = null, $language = 'en', $source = 'ai', $refetch = '' ) {
 		// Check if we have a valid feedback content.
 		if ( empty( $feedback ) ) {
 			return new WP_Error( 'empty_feedback', 'No feedback content provided.' );
 		}
 
-		// Save the speech-level feedback.
-		return $this->save_speech_feedback( $uuid, $feedback, $feed, $step_type, $language, $source, $refetch );
+		// Get the apply_to value which determines where to save.
+		$apply_to = isset( $feed['apply_to'] ) ? $feed['apply_to'] : 'speech';
+
+		// Implement the database saving logic based on the apply_to value.
+		switch ( $apply_to ) {
+			case 'speech':
+				// Save the speech-level feedback.
+				return $this->save_speech_feedback( $uuid, $feedback, $feed, $step_type, $language, $source, $refetch );
+			case 'attempt':
+				// Save the attempt-level feedback.
+				return $this->save_speech_attempt_feedback( $uuid, $feedback, $feed, $step_type, $attempt, $language, $source, $refetch );
+			default:
+				return new WP_Error( 'invalid_apply_to', 'Invalid apply_to value for speaking feedback.' );
+		}
 	}
 
 	/**
 	 * Save speech feedback to the database
 	 *
-	 * @param string $uuid       The UUID of the speech recording.
-	 * @param string $feedback   The feedback content to save.
-	 * @param array  $feed       The feed data (containing criteria, etc.).
-	 * @param string $step_type  The type of step (chain-of-thought, scoring, feedback).
-	 * @param string $language   The language of the feedback.
-	 * @param string $source     The source of the feedback, 'ai' or 'human'.
-	 * @param string $refetch    Whether to refetch content, 'all' or specific step type.
+	 * @param string|null $uuid       The UUID of the speech recording. Required for speech-level feedback.
+	 * @param string      $feedback   The feedback content to save.
+	 * @param array       $feed       The feed data (containing criteria, etc.).
+	 * @param string      $step_type  The type of step (chain-of-thought, scoring, feedback).
+	 * @param string      $language   The language of the feedback.
+	 * @param string      $source     The source of the feedback, 'ai' or 'human'.
+	 * @param string      $refetch    Whether to refetch content, 'all' or specific step type.
 	 * @return int|WP_Error ID of created feedback or error.
 	 */
-	private function save_speech_feedback( $uuid, $feedback, $feed, $step_type, $language = 'en', $source = 'ai', $refetch = '' ) {
+	private function save_speech_feedback( $uuid = null, $feedback, $feed, $step_type, $language = 'en', $source = 'ai', $refetch = '' ) {
+		// UUID is required for speech-level feedback.
+		if ( empty( $uuid ) ) {
+			return new WP_Error( 'missing_uuid', 'UUID is required for speech-level feedback.' );
+		}
+
 		// Get speech ID from UUID.
 		$speeches = $this->speech_db->get_speeches(
 			array(
@@ -157,6 +258,9 @@ class Ieltssci_Speaking_Feedback_DB {
 		}
 
 		$speech_id = $speeches[0]['id'];
+
+		// If the speech is linked to a task submission with an instructor, credit feedback to the instructor.
+		$instructor_id = $this->resolve_feedback_creator_user_id( $speech_id );
 
 		// Extract needed feed attributes.
 		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
@@ -182,11 +286,80 @@ class Ieltssci_Speaking_Feedback_DB {
 			'feedback_criteria' => $feedback_criteria,
 			'feedback_language' => $language,
 			'source'            => $source,
+			// Set the specific content field dynamically.
 			$content_field      => $feedback,
-			'created_by'        => get_current_user_id(),
+			'created_by'        => $instructor_id > 0 ? $instructor_id : get_current_user_id(),
 		);
 
 		// Always create a new feedback entry.
-		return $this->speech_db->create_update_speech_feedback( $feedback_data );
+		return $this->speech_db->create_speech_feedback( $feedback_data );
+	}
+
+	/**
+	 * Save speech attempt feedback to the database
+	 *
+	 * @param string|null $uuid       The UUID of the speech recording. Can be null for standalone speech attempts.
+	 * @param string      $feedback   The feedback content to save.
+	 * @param array       $feed       The feed data (containing criteria, etc.).
+	 * @param string      $step_type  The type of step (chain-of-thought, scoring, feedback).
+	 * @param array       $attempt    The attempt data object.
+	 * @param string      $language   The language of the feedback.
+	 * @param string      $source     The source of the feedback, 'ai' or 'human'.
+	 * @param string      $refetch    Whether to refetch content, 'all' or specific step type.
+	 * @return int|WP_Error|bool ID of created feedback, error, or false if skipped.
+	 */
+	private function save_speech_attempt_feedback( $uuid = null, $feedback, $feed, $step_type, $attempt, $language = 'en', $source = 'ai', $refetch = '' ) {
+		// Check if attempt is null - if so, return false (nothing to save).
+		if ( empty( $attempt ) || empty( $attempt['id'] ) ) {
+			return false;
+		}
+
+		// Get attempt ID from attempt object.
+		$attempt_id = $attempt['id'];
+
+		// Try to obtain speech_id from provided attempt or by querying the DB if not present.
+		$speech_id = isset( $attempt['speech_id'] ) ? (int) $attempt['speech_id'] : 0; // Prefer speech_id from attempt payload if available.
+		if ( ! $speech_id ) {
+			global $wpdb;
+			$table          = $wpdb->prefix . 'ieltssci_speech_attempt';
+			$attempt_record = $wpdb->get_row( $wpdb->prepare( 'SELECT speech_id FROM ' . $table . ' WHERE id = %d LIMIT 1', (int) $attempt_id ), ARRAY_A );
+			if ( $attempt_record && isset( $attempt_record['speech_id'] ) ) {
+				$speech_id = (int) $attempt_record['speech_id'];
+			}
+		}
+
+		// If the speech is linked to a task submission with an instructor, credit feedback to the instructor.
+		$instructor_id = $this->resolve_feedback_creator_user_id( $speech_id );
+
+		// Extract needed feed attributes.
+		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
+
+		// Map step_type to the appropriate database column.
+		$content_field = '';
+		switch ( $step_type ) {
+			case 'chain-of-thought':
+				$content_field = 'cot_content';
+				break;
+			case 'scoring':
+				$content_field = 'score_content';
+				break;
+			case 'feedback':
+			default:
+				$content_field = 'feedback_content';
+				break;
+		}
+
+		// Prepare feedback data.
+		$feedback_data = array(
+			'attempt_id'        => $attempt_id,
+			'feedback_criteria' => $feedback_criteria,
+			'feedback_language' => $language,
+			'source'            => $source,
+			$content_field      => $feedback,
+			'created_by'        => $instructor_id > 0 ? $instructor_id : get_current_user_id(),
+		);
+
+		// Always create a new feedback entry.
+		return $this->speech_db->create_speech_attempt_feedback( $feedback_data );
 	}
 }

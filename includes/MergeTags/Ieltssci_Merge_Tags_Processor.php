@@ -23,15 +23,16 @@ class Ieltssci_Merge_Tags_Processor {
 	/**
 	 * Process merge tags in a prompt string
 	 *
-	 * @param string $prompt       The prompt string containing merge tags.
-	 * @param string $uuid         The UUID of the essay to use for fetching content.
-	 * @param int    $segment_order Optional. The order of the segment to filter by.
-	 * @param string $feedback_style The feedback style to use.
-	 * @param string $guide_score   Human-guided scoring for the AI to consider.
-	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param string      $prompt       The prompt string containing merge tags.
+	 * @param string|null $uuid         The UUID of the essay or speech. Can be null for standalone speech attempts.
+	 * @param int         $segment_order_or_attempt_id Optional. The order of the segment or speech attempt id to filter by.
+	 * @param string      $feedback_style The feedback style to use.
+	 * @param string      $guide_score   Human-guided scoring for the AI to consider.
+	 * @param string      $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param array|null  $attempt      Optional. The attempt data array for attempt-specific merge tags.
 	 * @return string|array The processed prompt with merge tags replaced, or an array if a modifier results in an array.
 	 */
-	public function process_merge_tags( $prompt, $uuid, $segment_order = null, $feedback_style = '', $guide_score = '', $guide_feedback = '' ) {
+	public function process_merge_tags( $prompt, $uuid = null, $segment_order_or_attempt_id = null, $feedback_style = '', $guide_score = '', $guide_feedback = '', $attempt = null ) {
 		// Regex to find merge tags in format {prefix|parameters|suffix}.
 		$regex = '/\{(?\'prefix\'.*?)\|(?\'parameters\'.*?)\|(?\'suffix\'.*?)\}/ms';
 
@@ -55,7 +56,7 @@ class Ieltssci_Merge_Tags_Processor {
 					$content = $guide_feedback;
 			} else {
 				// Standard case: fetch content based on parameters.
-				$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order );
+				$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id, $attempt );
 			}
 
 			if ( is_array( $content ) ) {
@@ -88,7 +89,7 @@ class Ieltssci_Merge_Tags_Processor {
 					$content = $guide_feedback;
 				} else {
 					// Standard case: fetch content based on parameters.
-					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order );
+					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id, $attempt );
 				}
 
 				// For non-array content, standard replacement.
@@ -140,7 +141,7 @@ class Ieltssci_Merge_Tags_Processor {
 					$content = $guide_feedback;
 				} else {
 					// Standard case: fetch content based on parameters.
-					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order );
+					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id, $attempt );
 				}
 
 				$replacement = empty( $content ) ? '' : "{$prefix}{$content}{$suffix}";
@@ -157,12 +158,13 @@ class Ieltssci_Merge_Tags_Processor {
 	/**
 	 * Fetch content for a merge tag based on parameters
 	 *
-	 * @param string $parameters    The parameters specifying what content to fetch.
-	 * @param string $uuid          The UUID of the essay.
-	 * @param int    $segment_order Optional. The order of the segment to filter by.
+	 * @param string      $parameters    The parameters specifying what content to fetch.
+	 * @param string|null $uuid          The UUID of the essay or speech. Can be null for standalone speech attempts.
+	 * @param int         $segment_order_or_attempt_id Optional. The order of the segment to filter by.
+	 * @param array|null  $attempt      Optional. The attempt data array for attempt-specific merge tags.
 	 * @return array|string|null The content to replace the merge tag with, or null if not found.
 	 */
-	private function fetch_content_for_merge_tag( $parameters, $uuid, $segment_order = null ) {
+	private function fetch_content_for_merge_tag( $parameters, $uuid = null, $segment_order_or_attempt_id = null, $attempt = null ) {
 		// Regex to extract parameter components:
 		// table:field[filter_field:filter_value]:modifier.
 		$regex = '/(?\'table\'.*?):(?\'field\'[^:\[]+)(?:\[(?\'filter_field\'.*?):(?\'filter_value\'.*?)\])?(?::(?\'modifier\'.*))?/m';
@@ -184,7 +186,15 @@ class Ieltssci_Merge_Tags_Processor {
 			}
 
 			// Get content based on extracted parameters.
-			$content = $this->get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid, $segment_order );
+			$content = $this->get_content_from_database(
+				$table,
+				$field,
+				$filter_field,
+				$filter_value,
+				$uuid,
+				$segment_order_or_attempt_id,
+				$attempt
+			);
 
 			// Apply modifier if present and content is not empty.
 			if ( ! empty( $content ) && ! empty( $modifier ) ) {
@@ -198,17 +208,23 @@ class Ieltssci_Merge_Tags_Processor {
 	/**
 	 * Get content from database based on parameters
 	 *
-	 * @param string $table         The table/source to fetch from.
-	 * @param string $field         The field to retrieve.
-	 * @param string $filter_field  The field to filter by.
-	 * @param string $filter_value  The value to filter with.
-	 * @param string $uuid          The UUID of the essay (always required).
-	 * @param int    $segment_order Optional. The order of the segment to filter by.
+	 * @param string      $table         The table/source to fetch from.
+	 * @param string      $field         The field to retrieve.
+	 * @param string      $filter_field  The field to filter by.
+	 * @param string      $filter_value  The value to filter with.
+	 * @param string|null $uuid          The UUID of the essay or speech. Can be null for standalone speech attempts.
+	 * @param int         $segment_order_or_attempt_id Optional. The order of the segment to filter by.
+	 * @param array|null  $attempt       Optional. The attempt data array for attempt-specific merge tags.
 	 * @return string|array|null The retrieved content, array of values, or null if not found.
 	 */
-	public function get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid, $segment_order = null ) {
-		// Skip if any required parameter is missing.
-		if ( empty( $table ) || empty( $field ) || empty( $uuid ) ) {
+	public function get_content_from_database( $table, $field, $filter_field, $filter_value, $uuid = null, $segment_order_or_attempt_id = null, $attempt = null ) {
+		// Skip if any required parameter is missing (except uuid which can be null for speech attempts).
+		if ( empty( $table ) || empty( $field ) ) {
+			return null;
+		}
+
+		// For non-speech-attempt and non-attempt tables, UUID is required.
+		if ( empty( $uuid ) && ! in_array( $table, array( 'speech_attempt_feedback', 'attempt' ), true ) ) {
 			return null;
 		}
 
@@ -220,15 +236,29 @@ class Ieltssci_Merge_Tags_Processor {
 			'segment_feedback',
 			'speech',
 			'speech_feedback',
+			'speech_attempt_feedback',
+			'attempt',
 		);
 
 		if ( ! in_array( $table, $supported_tables, true ) ) {
 			return null;
 		}
 
+		// Handle attempt table.
+		if ( 'attempt' === $table ) {
+			return $this->get_speech_attempt_content( $field, $attempt );
+		}
+
 		// Handle speech tables.
-		if ( in_array( $table, array( 'speech', 'speech_feedback' ), true ) ) {
-			return $this->get_speech_content_from_database( $table, $field, $filter_field, $filter_value, $uuid );
+		if ( in_array( $table, array( 'speech', 'speech_feedback', 'speech_attempt_feedback' ), true ) ) {
+			return $this->get_speech_content_from_database(
+				$table,
+				$field,
+				$filter_field,
+				$filter_value,
+				$uuid,
+				$segment_order_or_attempt_id
+			);
 		}
 
 		// Initialize Essay DB.
@@ -286,8 +316,8 @@ class Ieltssci_Merge_Tags_Processor {
 				);
 
 				// Add segment_order filter if provided.
-				if ( null !== $segment_order ) {
-					$query_args['order'] = $segment_order;
+				if ( null !== $segment_order_or_attempt_id ) {
+					$query_args['order'] = $segment_order_or_attempt_id;
 				}
 
 				// Add additional filter if provided.
@@ -384,8 +414,8 @@ class Ieltssci_Merge_Tags_Processor {
 					'fields'   => array( 'id' ),
 				);
 
-				if ( null !== $segment_order ) {
-					$segment_query['order'] = $segment_order;
+				if ( null !== $segment_order_or_attempt_id ) {
+					$segment_query['order'] = $segment_order_or_attempt_id;
 				}
 
 				$segments = $essay_db->get_segments( $segment_query );
@@ -444,7 +474,7 @@ class Ieltssci_Merge_Tags_Processor {
 
 				// If segment_order was specified, we should have only one result.
 				// Or if we happened to get just one feedback anyway.
-				if ( null !== $segment_order || 1 === count( $collected_feedback_content ) ) {
+				if ( null !== $segment_order_or_attempt_id || 1 === count( $collected_feedback_content ) ) {
 					return $collected_feedback_content[0]; // Return just the first/only value.
 				} else {
 					// Return all collected feedback content as an array.
@@ -459,19 +489,25 @@ class Ieltssci_Merge_Tags_Processor {
 	/**
 	 * Get speech content from database based on parameters
 	 *
-	 * @param string $table         The table to fetch from (speech or speech_feedback).
-	 * @param string $field         The field to retrieve.
-	 * @param string $filter_field  The field to filter by.
-	 * @param string $filter_value  The value to filter with.
-	 * @param string $uuid          The UUID of the speech recording.
+	 * @param string      $table         The table to fetch from (speech, speech_feedback, speech_attempt_feedback).
+	 * @param string      $field         The field to retrieve.
+	 * @param string      $filter_field  The field to filter by.
+	 * @param string      $filter_value  The value to filter with.
+	 * @param string|null $uuid          The UUID of the speech recording. Can be null for standalone speech attempts.
+	 * @param int         $attempt_id    Optional. The ID of the speech attempt.
 	 * @return string|array|null The retrieved content, array of values, or null if not found.
 	 */
-	private function get_speech_content_from_database( $table, $field, $filter_field, $filter_value, $uuid ) {
+	private function get_speech_content_from_database( $table, $field, $filter_field, $filter_value, $uuid = null, $attempt_id = null ) {
 		// Initialize Speech DB.
 		$speech_db = new Ieltssci_Speech_DB();
 
 		switch ( $table ) {
 			case 'speech':
+				// For speech table, UUID is required.
+				if ( empty( $uuid ) ) {
+					return null;
+				}
+
 				// For speech table.
 				$query_args = array();
 
@@ -487,7 +523,7 @@ class Ieltssci_Merge_Tags_Processor {
 				if ( ! is_wp_error( $speeches ) && ! empty( $speeches ) ) {
 					if ( 1 === count( $speeches ) ) {
 						// Handle special case for transcript field.
-						if ( 'transcript' === $field || 'transcript_text' === $field ) {
+						if ( 'transcript' === $field || 'transcript_text' === $field || 'transcript_with_pause' === $field || 'transcript_with_chunking' === $field || 'speaking_rate' === $field ) {
 							if ( isset( $speeches[0]['transcript'] ) && is_array( $speeches[0]['transcript'] ) ) {
 								// For transcript_text, return just the text content.
 								if ( 'transcript_text' === $field ) {
@@ -498,6 +534,32 @@ class Ieltssci_Merge_Tags_Processor {
 										}
 									}
 									return implode( "\n\n", $texts );
+								}
+								// For transcript_with_pause, return formatted text with pause indicators.
+								if ( 'transcript_with_pause' === $field ) {
+									$formatted_texts = array();
+									foreach ( $speeches[0]['transcript'] as $attachment_id => $transcript_data ) {
+										$formatted_text = $this->format_transcript_with_pauses( $attachment_id, $transcript_data );
+										if ( ! empty( $formatted_text ) ) {
+											$formatted_texts[] = $formatted_text;
+										}
+									}
+									return ! empty( $formatted_texts ) ? implode( "\n\n", $formatted_texts ) : null;
+								}
+								// For transcript_with_chunking, return formatted text with pause/hesitation indicators.
+								if ( 'transcript_with_chunking' === $field ) {
+									$formatted_texts = array();
+									foreach ( $speeches[0]['transcript'] as $attachment_id => $transcript_data ) {
+										$formatted_text = $this->format_transcript_with_chunking( $attachment_id, $transcript_data );
+										if ( ! empty( $formatted_text ) ) {
+											$formatted_texts[] = $formatted_text;
+										}
+									}
+									return ! empty( $formatted_texts ) ? implode( "\n\n", $formatted_texts ) : null;
+								}
+								// For speaking_rate, calculate WPM from transcript data.
+								if ( 'speaking_rate' === $field ) {
+									return $this->calculate_speaking_rate( $speeches[0]['transcript'] );
 								}
 								return $speeches[0]['transcript'];
 							}
@@ -515,6 +577,11 @@ class Ieltssci_Merge_Tags_Processor {
 				break;
 
 			case 'speech_feedback':
+				// For speech_feedback table, UUID is required to get speech_id.
+				if ( empty( $uuid ) ) {
+					return null;
+				}
+
 				// For speech_feedback table, get speech_id first.
 				$speeches = $speech_db->get_speeches(
 					array(
@@ -560,9 +627,577 @@ class Ieltssci_Merge_Tags_Processor {
 					return $filtered_feedbacks[0][ $field ];
 				}
 				break;
+
+			case 'speech_attempt_feedback':
+				// For speech_attempt_feedback table, can work with or without UUID.
+				// If UUID is provided, constrain by speech; otherwise query by attempt_id only.
+				$query_args = array(
+					'orderby' => 'created_at',
+					'order'   => 'DESC',
+					'limit'   => 200,
+				);
+
+				// Add speech constraint if UUID is provided.
+				if ( ! empty( $uuid ) ) {
+					$query_args['speech_uuid'] = $uuid;
+				}
+
+				// Add attempt_id filter if provided.
+				if ( null !== $attempt_id ) {
+					$query_args['attempt_id'] = (int) $attempt_id;
+				}
+
+				// Map requested field to include flags to avoid selecting unnecessary columns.
+				switch ( $field ) {
+					case 'cot_content':
+						$query_args['include_cot']      = true;
+						$query_args['include_score']    = false;
+						$query_args['include_feedback'] = false;
+						break;
+					case 'score_content':
+						$query_args['include_cot']      = false;
+						$query_args['include_score']    = true;
+						$query_args['include_feedback'] = false;
+						break;
+					case 'feedback_content':
+					default:
+						$query_args['include_cot']      = false;
+						$query_args['include_score']    = false;
+						$query_args['include_feedback'] = true;
+						break;
+				}
+
+				// Apply additional filter if provided and not the special 'uuid'.
+				if ( ! empty( $filter_field ) && ! empty( $filter_value ) && 'uuid' !== $filter_field ) {
+					$query_args[ $filter_field ] = $filter_value;
+				}
+
+				$attempt_feedbacks = $speech_db->get_speech_attempt_feedbacks( $query_args );
+				if ( is_wp_error( $attempt_feedbacks ) || empty( $attempt_feedbacks ) ) {
+					return null;
+				}
+
+				// Group by attempt_id to get at most one content per attempt, picking the first with non-empty field.
+				$by_attempt = array();
+				foreach ( $attempt_feedbacks as $fb ) {
+					if ( ! isset( $fb['attempt_id'] ) ) {
+						continue;
+					}
+					$aid = $fb['attempt_id'];
+					if ( ! isset( $by_attempt[ $aid ] ) && isset( $fb[ $field ] ) && ! empty( $fb[ $field ] ) ) {
+						$by_attempt[ $aid ] = $fb[ $field ];
+					}
+				}
+
+				if ( empty( $by_attempt ) ) {
+					return null;
+				}
+
+				// If a specific attempt_id filter was provided, return just the first matching content.
+				if ( ! empty( $query_args['attempt_id'] ) ) {
+					$id = $query_args['attempt_id'];
+					if ( isset( $by_attempt[ $id ] ) ) {
+						return $by_attempt[ $id ];
+					}
+					// If no matching attempt found, return null.
+					return null;
+				}
+
+				// If only one attempt has content, return it; otherwise, return an array ordered by attempt_id.
+				if ( 1 === count( $by_attempt ) ) {
+					return array_values( $by_attempt )[0];
+				}
+
+				ksort( $by_attempt );
+				return array_values( $by_attempt );
 		}
 
 		return null;
+	}
+
+	/**
+	 * Get attempt-specific content
+	 *
+	 * Handles merge tags for attempt data like audio title, transcript, question title, and question content.
+	 *
+	 * @param string     $field   The field to retrieve (title, transcript, transcript_with_pause, speaking_rate, question_title, question_content).
+	 * @param array|null $attempt Optional. The attempt data array.
+	 * @return string|int|null The retrieved content, or null if not found.
+	 */
+	private function get_speech_attempt_content( $field, $attempt = null ) {
+		// If no attempt data provided, return null.
+		if ( is_null( $attempt ) ) {
+			return null;
+		}
+
+		switch ( $field ) {
+			case 'title':
+				// Get audio attachment title.
+				if ( isset( $attempt['audio_id'] ) ) {
+					$attachment_id = (int) $attempt['audio_id'];
+					$raw_title     = get_the_title( $attachment_id );
+					return is_string( $raw_title ) ? $raw_title : '';
+				}
+				break;
+
+			case 'transcript':
+				// Get audio transcript text.
+				if ( isset( $attempt['audio_id'] ) ) {
+					$attachment_id = (int) $attempt['audio_id'];
+					return $this->get_audio_transcript_text( $attachment_id );
+				}
+				break;
+
+			case 'transcript_with_pause':
+				// Get audio transcript with pause indicators.
+				if ( isset( $attempt['audio_id'] ) ) {
+					$attachment_id   = (int) $attempt['audio_id'];
+					$transcript_data = get_post_meta( $attachment_id, 'ieltssci_audio_transcription', true );
+
+					if ( ! empty( $transcript_data ) && is_array( $transcript_data ) ) {
+						return $this->format_transcript_with_pauses( $attachment_id, $transcript_data );
+					}
+				}
+				break;
+
+			case 'transcript_with_chunking':
+				// Get audio transcript with natural pause and hesitation indicators.
+				if ( isset( $attempt['audio_id'] ) ) {
+					$attachment_id   = (int) $attempt['audio_id'];
+					$transcript_data = get_post_meta( $attachment_id, 'ieltssci_audio_transcription', true );
+
+					if ( ! empty( $transcript_data ) && is_array( $transcript_data ) ) {
+						return $this->format_transcript_with_chunking( $attachment_id, $transcript_data );
+					}
+				}
+				break;
+
+			case 'speaking_rate':
+				// Calculate speaking rate from audio transcript.
+				if ( isset( $attempt['audio_id'] ) ) {
+					$attachment_id   = (int) $attempt['audio_id'];
+					$transcript_data = get_post_meta( $attachment_id, 'ieltssci_audio_transcription', true );
+
+					if ( ! empty( $transcript_data ) && is_array( $transcript_data ) ) {
+						// Wrap in array keyed by attachment ID to match expected format.
+						$wrapped_data = array( $attachment_id => $transcript_data );
+						return $this->calculate_speaking_rate( $wrapped_data );
+					}
+				}
+				break;
+
+			case 'question_title':
+				// Get question post title.
+				if ( isset( $attempt['question_id'] ) ) {
+					$question_id = (int) $attempt['question_id'];
+					$raw_title   = get_the_title( $question_id );
+					return is_string( $raw_title ) ? $raw_title : '';
+				}
+				break;
+
+			case 'question_content':
+				// Get question post content.
+				if ( isset( $attempt['question_id'] ) ) {
+					$question_id = (int) $attempt['question_id'];
+					$post        = get_post( $question_id );
+					if ( $post && ! is_wp_error( $post ) ) {
+						return ! empty( $post->post_content ) ? $post->post_content : '';
+					}
+				}
+				break;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Format transcript with pause indicators
+	 *
+	 * Processes transcription data to insert pause indicators between words,
+	 * replicating the frontend logic from LeftPanelFC.tsx.
+	 *
+	 * @param int|string $media_id The media/attachment ID.
+	 * @param array      $transcript_data The transcription data for this media file.
+	 * @return string|null Formatted transcript with pause indicators, or null if no data.
+	 */
+	private function format_transcript_with_pauses( $media_id, $transcript_data ) {
+		if ( empty( $transcript_data ) || ! is_array( $transcript_data ) ) {
+			return null;
+		}
+
+		// Extract timed words from the transcript data.
+		$timed_words = $this->get_timed_words_for_media( $media_id, $transcript_data );
+
+		if ( empty( $timed_words ) ) {
+			// Fallback to plain text if no word timing data.
+			return isset( $transcript_data['text'] ) ? $transcript_data['text'] : null;
+		}
+
+		// Calculate pause threshold for this media.
+		$pause_threshold = $this->calculate_pause_threshold( $media_id, $transcript_data );
+
+		// Build the formatted text with pause indicators.
+		$formatted_parts = array();
+		$pauses_detected = false;
+
+		foreach ( $timed_words as $index => $word_data ) {
+			// Add the word.
+			$formatted_parts[] = $word_data['word'];
+
+			// Check if we should add a pause indicator.
+			if ( $index < count( $timed_words ) - 1 ) {
+				$next_word      = $timed_words[ $index + 1 ];
+				$pause_duration = $next_word['start'] - $word_data['end'];
+
+				// Only add pause if it exceeds threshold and current word doesn't end with punctuation.
+				if ( $pause_duration > $pause_threshold['threshold'] && ! $this->ends_with_punctuation( $word_data['word'] ) ) {
+					$pause_seconds     = round( $pause_duration, 1 );
+					$formatted_parts[] = '[' . $pause_seconds . 's PAUSE]';
+					$pauses_detected   = true;
+				}
+			}
+		}
+
+		$formatted_text = implode( ' ', $formatted_parts );
+
+		// If no pauses were detected, append a message.
+		if ( ! $pauses_detected ) {
+			$formatted_text .= "\n\n[No significant pauses detected in this recording]";
+		}
+
+		return $formatted_text;
+	}
+
+	/**
+	 * Get timed words for a specific media ID from transcript data
+	 *
+	 * @param int|string $media_id The media/attachment ID.
+	 * @param array      $transcript_data The transcription data.
+	 * @return array Array of word objects with timing information.
+	 */
+	private function get_timed_words_for_media( $media_id, $transcript_data ) {
+		if ( empty( $transcript_data ) ) {
+			return array();
+		}
+
+		$timed_words = array();
+		$time_ranges = array();
+
+		// Helper function to check if a word overlaps with existing words.
+		$is_overlapping = function ( $start, $end ) use ( &$time_ranges ) {
+			$word_duration     = $end - $start;
+			$overlap_threshold = $word_duration * 0.5;
+
+			foreach ( $time_ranges as $range ) {
+				$overlap_start    = max( $range['start'], $start );
+				$overlap_end      = min( $range['end'], $end );
+				$overlap_duration = $overlap_end - $overlap_start;
+				if ( $overlap_duration > $overlap_threshold ) {
+					return true;
+				}
+			}
+			return false;
+		};
+
+		// Prefer using words from segments if available.
+		if ( ! empty( $transcript_data['segments'] ) && is_array( $transcript_data['segments'] ) ) {
+			foreach ( $transcript_data['segments'] as $segment ) {
+				if ( ! empty( $segment['words'] ) && is_array( $segment['words'] ) ) {
+					foreach ( $segment['words'] as $word ) {
+						if ( ! $is_overlapping( $word['start'], $word['end'] ) ) {
+							$timed_words[] = array(
+								'word'  => $word['word'],
+								'start' => $word['start'],
+								'end'   => $word['end'],
+								'score' => isset( $word['score'] ) ? $word['score'] : null,
+							);
+							$time_ranges[] = array(
+								'start' => $word['start'],
+								'end'   => $word['end'],
+							);
+						}
+					}
+				}
+			}
+		}
+
+		// Add top-level words only if they don't overlap with segment words.
+		if ( ! empty( $transcript_data['words'] ) && is_array( $transcript_data['words'] ) ) {
+			foreach ( $transcript_data['words'] as $word ) {
+				if ( ! $is_overlapping( $word['start'], $word['end'] ) ) {
+					$timed_words[] = array(
+						'word'  => $word['word'],
+						'start' => $word['start'],
+						'end'   => $word['end'],
+						'score' => isset( $word['score'] ) ? $word['score'] : null,
+					);
+					$time_ranges[] = array(
+						'start' => $word['start'],
+						'end'   => $word['end'],
+					);
+				}
+			}
+		}
+
+		// Sort by start time.
+		usort(
+			$timed_words,
+			function ( $a, $b ) {
+				return $a['start'] <=> $b['start'];
+			}
+		);
+
+		return $timed_words;
+	}
+
+	/**
+	 * Calculate pause threshold for transcript data
+	 *
+	 * Calculates dynamic pause threshold based on pauses between words within segments.
+	 *
+	 * @param int|string $media_id The media/attachment ID.
+	 * @param array      $transcript_data The transcription data.
+	 * @return array Array with 'average' and 'threshold' pause durations.
+	 */
+	private function calculate_pause_threshold( $media_id, $transcript_data ) {
+		$default_threshold = array(
+			'average'   => 0,
+			'threshold' => 0.7,
+		);
+
+		if ( empty( $transcript_data ) ) {
+			return $default_threshold;
+		}
+
+		// Get timed words.
+		$words = $this->get_timed_words_for_media( $media_id, $transcript_data );
+
+		if ( count( $words ) < 2 ) {
+			return $default_threshold;
+		}
+
+		if ( empty( $transcript_data['segments'] ) ) {
+			return $default_threshold;
+		}
+
+		// Create a map of word time ranges to their containing segment.
+		$word_segment_map = array();
+
+		foreach ( $transcript_data['segments'] as $segment_index => $segment ) {
+			if ( ! empty( $segment['words'] ) && is_array( $segment['words'] ) ) {
+				foreach ( $segment['words'] as $word ) {
+					$word_segment_map[ $word['start'] ] = $segment_index;
+				}
+			}
+		}
+
+		// Calculate pauses only between words in the same segment.
+		$pauses      = array();
+		$words_count = count( $words );
+
+		for ( $i = 1; $i < $words_count; $i++ ) {
+			$prev_word    = $words[ $i - 1 ];
+			$current_word = $words[ $i ];
+
+			$prev_segment_index    = isset( $word_segment_map[ $prev_word['start'] ] ) ? $word_segment_map[ $prev_word['start'] ] : null;
+			$current_segment_index = isset( $word_segment_map[ $current_word['start'] ] ) ? $word_segment_map[ $current_word['start'] ] : null;
+
+			// Only include pauses between words in the same segment.
+			if ( null !== $prev_segment_index && null !== $current_segment_index && $prev_segment_index === $current_segment_index ) {
+				$pause_duration = $current_word['start'] - $prev_word['end'];
+				if ( $pause_duration > 0 ) {
+					$pauses[] = $pause_duration;
+				}
+			}
+		}
+
+		// If we don't have enough pauses within segments, use a fallback approach.
+		if ( count( $pauses ) < 3 ) {
+			$all_pauses = array();
+			for ( $i = 1; $i < $words_count; $i++ ) {
+				$pause = max( 0, $words[ $i ]['start'] - $words[ $i - 1 ]['end'] );
+				if ( $pause > 0 ) {
+					$all_pauses[] = $pause;
+				}
+			}
+
+			if ( empty( $all_pauses ) ) {
+				return $default_threshold;
+			}
+
+			$average_pause = array_sum( $all_pauses ) / count( $all_pauses );
+			return array(
+				'average'   => $average_pause,
+				'threshold' => max( 0.7, $average_pause * 2 ),
+			);
+		}
+
+		// Calculate statistics based on within-segment pauses.
+		$average_pause = array_sum( $pauses ) / count( $pauses );
+
+		$variance = 0;
+		foreach ( $pauses as $pause ) {
+			$variance += pow( $pause - $average_pause, 2 );
+		}
+		$std_dev_pause = sqrt( $variance / count( $pauses ) );
+
+		// Dynamic threshold: average + 3 * stdDev, with a minimum threshold.
+		$threshold = max( $average_pause + 3 * $std_dev_pause, 0.7 );
+
+		return array(
+			'average'   => $average_pause,
+			'threshold' => $threshold,
+		);
+	}
+
+	/**
+	 * Check if a word ends with punctuation
+	 *
+	 * @param string $word The word to check.
+	 * @return bool True if word ends with punctuation.
+	 */
+	private function ends_with_punctuation( $word ) {
+		return (bool) preg_match( '/[.,:;!?]$/', $word );
+	}
+
+	/**
+	 * Format transcript with chunking (natural pauses vs hesitations)
+	 *
+	 * Processes transcription data to differentiate between:
+	 * - Natural pauses (after punctuation): marked as [X.Xs PAUSE]
+	 * - Unnatural pauses/hesitations (not after punctuation): marked as [X.Xs HESITATION]
+	 *
+	 * @param int|string $media_id The media/attachment ID.
+	 * @param array      $transcript_data The transcription data for this media file.
+	 * @return string|null Formatted transcript with pause/hesitation indicators, or null if no data.
+	 */
+	private function format_transcript_with_chunking( $media_id, $transcript_data ) {
+		if ( empty( $transcript_data ) || ! is_array( $transcript_data ) ) {
+			return null;
+		}
+
+		// Extract timed words from the transcript data.
+		$timed_words = $this->get_timed_words_for_media( $media_id, $transcript_data );
+
+		if ( empty( $timed_words ) ) {
+			// Fallback to plain text if no word timing data.
+			return isset( $transcript_data['text'] ) ? $transcript_data['text'] : null;
+		}
+
+		// Calculate pause threshold for this media.
+		$pause_threshold = $this->calculate_pause_threshold( $media_id, $transcript_data );
+
+		// Build the formatted text with pause/hesitation indicators.
+		$formatted_parts      = array();
+		$pauses_detected      = false;
+		$hesitations_detected = false;
+
+		foreach ( $timed_words as $index => $word_data ) {
+			// Add the word.
+			$formatted_parts[] = $word_data['word'];
+
+			// Check if we should add a pause/hesitation indicator.
+			if ( $index < count( $timed_words ) - 1 ) {
+				$next_word      = $timed_words[ $index + 1 ];
+				$pause_duration = $next_word['start'] - $word_data['end'];
+
+				// Only add indicator if pause exceeds threshold.
+				if ( $pause_duration > $pause_threshold['threshold'] ) {
+					$pause_seconds = round( $pause_duration, 1 );
+
+					// Check if current word ends with punctuation.
+					if ( $this->ends_with_punctuation( $word_data['word'] ) ) {
+						// Natural pause after punctuation.
+						$formatted_parts[] = '[' . $pause_seconds . 's NATURAL PAUSE]';
+						$pauses_detected   = true;
+					} else {
+						// Unnatural pause/hesitation (not after punctuation).
+						$formatted_parts[]    = '[' . $pause_seconds . 's HESITATION]';
+						$hesitations_detected = true;
+					}
+				}
+			}
+		}
+
+		$formatted_text = implode( ' ', $formatted_parts );
+
+		// Add summary message if no pauses or hesitations were detected.
+		if ( ! $pauses_detected && ! $hesitations_detected ) {
+			$formatted_text .= "\n\n[No significant pauses or hesitations detected in this recording]";
+		}
+
+		return $formatted_text;
+	}
+
+	/**
+	 * Calculate speaking rate in words per minute (WPM) from transcription data
+	 *
+	 * Uses only segments with actual speech to avoid counting long pauses.
+	 * Replicates the frontend logic from calculateSpeakingRate in transcriptionPostProcess.ts.
+	 *
+	 * @param array $transcript_data Array of transcription data keyed by attachment ID.
+	 * @return int|null Speaking rate in words per minute, or null if data is insufficient.
+	 */
+	private function calculate_speaking_rate( $transcript_data ) {
+		if ( empty( $transcript_data ) || ! is_array( $transcript_data ) ) {
+			return null;
+		}
+
+		$total_words    = 0;
+		$total_duration = 0; // in seconds.
+
+		// Process each media file's transcription.
+		foreach ( $transcript_data as $attachment_id => $file_data ) {
+			if ( empty( $file_data ) || ! is_array( $file_data ) ) {
+				continue;
+			}
+
+			// If segments are available, use them for more accurate calculation.
+			if ( ! empty( $file_data['segments'] ) && is_array( $file_data['segments'] ) ) {
+				foreach ( $file_data['segments'] as $segment ) {
+					// Calculate segment duration and word count.
+					$segment_duration = $segment['end'] - $segment['start'];
+
+					// Count words in this segment.
+					$segment_word_count = 0;
+					if ( ! empty( $segment['words'] ) && is_array( $segment['words'] ) ) {
+						$segment_word_count = count( $segment['words'] );
+					} elseif ( ! empty( $segment['text'] ) ) {
+						$words              = preg_split( '/\s+/', trim( $segment['text'] ) );
+						$segment_word_count = count( array_filter( $words ) );
+					}
+
+					$total_duration += $segment_duration;
+					$total_words    += $segment_word_count;
+				}
+			} elseif ( ! empty( $file_data['words'] ) && is_array( $file_data['words'] ) ) {
+				// If no segments but we have words array at the file level.
+				$total_words += count( $file_data['words'] );
+
+				// Use the duration between first and last word.
+				if ( count( $file_data['words'] ) > 1 ) {
+					$first_word      = $file_data['words'][0];
+					$last_word       = $file_data['words'][ count( $file_data['words'] ) - 1 ];
+					$total_duration += $last_word['end'] - $first_word['start'];
+				}
+			} elseif ( ! empty( $file_data['text'] ) && isset( $file_data['duration'] ) ) {
+				// Fallback to full text and overall duration if available.
+				$words           = preg_split( '/\s+/', trim( $file_data['text'] ) );
+				$total_words    += count( array_filter( $words ) );
+				$total_duration += $file_data['duration'];
+			}
+		}
+
+		// Calculate WPM, avoiding division by zero.
+		if ( $total_duration <= 0 || 0 === $total_words ) {
+			return null;
+		}
+
+		// Convert seconds to minutes and calculate WPM.
+		$duration_in_minutes = $total_duration / 60;
+		$wpm                 = round( $total_words / $duration_in_minutes );
+
+		return (int) $wpm;
 	}
 
 	/**
@@ -781,5 +1416,28 @@ class Ieltssci_Merge_Tags_Processor {
 		}
 
 		return $message;
+	}
+
+	/**
+	 * Get audio transcript text from attachment metadata
+	 *
+	 * @param int $media_id The attachment/media ID.
+	 * @return string The transcript text or empty string if not found.
+	 */
+	private function get_audio_transcript_text( $media_id ) {
+		$transcription_meta = get_post_meta( $media_id, 'ieltssci_audio_transcription', true );
+		if ( is_array( $transcription_meta ) && isset( $transcription_meta['text'] ) && is_string( $transcription_meta['text'] ) ) {
+			return $transcription_meta['text'];
+		} elseif ( is_string( $transcription_meta ) && ! empty( $transcription_meta ) ) {
+			// Some sites may store JSON-encoded string. Try to decode first.
+			$decoded = json_decode( $transcription_meta, true );
+			if ( json_last_error() === JSON_ERROR_NONE && is_array( $decoded ) && isset( $decoded['text'] ) && is_string( $decoded['text'] ) ) {
+				return $decoded['text'];
+			} else {
+				// Fallback: if it is a plain string, use as-is.
+				return $transcription_meta;
+			}
+		}
+		return '';
 	}
 }

@@ -14,7 +14,9 @@ namespace IeltsScienceLMS\RateLimits;
 use WP_Error;
 use IeltsScienceLMS\Writing\Ieltssci_Essay_DB;
 use IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeeds_DB;
-use IeltsScienceLMS\Writing\Ieltssci_Submission_DB;
+use IeltsScienceLMS\Writing\Ieltssci_Submission_DB as Writing_Submission_DB;
+use IeltsScienceLMS\Speaking\Ieltssci_Submission_DB as Speaking_Submission_DB;
+use IeltsScienceLMS\Speaking\Ieltssci_Speech_DB;
 
 /**
  * Main Rate Limit Module Class
@@ -161,7 +163,7 @@ class Ieltssci_RateLimit {
 
 					// Get associated task submission if any.
 					if ( isset( $essays[0]['id'] ) && $essays[0]['id'] ) {
-						$submission_db   = new Ieltssci_Submission_DB();
+						$submission_db   = new Writing_Submission_DB();
 						$task_submission = $submission_db->get_task_submissions(
 							array(
 								'essay_id' => $essays[0]['id'],
@@ -179,21 +181,55 @@ class Ieltssci_RateLimit {
 				}
 			} elseif ( 'speech_feedback' === $action ) {
 				// Include speech DB class.
-				if ( class_exists( '\IeltsScienceLMS\Speaking\Ieltssci_Speech_DB' ) ) {
-					$speech_db = new \IeltsScienceLMS\Speaking\Ieltssci_Speech_DB();
+				$speech_db = new Ieltssci_Speech_DB();
 
-					// Get speech data from UUID, including creator ID.
-					$speeches = $speech_db->get_speeches(
-						array(
-							'uuid'     => $uuid,
-							'per_page' => 1,
-							'fields'   => array( 'id', 'created_by' ),
-						)
-					);
+				// Get speech data from UUID, including creator ID.
+				$speeches = $speech_db->get_speeches(
+					array(
+						'uuid'     => $uuid,
+						'per_page' => 1,
+						'fields'   => array( 'id', 'created_by' ),
+					)
+				);
 
-					if ( ! is_wp_error( $speeches ) && ! empty( $speeches ) ) {
-						$creator_id = $speeches[0]['created_by'];
-						$content_id = $speeches[0]['id'];
+				if ( ! is_wp_error( $speeches ) && ! empty( $speeches ) ) {
+					$creator_id = $speeches[0]['created_by'];
+					$content_id = $speeches[0]['id'];
+
+					// Get associated part submission if any.
+					if ( isset( $speeches[0]['id'] ) && $speeches[0]['id'] ) {
+						$submission_db   = new Speaking_Submission_DB();
+						$part_submission = $submission_db->get_part_submissions(
+							array(
+								'speech_id' => $speeches[0]['id'],
+							)
+						);
+						if ( is_wp_error( $part_submission ) ) {
+							$part_submission = null;
+						}
+						// Use instructor ID from part submission as creator so that students can use their instructor's rate limits.
+						if ( $part_submission && is_array( $part_submission ) && ! empty( $part_submission ) && isset( $part_submission[0]['id'] ) && ! empty( $part_submission[0]['id'] ) ) {
+							$instructor_id = $submission_db->get_part_submission_meta( $part_submission[0]['id'], 'instructor_id', true );
+							$creator_id    = $instructor_id ? (int) $instructor_id : $creator_id;
+						}
+					}
+				}
+			} elseif ( 'speech_attempt_feedback' === $action ) {
+				// Handle speech attempt feedback.
+				$submission_db = new Speaking_Submission_DB();
+
+				// Extract attempt ID from UUID (format: 'attempt_X').
+				$attempt_id = (int) str_replace( 'attempt_', '', $uuid );
+				$attempt    = $submission_db->get_speech_attempt( $attempt_id );
+
+				if ( ! is_wp_error( $attempt ) && ! empty( $attempt ) ) {
+					$creator_id = $attempt['created_by'];
+					$content_id = $attempt['id'];
+
+					// Check for instructor ID in submission meta.
+					if ( isset( $attempt['submission_id'] ) && $attempt['submission_id'] ) {
+						$instructor_id = $submission_db->get_part_submission_meta( $attempt['submission_id'], 'instructor_id', true );
+						$creator_id    = $instructor_id ? (int) $instructor_id : $creator_id;
 					}
 				}
 			}
@@ -407,23 +443,40 @@ class Ieltssci_RateLimit {
 			}
 		} elseif ( 'speech_feedback' === $action ) { // For speech/speaking-related actions.
 			// Include speech DB class.
-			if ( class_exists( '\IeltsScienceLMS\Speaking\Ieltssci_Speech_DB' ) ) {
-				$speech_db = new \IeltsScienceLMS\Speaking\Ieltssci_Speech_DB();
+			$speech_db = new Ieltssci_Speech_DB();
 
-				if ( $content_id ) {
-					// Check if speech feedback already exists.
-					$existing_feedback = $speech_db->get_speech_feedbacks(
-						array(
-							'speech_id'         => $content_id,
-							'feedback_criteria' => $feedback_criteria,
-							'number'            => 1,
-						)
-					);
+			if ( $content_id ) {
+				// Check if speech feedback already exists.
+				$existing_feedback = $speech_db->get_speech_feedbacks(
+					array(
+						'speech_id'         => $content_id,
+						'feedback_criteria' => $feedback_criteria,
+						'number'            => 1,
+					)
+				);
 
-					if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) ) {
-						// Feedback already exists, no need to check rate limits.
-						return true;
-					}
+				if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) ) {
+					// Feedback already exists, no need to check rate limits.
+					return true;
+				}
+			}
+		} elseif ( 'speech_attempt_feedback' === $action ) { // For speech attempt feedback.
+			// Include speech DB class.
+			$speech_db = new Ieltssci_Speech_DB();
+
+			if ( $content_id ) {
+				// Check if speech attempt feedback already exists.
+				$existing_feedback = $speech_db->get_speech_attempt_feedbacks(
+					array(
+						'attempt_id'        => $content_id,
+						'feedback_criteria' => $feedback_criteria,
+						'number'            => 1,
+					)
+				);
+
+				if ( ! is_wp_error( $existing_feedback ) && ! empty( $existing_feedback ) ) {
+					// Feedback already exists, no need to check rate limits.
+					return true;
 				}
 			}
 		}
@@ -587,31 +640,54 @@ class Ieltssci_RateLimit {
 				);
 			} elseif ( 'speech_feedback' === $action ) {
 				// Count speech feedbacks created by the content creator.
-				if ( class_exists( '\IeltsScienceLMS\Speaking\Ieltssci_Speech_DB' ) ) {
-					$speech_db = new \IeltsScienceLMS\Speaking\Ieltssci_Speech_DB();
+				$speech_db = new Ieltssci_Speech_DB();
 
-					$query_args = array(
-						'created_by'        => $creator_id,
-						'feedback_criteria' => $feedback_criteria,
-					);
+				$query_args = array(
+					'created_by'        => $creator_id,
+					'feedback_criteria' => $feedback_criteria,
+				);
 
-					// Add date constraints if set.
-					if ( isset( $date_constraints['date_from'] ) ) {
-						$query_args['date_from'] = $date_constraints['date_from'];
-					}
-					if ( isset( $date_constraints['date_to'] ) ) {
-						$query_args['date_to'] = $date_constraints['date_to'];
-					}
-
-					$usage_count = $speech_db->count_distinct_speech_with_speech_feedback( $query_args );
-
-					// Add current usage to the tracking array.
-					$current_usage[ $limit['time_period_type'] ] = array(
-						'count'       => is_wp_error( $usage_count ) ? 0 : $usage_count,
-						'max_allowed' => $max_allowed,
-						'type'        => 'speech_feedback',
-					);
+				// Add date constraints if set.
+				if ( isset( $date_constraints['date_from'] ) ) {
+					$query_args['date_from'] = $date_constraints['date_from'];
 				}
+				if ( isset( $date_constraints['date_to'] ) ) {
+					$query_args['date_to'] = $date_constraints['date_to'];
+				}
+
+				$usage_count = $speech_db->count_distinct_speech_with_speech_feedback( $query_args );
+
+				// Add current usage to the tracking array.
+				$current_usage[ $limit['time_period_type'] ] = array(
+					'count'       => is_wp_error( $usage_count ) ? 0 : $usage_count,
+					'max_allowed' => $max_allowed,
+					'type'        => 'speech_feedback',
+				);
+			} elseif ( 'speech_attempt_feedback' === $action ) {
+				// Count speech attempt feedbacks created by the content creator.
+				$speech_db = new Ieltssci_Speech_DB();
+
+				$query_args = array(
+					'created_by'        => $creator_id,
+					'feedback_criteria' => $feedback_criteria,
+				);
+
+				// Add date constraints if set.
+				if ( isset( $date_constraints['date_from'] ) ) {
+					$query_args['date_from'] = $date_constraints['date_from'];
+				}
+				if ( isset( $date_constraints['date_to'] ) ) {
+					$query_args['date_to'] = $date_constraints['date_to'];
+				}
+
+				$usage_count = $speech_db->count_distinct_speech_attempts_with_attempt_feedback( $query_args );
+
+				// Add current usage to the tracking array.
+				$current_usage[ $limit['time_period_type'] ] = array(
+					'count'       => is_wp_error( $usage_count ) ? 0 : $usage_count,
+					'max_allowed' => $max_allowed,
+					'type'        => 'speech_attempt_feedback',
+				);
 			}
 
 			// Check if usage exceeds limit.

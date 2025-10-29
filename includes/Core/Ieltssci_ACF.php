@@ -167,6 +167,178 @@ class Ieltssci_ACF {
 				'show_in_rest'          => 1,
 			)
 		);
+
+		acf_add_local_field_group(
+			array(
+				'key'                   => 'group_685beb5653abf',
+				'title'                 => 'Speaking Parts Fields',
+				'fields'                => array(
+					array(
+						'key'                  => 'field_68d3c16503dd6',
+						'label'                => 'Speaking Questions',
+						'name'                 => 'speaking_questions',
+						'aria-label'           => '',
+						'type'                 => 'relationship',
+						'instructions'         => '',
+						'required'             => 1,
+						'conditional_logic'    => 0,
+						'wrapper'              => array(
+							'width' => '',
+							'class' => '',
+							'id'    => '',
+						),
+						'post_type'            => array(
+							0 => 'speaking-question',
+						),
+						'post_status'          => array(
+							0 => 'publish',
+						),
+						'taxonomy'             => '',
+						'filters'              => array(
+							0 => 'search',
+							1 => 'post_type',
+							2 => 'taxonomy',
+						),
+						'return_format'        => 'object',
+						'min'                  => '',
+						'max'                  => '',
+						'allow_in_bindings'    => 0,
+						'elements'             => '',
+						'bidirectional'        => 0,
+						'bidirectional_target' => array(),
+					),
+				),
+				'location'              => array(
+					array(
+						array(
+							'param'    => 'post_type',
+							'operator' => '==',
+							'value'    => 'speaking-part',
+						),
+					),
+				),
+				'menu_order'            => 0,
+				'position'              => 'normal',
+				'style'                 => 'default',
+				'label_placement'       => 'top',
+				'instruction_placement' => 'label',
+				'hide_on_screen'        => '',
+				'active'                => true,
+				'description'           => '',
+				'show_in_rest'          => 1,
+			)
+		);
+
+		acf_add_local_field_group(
+			array(
+				'key'                   => 'group_68d4d291eb9e2',
+				'title'                 => 'Speaking Question Fields',
+				'fields'                => array(
+					array(
+						'key'                => 'field_68d4d2993d5a8',
+						'label'              => 'Question Audio',
+						'name'               => 'question_audio',
+						'aria-label'         => '',
+						'type'               => 'file',
+						'instructions'       => '',
+						'required'           => 0,
+						'conditional_logic'  => 0,
+						'wrapper'            => array(
+							'width' => '',
+							'class' => '',
+							'id'    => '',
+						),
+						'acfbs_allow_search' => 0,
+						'return_format'      => 'array',
+						'library'            => 'uploadedTo',
+						'min_size'           => '',
+						'max_size'           => '',
+						'mime_types'         => '',
+						'allow_in_bindings'  => 0,
+					),
+				),
+				'location'              => array(
+					array(
+						array(
+							'param'    => 'post_type',
+							'operator' => '==',
+							'value'    => 'speaking-question',
+						),
+					),
+				),
+				'menu_order'            => 0,
+				'position'              => 'normal',
+				'style'                 => 'default',
+				'label_placement'       => 'top',
+				'instruction_placement' => 'label',
+				'hide_on_screen'        => '',
+				'active'                => true,
+				'description'           => '',
+				'show_in_rest'          => 1,
+			)
+		);
+
+		acf_add_local_field_group(
+			array(
+				'key'                   => 'group_68d4dec41e65e',
+				'title'                 => 'Speaking Test Fields',
+				'fields'                => array(
+					array(
+						'key'                  => 'field_68d4decb298e3',
+						'label'                => 'Speaking Parts',
+						'name'                 => 'speaking_parts',
+						'aria-label'           => '',
+						'type'                 => 'relationship',
+						'instructions'         => '',
+						'required'             => 0,
+						'conditional_logic'    => 0,
+						'wrapper'              => array(
+							'width' => '',
+							'class' => '',
+							'id'    => '',
+						),
+						'acfbs_allow_search'   => 0,
+						'post_type'            => array(
+							0 => 'speaking-part',
+						),
+						'post_status'          => array(
+							0 => 'publish',
+						),
+						'taxonomy'             => '',
+						'filters'              => array(
+							0 => 'search',
+							1 => 'post_type',
+							2 => 'taxonomy',
+						),
+						'return_format'        => 'object',
+						'min'                  => '',
+						'max'                  => '',
+						'allow_in_bindings'    => 0,
+						'elements'             => '',
+						'bidirectional'        => 0,
+						'bidirectional_target' => array(),
+					),
+				),
+				'location'              => array(
+					array(
+						array(
+							'param'    => 'post_type',
+							'operator' => '==',
+							'value'    => 'speaking-test',
+						),
+					),
+				),
+				'menu_order'            => 0,
+				'position'              => 'normal',
+				'style'                 => 'default',
+				'label_placement'       => 'top',
+				'instruction_placement' => 'label',
+				'hide_on_screen'        => '',
+				'active'                => true,
+				'description'           => '',
+				'show_in_rest'          => 1,
+			)
+		);
 	}
 
 	/**
@@ -246,6 +418,146 @@ class Ieltssci_ACF {
 		);
 
 		// Writing Test Tag taxonomy.
+		register_taxonomy(
+			'writing-test-tag',
+			array(
+				0 => 'writing-test',
+			),
+			array(
+				'labels'       => array(
+					'name'                       => 'Writing Test Tags',
+					'singular_name'              => 'Writing Test Tag',
+					'menu_name'                  => 'Writing Test Tags',
+					'all_items'                  => 'All Writing Test Tags',
+					'edit_item'                  => 'Edit Writing Test Tag',
+					'view_item'                  => 'View Writing Test Tag',
+					'update_item'                => 'Update Writing Test Tag',
+					'add_new_item'               => 'Add New Writing Test Tag',
+					'new_item_name'              => 'New Writing Test Tag Name',
+					'search_items'               => 'Search Writing Test Tags',
+					'popular_items'              => 'Popular Writing Test Tags',
+					'separate_items_with_commas' => 'Separate writing test tags with commas',
+					'add_or_remove_items'        => 'Add or remove writing test tags',
+					'choose_from_most_used'      => 'Choose from the most used writing test tags',
+					'not_found'                  => 'No writing test tags found',
+					'no_terms'                   => 'No writing test tags',
+					'items_list_navigation'      => 'Writing Test Tags list navigation',
+					'items_list'                 => 'Writing Test Tags list',
+					'back_to_items'              => '← Go to writing test tags',
+					'item_link'                  => 'Writing Test Tag Link',
+					'item_link_description'      => 'A link to a writing test tag',
+				),
+				'public'       => true,
+				'show_in_menu' => true,
+				'show_in_rest' => true,
+			)
+		);
+
+		register_taxonomy(
+			'speaking-part-tag',
+			array(
+				0 => 'speaking-part',
+			),
+			array(
+				'labels'       => array(
+					'name'                       => 'Speaking Part Tags',
+					'singular_name'              => 'Speaking Part Tag',
+					'menu_name'                  => 'Speaking Part Tags',
+					'all_items'                  => 'All Speaking Part Tags',
+					'edit_item'                  => 'Edit Speaking Part Tag',
+					'view_item'                  => 'View Speaking Part Tag',
+					'update_item'                => 'Update Speaking Part Tag',
+					'add_new_item'               => 'Add New Speaking Part Tag',
+					'new_item_name'              => 'New Speaking Part Tag Name',
+					'search_items'               => 'Search Speaking Part Tags',
+					'popular_items'              => 'Popular Speaking Part Tags',
+					'separate_items_with_commas' => 'Separate speaking part tags with commas',
+					'add_or_remove_items'        => 'Add or remove speaking part tags',
+					'choose_from_most_used'      => 'Choose from the most used speaking part tags',
+					'not_found'                  => 'No speaking part tags found',
+					'no_terms'                   => 'No speaking part tags',
+					'items_list_navigation'      => 'Speaking Part Tags list navigation',
+					'items_list'                 => 'Speaking Part Tags list',
+					'back_to_items'              => '← Go to speaking part tags',
+					'item_link'                  => 'Speaking Part Tag Link',
+					'item_link_description'      => 'A link to a speaking part tag',
+				),
+				'public'       => true,
+				'show_in_menu' => true,
+				'show_in_rest' => true,
+			)
+		);
+
+		register_taxonomy(
+			'speaking-part-type',
+			array(
+				0 => 'speaking-part',
+			),
+			array(
+				'labels'       => array(
+					'name'                       => 'Speaking Part Types',
+					'singular_name'              => 'Speaking Part Type',
+					'menu_name'                  => 'Speaking Part Types',
+					'all_items'                  => 'All Speaking Part Types',
+					'edit_item'                  => 'Edit Speaking Part Type',
+					'view_item'                  => 'View Speaking Part Type',
+					'update_item'                => 'Update Speaking Part Type',
+					'add_new_item'               => 'Add New Speaking Part Type',
+					'new_item_name'              => 'New Speaking Part Type Name',
+					'search_items'               => 'Search Speaking Part Types',
+					'popular_items'              => 'Popular Speaking Part Types',
+					'separate_items_with_commas' => 'Separate speaking part types with commas',
+					'add_or_remove_items'        => 'Add or remove speaking part types',
+					'choose_from_most_used'      => 'Choose from the most used speaking part types',
+					'not_found'                  => 'No speaking part types found',
+					'no_terms'                   => 'No speaking part types',
+					'items_list_navigation'      => 'Speaking Part Types list navigation',
+					'items_list'                 => 'Speaking Part Types list',
+					'back_to_items'              => '← Go to speaking part types',
+					'item_link'                  => 'Speaking Part Type Link',
+					'item_link_description'      => 'A link to a speaking part type',
+				),
+				'public'       => true,
+				'show_in_menu' => true,
+				'show_in_rest' => true,
+			)
+		);
+
+		register_taxonomy(
+			'speaking-test-tag',
+			array(
+				0 => 'speaking-test',
+			),
+			array(
+				'labels'       => array(
+					'name'                       => 'Speaking Test Tags',
+					'singular_name'              => 'Speaking Test Tag',
+					'menu_name'                  => 'Speaking Test Tags',
+					'all_items'                  => 'All Speaking Test Tags',
+					'edit_item'                  => 'Edit Speaking Test Tag',
+					'view_item'                  => 'View Speaking Test Tag',
+					'update_item'                => 'Update Speaking Test Tag',
+					'add_new_item'               => 'Add New Speaking Test Tag',
+					'new_item_name'              => 'New Speaking Test Tag Name',
+					'search_items'               => 'Search Speaking Test Tags',
+					'popular_items'              => 'Popular Speaking Test Tags',
+					'separate_items_with_commas' => 'Separate speaking test tags with commas',
+					'add_or_remove_items'        => 'Add or remove speaking test tags',
+					'choose_from_most_used'      => 'Choose from the most used speaking test tags',
+					'not_found'                  => 'No speaking test tags found',
+					'no_terms'                   => 'No speaking test tags',
+					'items_list_navigation'      => 'Speaking Test Tags list navigation',
+					'items_list'                 => 'Speaking Test Tags list',
+					'back_to_items'              => '← Go to speaking test tags',
+					'item_link'                  => 'Speaking Test Tag Link',
+					'item_link_description'      => 'A link to a speaking test tag',
+				),
+				'public'       => true,
+				'show_in_menu' => true,
+				'show_in_rest' => true,
+			)
+		);
+
 		register_taxonomy(
 			'writing-test-tag',
 			array(
@@ -407,6 +719,178 @@ class Ieltssci_ACF {
 					0 => 'writing-test-tag',
 				),
 				'has_archive'      => 'writing-test-library',
+				'rewrite'          => array(
+					'feeds' => false,
+				),
+				'delete_with_user' => false,
+			)
+		);
+
+		register_post_type(
+			'speaking-part',
+			array(
+				'labels'           => array(
+					'name'                     => 'Speaking Parts',
+					'singular_name'            => 'Speaking Part',
+					'menu_name'                => 'Speaking Parts',
+					'all_items'                => 'All Speaking Parts',
+					'edit_item'                => 'Edit Speaking Part',
+					'view_item'                => 'View Speaking Part',
+					'view_items'               => 'View Speaking Parts',
+					'add_new_item'             => 'Add New Speaking Part',
+					'add_new'                  => 'Add New Speaking Part',
+					'new_item'                 => 'New Speaking Part',
+					'parent_item_colon'        => 'Parent Speaking Part:',
+					'search_items'             => 'Search Speaking Parts',
+					'not_found'                => 'No speaking parts found',
+					'not_found_in_trash'       => 'No speaking parts found in Trash',
+					'archives'                 => 'Speaking Part Archives',
+					'attributes'               => 'Speaking Part Attributes',
+					'insert_into_item'         => 'Insert into speaking part',
+					'uploaded_to_this_item'    => 'Uploaded to this speaking part',
+					'filter_items_list'        => 'Filter speaking parts list',
+					'filter_by_date'           => 'Filter speaking parts by date',
+					'items_list_navigation'    => 'Speaking Parts list navigation',
+					'items_list'               => 'Speaking Parts list',
+					'item_published'           => 'Speaking Part published.',
+					'item_published_privately' => 'Speaking Part published privately.',
+					'item_reverted_to_draft'   => 'Speaking Part reverted to draft.',
+					'item_scheduled'           => 'Speaking Part scheduled.',
+					'item_updated'             => 'Speaking Part updated.',
+					'item_link'                => 'Speaking Part Link',
+					'item_link_description'    => 'A link to a speaking part.',
+				),
+				'public'           => true,
+				'show_in_rest'     => true,
+				'menu_position'    => 10,
+				'menu_icon'        => 'dashicons-microphone',
+				'capability_type'  => array(
+					0 => 'quiz',
+					1 => 'quizzes',
+				),
+				'map_meta_cap'     => true,
+				'supports'         => array(
+					0 => 'title',
+					1 => 'author',
+					2 => 'comments',
+					3 => 'editor',
+					4 => 'revisions',
+					5 => 'thumbnail',
+					6 => 'custom-fields',
+				),
+				'has_archive'      => 'speaking-part-library',
+				'rewrite'          => array(
+					'feeds' => false,
+				),
+				'delete_with_user' => false,
+			)
+		);
+
+		register_post_type(
+			'speaking-question',
+			array(
+				'labels'           => array(
+					'name'                     => 'Speaking Questions',
+					'singular_name'            => 'Speaking Question',
+					'menu_name'                => 'Speaking Questions',
+					'all_items'                => 'All Speaking Questions',
+					'edit_item'                => 'Edit Speaking Question',
+					'view_item'                => 'View Speaking Question',
+					'view_items'               => 'View Speaking Questions',
+					'add_new_item'             => 'Add New Speaking Question',
+					'add_new'                  => 'Add New Speaking Question',
+					'new_item'                 => 'New Speaking Question',
+					'parent_item_colon'        => 'Parent Speaking Question:',
+					'search_items'             => 'Search Speaking Questions',
+					'not_found'                => 'No speaking questions found',
+					'not_found_in_trash'       => 'No speaking questions found in Trash',
+					'archives'                 => 'Speaking Question Archives',
+					'attributes'               => 'Speaking Question Attributes',
+					'insert_into_item'         => 'Insert into speaking question',
+					'uploaded_to_this_item'    => 'Uploaded to this speaking question',
+					'filter_items_list'        => 'Filter speaking questions list',
+					'filter_by_date'           => 'Filter speaking questions by date',
+					'items_list_navigation'    => 'Speaking Questions list navigation',
+					'items_list'               => 'Speaking Questions list',
+					'item_published'           => 'Speaking Question published.',
+					'item_published_privately' => 'Speaking Question published privately.',
+					'item_reverted_to_draft'   => 'Speaking Question reverted to draft.',
+					'item_scheduled'           => 'Speaking Question scheduled.',
+					'item_updated'             => 'Speaking Question updated.',
+					'item_link'                => 'Speaking Question Link',
+					'item_link_description'    => 'A link to a speaking question.',
+				),
+				'public'           => true,
+				'show_in_rest'     => true,
+				'menu_position'    => 10,
+				'menu_icon'        => 'dashicons-format-status',
+				'capability_type'  => array(
+					0 => 'quiz',
+					1 => 'quizzes',
+				),
+				'map_meta_cap'     => true,
+				'supports'         => array(
+					0 => 'title',
+					1 => 'author',
+					2 => 'editor',
+				),
+				'delete_with_user' => false,
+			)
+		);
+
+		register_post_type(
+			'speaking-test',
+			array(
+				'labels'           => array(
+					'name'                     => 'Speaking Tests',
+					'singular_name'            => 'Speaking Test',
+					'menu_name'                => 'Speaking Tests',
+					'all_items'                => 'All Speaking Tests',
+					'edit_item'                => 'Edit Speaking Test',
+					'view_item'                => 'View Speaking Test',
+					'view_items'               => 'View Speaking Tests',
+					'add_new_item'             => 'Add New Speaking Test',
+					'add_new'                  => 'Add New Speaking Test',
+					'new_item'                 => 'New Speaking Test',
+					'parent_item_colon'        => 'Parent Speaking Test:',
+					'search_items'             => 'Search Speaking Tests',
+					'not_found'                => 'No speaking tests found',
+					'not_found_in_trash'       => 'No speaking tests found in Trash',
+					'archives'                 => 'Speaking Test Archives',
+					'attributes'               => 'Speaking Test Attributes',
+					'insert_into_item'         => 'Insert into speaking test',
+					'uploaded_to_this_item'    => 'Uploaded to this speaking test',
+					'filter_items_list'        => 'Filter speaking tests list',
+					'filter_by_date'           => 'Filter speaking tests by date',
+					'items_list_navigation'    => 'Speaking Tests list navigation',
+					'items_list'               => 'Speaking Tests list',
+					'item_published'           => 'Speaking Test published.',
+					'item_published_privately' => 'Speaking Test published privately.',
+					'item_reverted_to_draft'   => 'Speaking Test reverted to draft.',
+					'item_scheduled'           => 'Speaking Test scheduled.',
+					'item_updated'             => 'Speaking Test updated.',
+					'item_link'                => 'Speaking Test Link',
+					'item_link_description'    => 'A link to a speaking test.',
+				),
+				'public'           => true,
+				'show_in_rest'     => true,
+				'menu_position'    => 10,
+				'menu_icon'        => 'dashicons-format-chat',
+				'capability_type'  => array(
+					0 => 'quiz',
+					1 => 'quizzes',
+				),
+				'map_meta_cap'     => true,
+				'supports'         => array(
+					0 => 'title',
+					1 => 'author',
+					2 => 'comments',
+					3 => 'editor',
+					4 => 'revisions',
+					5 => 'thumbnail',
+					6 => 'custom-fields',
+				),
+				'has_archive'      => 'speaking-test-library',
 				'rewrite'          => array(
 					'feeds' => false,
 				),
