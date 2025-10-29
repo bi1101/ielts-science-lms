@@ -1357,6 +1357,75 @@ class Ieltssci_Speech_DB {
 	}
 
 	/**
+	 * Count distinct speech attempts with speech attempt feedback.
+	 *
+	 * @param array $args {
+	 *     Optional. Query arguments.
+	 *     @var int    $created_by        User ID who created the feedback.
+	 *     @var string $feedback_criteria Feedback criteria to filter by.
+	 *     @var string $date_from         Start date for created_at filter.
+	 *     @var string $date_to           End date for created_at filter.
+	 * }
+	 * @return int|WP_Error Count of distinct attempts or error.
+	 */
+	public function count_distinct_speech_attempts_with_attempt_feedback( $args = array() ) {
+		try {
+			$defaults = array(
+				'created_by'        => null,
+				'feedback_criteria' => null,
+				'date_from'         => null,
+				'date_to'           => null,
+			);
+			$args     = wp_parse_args( $args, $defaults );
+
+			$where          = array( '1=1' );
+			$prepare_values = array();
+
+			if ( ! is_null( $args['created_by'] ) ) {
+				$where[]          = 'created_by = %d';
+				$prepare_values[] = absint( $args['created_by'] );
+			}
+
+			if ( ! is_null( $args['feedback_criteria'] ) ) {
+				$where[]          = 'feedback_criteria = %s';
+				$prepare_values[] = sanitize_text_field( $args['feedback_criteria'] );
+			}
+
+			if ( ! is_null( $args['date_from'] ) ) {
+				$where[]          = 'created_at >= %s';
+				$prepare_values[] = $args['date_from'];
+			}
+
+			if ( ! is_null( $args['date_to'] ) ) {
+				$where[]          = 'created_at <= %s';
+				$prepare_values[] = $args['date_to'];
+			}
+
+			$sql = "SELECT COUNT(DISTINCT attempt_id)
+					FROM {$this->speech_attempt_feedback_table}
+					WHERE " . implode( ' AND ', $where );
+
+			if ( ! empty( $prepare_values ) ) {
+				$prepared_sql = $this->wpdb->prepare( $sql, $prepare_values );
+			} else {
+				$prepared_sql = $sql;
+			}
+
+			$count = $this->wpdb->get_var( $prepared_sql );
+
+			if ( is_null( $count ) && $this->wpdb->last_error ) {
+				// This indicates a potential DB error during get_var!
+				return new WP_Error( 'database_error', 'Failed to count distinct speech attempts with attempt feedback: ' . $this->wpdb->last_error, array( 'status' => 500 ) );
+			}
+
+			return (int) $count;
+
+		} catch ( Exception $e ) {
+			return new WP_Error( 'database_error', 'Failed to count distinct speech attempts with attempt feedback: ' . $e->getMessage(), array( 'status' => 500 ) );
+		}
+	}
+
+	/**
 	 * Adds meta data to a speech.
 	 *
 	 * @param int    $speech_id  The speech ID.
