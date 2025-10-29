@@ -38,6 +38,47 @@ class Ieltssci_Speaking_Feedback_DB {
 	}
 
 	/**
+	 * Resolve the user ID that should be credited for feedback on a given speech.
+	 *
+	 * Follows the same pattern used in rate-limit checks: if the speech is linked
+	 * to a task submission that has an 'instructor_id' meta value, then use that
+	 * instructor ID; otherwise, return 0 so callers can fall back to current user.
+	 *
+	 * @param int $speech_id The speech ID.
+	 * @return int The instructor user ID if available, or 0 if none found.
+	 */
+	private function resolve_feedback_creator_user_id( $speech_id ) {
+		if ( empty( $speech_id ) ) {
+			return 0; // Invalid speech ID, no override.
+		}
+
+		try {
+			$submission_db   = new Ieltssci_Submission_DB();
+			$task_submission = $submission_db->get_part_submissions(
+				array(
+					'speech_id' => (int) $speech_id,
+					'number'    => 1,
+					'orderby'   => 'id',
+					'order'     => 'DESC',
+				)
+			);
+			if ( is_wp_error( $task_submission ) ) {
+				return 0; // DB error, skip override.
+			}
+			if ( $task_submission && is_array( $task_submission ) && ! empty( $task_submission ) && ! empty( $task_submission[0]['id'] ) ) {
+				$instructor_id = $submission_db->get_part_submission_meta( $task_submission[0]['id'], 'instructor_id', true );
+				return $instructor_id ? (int) $instructor_id : 0; // Return instructor or 0.
+			}
+		} catch ( \Exception $e ) {
+			// Log exception if needed, but return 0 to avoid blocking feedback saving.
+			error_log( 'Error resolving feedback creator user ID: ' . $e->getMessage() );
+			return 0;
+		}
+
+		return 0; // No instructor found.
+	}
+
+	/**
 	 * Check if a step has already been processed and retrieve existing content.
 	 *
 	 * @param string      $step_type     The type of step (chain-of-thought, scoring, feedback).
@@ -218,6 +259,9 @@ class Ieltssci_Speaking_Feedback_DB {
 
 		$speech_id = $speeches[0]['id'];
 
+		// If the speech is linked to a task submission with an instructor, credit feedback to the instructor.
+		$instructor_id = $this->resolve_feedback_creator_user_id( $speech_id );
+
 		// Extract needed feed attributes.
 		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
 
@@ -244,7 +288,7 @@ class Ieltssci_Speaking_Feedback_DB {
 			'source'            => $source,
 			// Set the specific content field dynamically.
 			$content_field      => $feedback,
-			'created_by'        => get_current_user_id(),
+			'created_by'        => $instructor_id > 0 ? $instructor_id : get_current_user_id(),
 		);
 
 		// Always create a new feedback entry.
@@ -284,6 +328,9 @@ class Ieltssci_Speaking_Feedback_DB {
 			}
 		}
 
+		// If the speech is linked to a task submission with an instructor, credit feedback to the instructor.
+		$instructor_id = $this->resolve_feedback_creator_user_id( $speech_id );
+
 		// Extract needed feed attributes.
 		$feedback_criteria = isset( $feed['feedback_criteria'] ) ? $feed['feedback_criteria'] : 'general';
 
@@ -309,7 +356,7 @@ class Ieltssci_Speaking_Feedback_DB {
 			'feedback_language' => $language,
 			'source'            => $source,
 			$content_field      => $feedback,
-			'created_by'        => get_current_user_id(),
+			'created_by'        => $instructor_id > 0 ? $instructor_id : get_current_user_id(),
 		);
 
 		// Always create a new feedback entry.
