@@ -68,7 +68,12 @@ class Ieltssci_Writing_Feedback_DB {
 				return 0; // DB error, skip override.
 			}
 			if ( $task_submission && is_array( $task_submission ) && ! empty( $task_submission ) && ! empty( $task_submission[0]['id'] ) ) {
-				$instructor_id = $submission_db->get_task_submission_meta( $task_submission[0]['id'], 'instructor_id', true );
+				// If the task submission is associated with a test, get instructor_id from test submission meta.
+				if ( isset( $task_submission[0]['test_submission_id'] ) && ! empty( $task_submission[0]['test_submission_id'] ) ) {
+					$instructor_id = $submission_db->get_test_submission_meta( $task_submission[0]['test_submission_id'], 'instructor_id', true );
+				} else {
+					$instructor_id = $submission_db->get_task_submission_meta( $task_submission[0]['id'], 'instructor_id', true );
+				}
 				return $instructor_id ? (int) $instructor_id : 0; // Return instructor or 0.
 			}
 		} catch ( \Exception $e ) {

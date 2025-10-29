@@ -174,8 +174,13 @@ class Ieltssci_RateLimit {
 						}
 						// Use instructor ID from task submission as creator so that students can use their instructor's rate limits.
 						if ( $task_submission && is_array( $task_submission ) && ! empty( $task_submission ) && isset( $task_submission[0]['id'] ) && ! empty( $task_submission[0]['id'] ) ) {
-							$instructor_id = $submission_db->get_task_submission_meta( $task_submission[0]['id'], 'instructor_id', true );
-							$creator_id    = $instructor_id ? (int) $instructor_id : $creator_id;
+							// If the task submission is associated with a test, get instructor_id from test submission meta.
+							if ( isset( $task_submission[0]['test_submission_id'] ) && ! empty( $task_submission[0]['test_submission_id'] ) ) {
+								$instructor_id = $submission_db->get_test_submission_meta( $task_submission[0]['test_submission_id'], 'instructor_id', true );
+							} else {
+								$instructor_id = $submission_db->get_task_submission_meta( $task_submission[0]['id'], 'instructor_id', true );
+							}
+							$creator_id = $instructor_id ? (int) $instructor_id : $creator_id;
 						}
 					}
 				}
