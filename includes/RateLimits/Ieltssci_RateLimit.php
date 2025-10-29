@@ -194,6 +194,24 @@ class Ieltssci_RateLimit {
 					if ( ! is_wp_error( $speeches ) && ! empty( $speeches ) ) {
 						$creator_id = $speeches[0]['created_by'];
 						$content_id = $speeches[0]['id'];
+
+						// Get associated part submission if any.
+						if ( isset( $speeches[0]['id'] ) && $speeches[0]['id'] ) {
+							$submission_db   = new \IeltsScienceLMS\Speaking\Ieltssci_Submission_DB();
+							$part_submission = $submission_db->get_part_submissions(
+								array(
+									'speech_id' => $speeches[0]['id'],
+								)
+							);
+							if ( is_wp_error( $part_submission ) ) {
+								$part_submission = null;
+							}
+							// Use instructor ID from part submission as creator so that students can use their instructor's rate limits.
+							if ( $part_submission && is_array( $part_submission ) && ! empty( $part_submission ) && isset( $part_submission[0]['id'] ) && ! empty( $part_submission[0]['id'] ) ) {
+								$instructor_id = $submission_db->get_part_submission_meta( $part_submission[0]['id'], 'instructor_id', true );
+								$creator_id    = $instructor_id ? (int) $instructor_id : $creator_id;
+							}
+						}
 					}
 				}
 			}
