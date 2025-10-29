@@ -32,6 +32,9 @@ class Ieltssci_Dashboard_Module {
 
 		// Add custom rewrite rules for UUID child slugs.
 		add_action( 'init', array( $this, 'register_custom_rewrite_rules' ) );
+
+		// Check dashboard access and redirect to login if necessary.
+		add_action( 'template_redirect', array( $this, 'check_dashboard_access' ) );
 	}
 
 	/**
@@ -545,5 +548,39 @@ class Ieltssci_Dashboard_Module {
 		);
 
 		return $module_data;
+	}
+
+	/**
+	 * Check dashboard access and redirect to login if necessary.
+	 *
+	 * This function checks if the user is trying to access a dashboard page without being logged in.
+	 * If the user is not logged in, they are redirected to the login page.
+	 *
+	 * @return void
+	 */
+	public function check_dashboard_access() {
+		// If user is already logged in, no need to redirect.
+		if ( is_user_logged_in() ) {
+			return;
+		}
+
+		// Get the saved page settings.
+		$ielts_pages = get_option( 'ielts_science_lms_pages', array() );
+
+		// List of dashboard pages that require login.
+		$dashboard_pages = array( 'teacher_dashboard', 'student_dashboard' );
+
+		// Get current page ID.
+		$current_page_id = get_queried_object_id();
+
+		// Check if current page is a dashboard page.
+		foreach ( $dashboard_pages as $page_key ) {
+			if ( isset( $ielts_pages[ $page_key ] ) && (int) $ielts_pages[ $page_key ] === (int) $current_page_id ) {
+				// Redirect to login with current page as redirect_to.
+				$redirect_url = wp_login_url( get_permalink( $current_page_id ) );
+				wp_redirect( $redirect_url );
+				exit;
+			}
+		}
 	}
 }
