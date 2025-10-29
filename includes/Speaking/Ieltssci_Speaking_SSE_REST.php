@@ -298,8 +298,7 @@ class Ieltssci_Speaking_SSE_REST {
 		}
 
 		// Check rate limits before setting headers.
-		// Use UUID if provided, otherwise use attempt_id for rate limiting.
-		$rate_limit_key = ! empty( $uuid ) ? $uuid : 'attempt_' . $attempt_id;
+		$rate_limit_key = 'attempt_' . $attempt_id;
 		$rate_limiter   = new Ieltssci_RateLimit();
 		$rate_check     = $rate_limiter->check_rate_limit( 'speech_attempt_feedback', $rate_limit_key, $feed_id, $attempt_id );
 		if ( is_wp_error( $rate_check ) ) {
