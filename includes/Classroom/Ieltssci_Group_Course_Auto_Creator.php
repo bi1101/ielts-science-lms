@@ -98,11 +98,12 @@ class Ieltssci_Group_Course_Auto_Creator {
 	private function create_course_for_group( $group_id, $group_title, $group_content ) {
 		// Prepare course data for REST API.
 		$course_data = array(
-			'title'      => sanitize_text_field( $group_title ),
-			'content'    => wp_kses_post( $group_content ),
-			'status'     => 'publish',
-			'author'     => get_current_user_id(),
-			'price_type' => 'closed',
+			'title'                => sanitize_text_field( $group_title ),
+			'content'              => wp_kses_post( $group_content ),
+			'status'               => 'publish',
+			'author'               => get_current_user_id(),
+			'price_type'           => 'closed',
+			'progression_disabled' => true,
 		);
 
 		// Create the course via REST API.
