@@ -47,7 +47,7 @@ class Ieltssci_Speaking_Module {
 
 		// Initialize the speaking module assets.
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_speaking_assets' ) );
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_speaking_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_speaking_assets' ), 100 );
 
 		// Add custom rewrite rules for UUID child slugs.
 		add_action( 'init', array( $this, 'register_custom_rewrite_rules' ) );
