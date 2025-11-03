@@ -1452,6 +1452,17 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 					rest_url( $this->namespace . '/' . $this->rest_base . '/' . absint( $original_speech_id ) ),
 					array( 'embeddable' => true )
 				);
+				$response->add_link(
+					'original_part_submissions',
+					add_query_arg(
+						array(
+							'speech_id'    => absint( $original_speech_id ),
+							'include_meta' => true,
+						),
+						rest_url( 'ieltssci/v1/speaking-part-submissions' )
+					),
+					array( 'embeddable' => true )
+				);
 			}
 		}
 
@@ -1460,7 +1471,10 @@ class Ieltssci_Speech_Controller extends WP_REST_Controller {
 			$response->add_link(
 				'part_submissions',
 				add_query_arg(
-					array( 'speech_id' => $data['id'] ),
+					array(
+						'speech_id'    => $data['id'],
+						'include_meta' => true,
+					),
 					rest_url( 'ieltssci/v1/speaking-part-submissions' )
 				),
 				array( 'embeddable' => true )
