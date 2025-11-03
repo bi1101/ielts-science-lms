@@ -717,6 +717,8 @@ class Ieltssci_Submission_DB {
 	 *     @var int          $number             Number of results to return. Default 20.
 	 *     @var int          $offset             Number of results to skip. Default 0.
 	 *     @var bool         $count              Return count instead of results. Default false.
+	 *     @var array        $meta_query         Optional. Meta query parameters.
+	 *     @var bool|array   $include_meta       Optional. Whether to include meta data. Default false. Can be true for all meta, or array of specific keys.
 	 * }
 	 * @throws Exception When a database error occurs.
 	 * @return array|int|WP_Error Array of rows, count, or WP_Error on failure.
@@ -737,41 +739,44 @@ class Ieltssci_Submission_DB {
 				'number'             => 20,
 				'offset'             => 0,
 				'count'              => false,
+				'meta_query'         => null,
+				'include_meta'       => false,
 			);
 			$args     = wp_parse_args( $args, $defaults );
 
-			$select = $args['count'] ? 'COUNT(*)' : '*';
-			$from   = $this->part_submissions_table;
+			$select = $args['count'] ? 'COUNT(*)' : 'ps.*';
+			$from   = $this->part_submissions_table . ' ps';
+			$join   = '';
 			$where  = array( '1=1' );
 			$vals   = array();
 
 			$map = array(
 				'id'                 => array(
-					'col'  => 'id',
+					'col'  => 'ps.id',
 					'type' => '%d',
 				),
 				'uuid'               => array(
-					'col'  => 'uuid',
+					'col'  => 'ps.uuid',
 					'type' => '%s',
 				),
 				'test_submission_id' => array(
-					'col'  => 'test_submission_id',
+					'col'  => 'ps.test_submission_id',
 					'type' => '%d',
 				),
 				'user_id'            => array(
-					'col'  => 'user_id',
+					'col'  => 'ps.user_id',
 					'type' => '%d',
 				),
 				'part_id'            => array(
-					'col'  => 'part_id',
+					'col'  => 'ps.part_id',
 					'type' => '%d',
 				),
 				'speech_id'          => array(
-					'col'  => 'speech_id',
+					'col'  => 'ps.speech_id',
 					'type' => '%d',
 				),
 				'status'             => array(
-					'col'  => 'status',
+					'col'  => 'ps.status',
 					'type' => '%s',
 				),
 			);
@@ -791,22 +796,46 @@ class Ieltssci_Submission_DB {
 
 			if ( ! is_null( $args['date_query'] ) && is_array( $args['date_query'] ) ) {
 				if ( ! empty( $args['date_query']['after'] ) ) {
-					$where[] = 'started_at >= %s';
+					$where[] = 'ps.started_at >= %s';
 					$vals[]  = $args['date_query']['after'];
 				}
 				if ( ! empty( $args['date_query']['before'] ) ) {
-					$where[] = 'started_at <= %s';
+					$where[] = 'ps.started_at <= %s';
 					$vals[]  = $args['date_query']['before'];
 				}
 			}
 
-			$sql = 'SELECT ' . $select . ' FROM ' . $from . ' WHERE ' . implode( ' AND ', $where );
+			// Process meta query.
+			if ( ! is_null( $args['meta_query'] ) && is_array( $args['meta_query'] ) ) {
+				$meta_join_alias = 'psm';
+				$join           .= " LEFT JOIN {$this->part_submission_meta_table} {$meta_join_alias} ON ps.id = {$meta_join_alias}.ieltssci_speaking_part_submission_id";
+
+				foreach ( $args['meta_query'] as $meta_query_item ) {
+					if ( ! empty( $meta_query_item['key'] ) ) {
+						$where[]          = "{$meta_join_alias}.meta_key = %s";
+						$vals[] = $meta_query_item['key'];
+
+						if ( ! empty( $meta_query_item['value'] ) ) {
+							$compare = ! empty( $meta_query_item['compare'] ) ? $meta_query_item['compare'] : '=';
+							if ( 'LIKE' === $compare ) {
+								$where[]          = "{$meta_join_alias}.meta_value LIKE %s";
+								$vals[] = '%' . $this->wpdb->esc_like( $meta_query_item['value'] ) . '%';
+							} else {
+								$where[]          = "{$meta_join_alias}.meta_value = %s";
+								$vals[] = $meta_query_item['value'];
+							}
+						}
+					}
+				}
+			}
+
+			$sql = 'SELECT ' . $select . ' FROM ' . $from . $join . ' WHERE ' . implode( ' AND ', $where );
 
 			if ( ! $args['count'] ) {
 				$allowed_orderby = array( 'id', 'uuid', 'test_submission_id', 'user_id', 'part_id', 'speech_id', 'status', 'started_at', 'completed_at', 'updated_at' );
 				$orderby         = in_array( $args['orderby'], $allowed_orderby, true ) ? $args['orderby'] : 'id';
 				$order           = strtoupper( $args['order'] ) === 'ASC' ? 'ASC' : 'DESC';
-				$sql            .= " ORDER BY $orderby $order";
+				$sql            .= " ORDER BY ps.$orderby $order";
 				$sql            .= ' LIMIT %d OFFSET %d';
 				$vals[]          = max( 1, (int) $args['number'] );
 				$vals[]          = max( 0, (int) $args['offset'] );
@@ -826,6 +855,35 @@ class Ieltssci_Submission_DB {
 			if ( null === $rows && $this->wpdb->last_error ) {
 				throw new Exception( $this->wpdb->last_error );
 			}
+
+			// Process datetime fields for each result.
+			foreach ( $rows as &$submission ) {
+				// Convert timestamps from GMT to site's timezone.
+				if ( ! empty( $submission['started_at'] ) ) {
+					$submission['started_at'] = get_date_from_gmt( $submission['started_at'] );
+				}
+				if ( ! empty( $submission['completed_at'] ) ) {
+					$submission['completed_at'] = get_date_from_gmt( $submission['completed_at'] );
+				}
+				if ( ! empty( $submission['updated_at'] ) ) {
+					$submission['updated_at'] = get_date_from_gmt( $submission['updated_at'] );
+				}
+
+				// Include meta data if requested.
+				if ( $args['include_meta'] ) {
+					if ( is_array( $args['include_meta'] ) ) {
+						// Include specific meta keys.
+						$submission['meta'] = array();
+						foreach ( $args['include_meta'] as $meta_key ) {
+							$submission['meta'][ $meta_key ] = $this->get_part_submission_meta( $submission['id'], $meta_key );
+						}
+					} elseif ( true === $args['include_meta'] ) {
+						// Include all meta data.
+						$submission['meta'] = $this->get_part_submission_meta( $submission['id'] );
+					}
+				}
+			}
+
 			return $rows;
 		} catch ( Exception $e ) {
 			return new WP_Error( 'database_error', 'Failed to retrieve speaking part submissions: ' . $e->getMessage(), array( 'status' => 500 ) );
