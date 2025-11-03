@@ -47,6 +47,9 @@ class Ieltssci_LD_Integration {
 
 		new LDIntegration\Ieltssci_LD_Sync_Writing_Submissions();
 
+		// Initialize Speaking submissions sync to LearnDash.
+		new LDIntegration\Ieltssci_LD_Sync_Speaking_Submissions();
+
 		// Initialize Teacher Dashboard integration.
 		new LDIntegration\Ieltssci_LD_Teacher_Dashboard_Controller();
 
