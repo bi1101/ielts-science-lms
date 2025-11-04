@@ -351,6 +351,7 @@ class Ieltssci_Writing_Settings {
 			$settings_config_instance->create_field( 'guided_json', 'textarea', 'Guided JSON', 'The output will follow the JSON schema. A valid schema must be provided.', null ),
 			$settings_config_instance->create_field( 'guided_json_vi', 'textarea', 'Guided JSON (Vietnamese)', 'The output will follow the JSON schema for Vietnamese language. A valid schema must be provided.', null ),
 			$settings_config_instance->create_field( 'storing_json', 'textarea', 'Storing JSON Schema', 'Optional. The final JSON schema for aggregating parallel results. If provided, parallel responses will be merged into this structure.', null ),
+			$settings_config_instance->create_field( 'content_manipulation', 'text', 'Content Manipulation', 'Optional manipulation to apply to the content before sending to frontend. Options: uppercase, lowercase, capitalize, remove_html, trim, strip_whitespace, add_sentence_changes', null ),
 		);
 
 		$common_sections = array(
@@ -431,6 +432,7 @@ class Ieltssci_Writing_Settings {
 						'essay',
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -461,6 +463,7 @@ class Ieltssci_Writing_Settings {
 						'essay',
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),

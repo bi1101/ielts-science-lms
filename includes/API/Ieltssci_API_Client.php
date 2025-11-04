@@ -18,6 +18,8 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Pool;
+use Jfcherng\Diff\Differ;
+use Jfcherng\Diff\Renderer\Text\JsonText;
 
 /**
  * Class Ieltssci_API_Client
@@ -40,6 +42,87 @@ class Ieltssci_API_Client {
 	 */
 	public function __construct( $message_handler ) {
 		$this->message_handler = $message_handler;
+	}
+
+	/**
+	 * Apply content manipulation based on the specified rule
+	 *
+	 * @param string      $content The content to manipulate.
+	 * @param string|null $manipulation The manipulation rule to apply.
+	 * @return string The manipulated content.
+	 */
+	private function apply_content_manipulation( $content, $manipulation ) {
+		if ( empty( $manipulation ) ) {
+			return $content;
+		}
+
+		switch ( $manipulation ) {
+			case 'uppercase':
+				return strtoupper( $content );
+			case 'lowercase':
+				return strtolower( $content );
+			case 'capitalize':
+				return ucwords( strtolower( $content ) );
+			case 'remove_html':
+				return wp_strip_all_tags( $content );
+			case 'trim':
+				return trim( $content );
+			case 'strip_whitespace':
+				return preg_replace( '/\s+/', ' ', trim( $content ) );
+			case 'add_sentence_changes':
+				// Check if content is JSON and matches the sentence schema.
+				$data = json_decode( $content, true );
+				if ( json_last_error() === JSON_ERROR_NONE && isset( $data['sentence'] ) && is_array( $data['sentence'] ) ) {
+					foreach ( $data['sentence'] as &$sentence ) {
+						if ( isset( $sentence['original_sentence'] ) && isset( $sentence['suggested_sentence'] ) ) {
+							$old_words = explode( ' ', $sentence['original_sentence'] );
+							$new_words = explode( ' ', $sentence['suggested_sentence'] );
+
+							// Use Jfcherng\Diff for word-level diff.
+							$differ = new Differ(
+								$old_words,
+								$new_words,
+								array(
+									'context'          => Differ::CONTEXT_ALL,
+									'ignoreWhitespace' => true,
+									'ignoreLineEnding' => true,
+								)
+							);
+
+							$renderer = new JsonText(
+								array(
+									'outputTagAsString' => true,
+								)
+							);
+
+							$diff_result = $renderer->render( $differ );
+							$diff_data   = json_decode( $diff_result, true );
+
+							// Simplify the diff data.
+							$changes = array();
+							foreach ( $diff_data as $hunk ) {
+								foreach ( $hunk as $change ) {
+									if ( isset( $change['old'] ) && isset( $change['new'] ) ) {
+										$changes[] = array(
+											'old' => implode( ' ', $change['old']['lines'] ?? $change['old'] ),
+											'new' => implode( ' ', $change['new']['lines'] ?? $change['new'] ),
+											'tag' => $change['tag'] ?? 'eq',
+										);
+									}
+								}
+							}
+
+							$sentence['changes'] = $changes;
+						}
+					}
+					return wp_json_encode( $data );
+				}
+				// If not matching schema, return original.
+				return $content;
+			default:
+				// If manipulation is not recognized, return original content.
+				return $content;
+		}
 	}
 
 	/**
@@ -523,9 +606,10 @@ class Ieltssci_API_Client {
 	 * @param string $score_regex Optional. Regex pattern to extract score from the response when step_type is 'scoring'.
 	 * @param float  $top_p Top P sampling parameter.
 	 * @param int    $top_k Top K sampling parameter.
+	 * @param string $content_manipulation Optional. Content manipulation rule to apply to the streamed content.
 	 * @return array|WP_Error Array containing 'content' and 'reasoning_content' from the API, or WP_Error on failure. For scoring steps, returns an array with 'content' (score) and 'reasoning_content'.
 	 */
-	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $score_regex = null, $top_p = 0.8, $top_k = 20 ) {
+	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $score_regex = null, $top_p = 0.8, $top_k = 20, $content_manipulation = null ) {
 		try {
 			$current_provider = $api_provider; // Single attempt only.
 			$client_settings  = $this->get_client_settings( $current_provider );
@@ -564,7 +648,7 @@ class Ieltssci_API_Client {
 					CURLOPT_HTTPHEADER     => $curl_headers,
 					CURLOPT_POSTFIELDS     => wp_json_encode( $payload ),
 					CURLOPT_RETURNTRANSFER => false, // We stream manually.
-					CURLOPT_WRITEFUNCTION  => function ( $curl, $data ) use ( &$line_accumulator, &$done_received, &$full_response, &$reasoning_response, &$cot_active, $current_provider, $step_type, $is_scoring_step ) {
+					CURLOPT_WRITEFUNCTION  => function ( $curl, $data ) use ( &$line_accumulator, &$done_received, &$full_response, &$reasoning_response, &$cot_active, $current_provider, $step_type, $is_scoring_step, $content_manipulation ) {
 						// Append incoming chunk to accumulator.
 						$line_accumulator .= $data;
 
@@ -608,10 +692,11 @@ class Ieltssci_API_Client {
 									if ( isset( $content_chunk['content'] ) && '' !== $content_chunk['content'] ) {
 										$full_response .= $content_chunk['content'];
 										if ( ! $is_scoring_step ) { // Stream immediately unless scoring step.
+											$manipulated_content = $this->apply_content_manipulation( $content_chunk['content'], $content_manipulation );
 											$this->message_handler->send_message(
 												$this->message_handler->transform_case( $step_type, 'snake_upper' ),
 												array(
-													'content' => $content_chunk['content'],
+													'content' => $manipulated_content,
 													'step_type' => $step_type,
 												)
 											);
@@ -619,10 +704,11 @@ class Ieltssci_API_Client {
 									}
 									if ( isset( $content_chunk['reasoning_content'] ) && '' !== $content_chunk['reasoning_content'] ) {
 										$reasoning_response .= $content_chunk['reasoning_content'];
+										$manipulated_reasoning = $this->apply_content_manipulation( $content_chunk['reasoning_content'], $content_manipulation );
 										$this->message_handler->send_message(
 											$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
 											array(
-												'content' => $content_chunk['reasoning_content'],
+												'content' => $manipulated_reasoning,
 												'step_type' => $step_type,
 											)
 										);
@@ -671,25 +757,27 @@ class Ieltssci_API_Client {
 
 			// For scoring step extract score now (content not streamed earlier).
 			if ( $is_scoring_step && ! empty( $score_regex_pattern ) ) {
-				$extracted_score = $this->extract_score_from_result( $full_response, $score_regex_pattern );
+				$extracted_score       = $this->extract_score_from_result( $full_response, $score_regex_pattern );
+				$manipulated_score     = $this->apply_content_manipulation( $extracted_score, $content_manipulation );
+				$manipulated_reasoning = $this->apply_content_manipulation( $reasoning_response, $content_manipulation );
 				$this->message_handler->send_message(
 					$this->message_handler->transform_case( $step_type, 'snake_upper' ),
 					array(
-						'content'           => $extracted_score,
+						'content'           => $manipulated_score,
 						'raw_content'       => $full_response,
-						'reasoning_content' => $reasoning_response,
+						'reasoning_content' => $manipulated_reasoning,
 						'regex_used'        => $score_regex_pattern,
 					)
 				);
 				return array(
-					'content'           => $extracted_score,
-					'reasoning_content' => $reasoning_response,
+					'content'           => $manipulated_score,
+					'reasoning_content' => $manipulated_reasoning,
 				);
 			}
 
 			return array(
-				'content'           => $full_response,
-				'reasoning_content' => $reasoning_response,
+				'content'           => $this->apply_content_manipulation( $full_response, $content_manipulation ),
+				'reasoning_content' => $this->apply_content_manipulation( $reasoning_response, $content_manipulation ),
 			);
 		} catch ( Exception $e ) {
 			$this->message_handler->send_error(
@@ -744,9 +832,10 @@ class Ieltssci_API_Client {
 	 * @param string $return_format Optional. The format of the return value. 'string' for concatenated responses (default), 'array' for indexed array of responses.
 	 * @param float  $top_p Top P sampling parameter.
 	 * @param int    $top_k Top K sampling parameter.
+	 * @param string $content_manipulation Optional. Content manipulation rule to apply to each response.
 	 * @return string|array|WP_Error The concatenated responses from all API calls, indexed array of responses, or WP_Error on failure.
 	 */
-	public function make_parallel_api_calls( $api_provider, $model, $prompts, $temperature, $max_tokens, $feed, $step_type, $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $return_format = 'string', $top_p = 0.8, $top_k = 20 ) {
+	public function make_parallel_api_calls( $api_provider, $model, $prompts, $temperature, $max_tokens, $feed, $step_type, $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $return_format = 'string', $top_p = 0.8, $top_k = 20, $content_manipulation = null ) {
 		$current_provider  = $api_provider;
 		$remaining_prompts = $prompts; // Prompts that still need to be processed.
 		$final_responses   = array(); // Successful responses from all attempts.
@@ -819,12 +908,15 @@ class Ieltssci_API_Client {
 					$requests( $remaining_prompts ),
 					array(
 						'concurrency' => 20, // Process 20 requests at a time.
-						'fulfilled'   => function ( $response, $index ) use ( &$responses_by_index, &$processed_count, $total_prompts, $step_type ) {
+						'fulfilled'   => function ( $response, $index ) use ( &$responses_by_index, &$processed_count, $total_prompts, $step_type, $content_manipulation ) {
 							// Process successful response.
 							$body    = $response->getBody()->getContents();
 							$content = $this->extract_content_from_full_response( $body );
 
 							if ( $content ) {
+								// Apply content manipulation if specified.
+								$content = $this->apply_content_manipulation( $content, $content_manipulation );
+
 								// Store response by index to maintain order.
 								$responses_by_index[ $index ] = $content;
 

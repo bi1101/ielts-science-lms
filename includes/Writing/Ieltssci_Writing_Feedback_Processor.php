@@ -363,6 +363,9 @@ class Ieltssci_Writing_Feedback_Processor {
 		$top_p = isset( $config['advanced-setting']['top_p'] ) ? (float) $config['advanced-setting']['top_p'] : 0.8;
 		$top_k = isset( $config['advanced-setting']['top_k'] ) ? (int) $config['advanced-setting']['top_k'] : 20;
 
+		// Extract content manipulation setting from advanced settings.
+		$content_manipulation = isset( $config['advanced-setting']['content_manipulation'] ) ? $config['advanced-setting']['content_manipulation'] : null;
+
 		// Override sampling parameters for refetch to avoid deterministic results.
 		if ( ! empty( $refetch ) && ( 'all' === $refetch || $step_type === $refetch ) ) {
 			$top_p       = 0.8;
@@ -540,7 +543,7 @@ class Ieltssci_Writing_Feedback_Processor {
 			$return_format = ! empty( $storing_json ) ? 'array' : 'string';
 
 			// Use API client for parallel API calls.
-			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $selected_guided_json, $enable_thinking, $return_format, $top_p, $top_k );
+			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $selected_guided_json, $enable_thinking, $return_format, $top_p, $top_k, $content_manipulation );
 
 			// If we need to aggregate the results, do so now.
 			if ( 'array' === $return_format && is_array( $result ) ) {
@@ -616,7 +619,8 @@ class Ieltssci_Writing_Feedback_Processor {
 				$enable_thinking,
 				'scoring' === $step_type ? $score_regex : null,
 				$top_p,
-				$top_k
+				$top_k,
+				$content_manipulation
 			);
 
 			// Check if result is a WP_Error.
