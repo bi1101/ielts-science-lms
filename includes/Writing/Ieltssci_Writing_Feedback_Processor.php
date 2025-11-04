@@ -521,8 +521,18 @@ class Ieltssci_Writing_Feedback_Processor {
 			$segment_order,
 			$feedback_style,
 			$guide_score,
-			$guide_feedback
+			$guide_feedback,
+			null,
+			true
 		);
+
+		// Handle structured return format with backward compatibility.
+		$resolved_tags = array();
+		if ( is_array( $processed_prompt ) && isset( $processed_prompt['prompts'] ) ) {
+			// New structured format.
+			$resolved_tags    = $processed_prompt['resolved_tags'] ?? array();
+			$processed_prompt = $processed_prompt['prompts'];
+		}
 
 		// Check if the processed prompt is a string or an array.
 		if ( is_array( $processed_prompt ) ) {
@@ -543,7 +553,7 @@ class Ieltssci_Writing_Feedback_Processor {
 			$return_format = ! empty( $storing_json ) ? 'array' : 'string';
 
 			// Use API client for parallel API calls.
-			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $selected_guided_json, $enable_thinking, $return_format, $top_p, $top_k, $content_manipulation );
+			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $selected_guided_json, $enable_thinking, $return_format, $top_p, $top_k, $content_manipulation, $resolved_tags );
 
 			// If we need to aggregate the results, do so now.
 			if ( 'array' === $return_format && is_array( $result ) ) {
@@ -620,7 +630,8 @@ class Ieltssci_Writing_Feedback_Processor {
 				'scoring' === $step_type ? $score_regex : null,
 				$top_p,
 				$top_k,
-				$content_manipulation
+				$content_manipulation,
+				$resolved_tags
 			);
 
 			// Check if result is a WP_Error.

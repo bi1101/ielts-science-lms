@@ -30,14 +30,21 @@ class Ieltssci_Merge_Tags_Processor {
 	 * @param string      $guide_score   Human-guided scoring for the AI to consider.
 	 * @param string      $guide_feedback Human-guided feedback content for the AI to incorporate.
 	 * @param array|null  $attempt      Optional. The attempt data array for attempt-specific merge tags.
-	 * @return string|array The processed prompt with merge tags replaced, or an array if a modifier results in an array.
+	 * @param bool        $return_structured Optional. If true, returns structured array with resolved tags. Default false.
+	 * @return string|array The processed prompt with merge tags replaced, or structured array with prompts and resolved_tags.
 	 */
-	public function process_merge_tags( $prompt, $uuid = null, $segment_order_or_attempt_id = null, $feedback_style = '', $guide_score = '', $guide_feedback = '', $attempt = null ) {
+	public function process_merge_tags( $prompt, $uuid = null, $segment_order_or_attempt_id = null, $feedback_style = '', $guide_score = '', $guide_feedback = '', $attempt = null, $return_structured = false ) {
 		// Regex to find merge tags in format {prefix|parameters|suffix}.
 		$regex = '/\{(?\'prefix\'.*?)\|(?\'parameters\'.*?)\|(?\'suffix\'.*?)\}/ms';
 
 		// Find all merge tags in the prompt.
 		preg_match_all( $regex, $prompt, $matches, PREG_SET_ORDER, 0 );
+
+		// Initialize storage for resolved tags.
+		$resolved_tags = array(
+			'common'           => array(), // Tags that resolved to single values.
+			'variant_specific' => array(), // Tags that resolved to arrays (for parallel).
+		);
 
 		// First scan: identify all array-producing merge tags and their contents.
 		$array_tags       = array();
@@ -59,6 +66,7 @@ class Ieltssci_Merge_Tags_Processor {
 				$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id, $attempt );
 			}
 
+			// Store resolved values.
 			if ( is_array( $content ) ) {
 				$array_tags[ $full_tag ] = array(
 					'prefix'  => $match['prefix'],
@@ -68,6 +76,12 @@ class Ieltssci_Merge_Tags_Processor {
 
 				// Track the length of the longest array.
 				$max_array_length = max( $max_array_length, count( $content ) );
+
+				// Store as variant-specific tag.
+				$resolved_tags['variant_specific'][ trim( $parameters ) ] = $content;
+			} else {
+				// Store as common tag.
+				$resolved_tags['common'][ trim( $parameters ) ] = $content;
 			}
 		}
 
@@ -95,6 +109,15 @@ class Ieltssci_Merge_Tags_Processor {
 				// For non-array content, standard replacement.
 				$replacement = empty( $content ) ? '' : "{$prefix}{$content}{$suffix}";
 				$prompt      = str_replace( $full_tag, $replacement, $prompt );
+			}
+
+			// Return structured format if requested.
+			if ( $return_structured ) {
+				return array(
+					'prompts'       => $prompt,
+					'resolved_tags' => $resolved_tags,
+					'parallel_mode' => false,
+				);
 			}
 
 			return $prompt;
@@ -155,6 +178,15 @@ class Ieltssci_Merge_Tags_Processor {
 			}
 
 			$variants[] = $variant;
+		}
+
+		// Return structured format if requested.
+		if ( $return_structured ) {
+			return array(
+				'prompts'       => $variants,
+				'resolved_tags' => $resolved_tags,
+				'parallel_mode' => true,
+			);
 		}
 
 		return $variants;

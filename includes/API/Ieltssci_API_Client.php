@@ -49,9 +49,13 @@ class Ieltssci_API_Client {
 	 *
 	 * @param string      $content The content to manipulate.
 	 * @param string|null $manipulation The manipulation rule to apply.
+	 * @param string|null $prompt The prompt that produced the content.
+	 * @param array|null  $feed The feed data.
+	 * @param string|null $step_type The type of step being processed.
+	 * @param array       $resolved_tags Optional. Resolved merge tag values for advanced manipulations.
 	 * @return string The manipulated content.
 	 */
-	private function apply_content_manipulation( $content, $manipulation ) {
+	private function apply_content_manipulation( $content, $manipulation, $prompt = null, $feed = null, $step_type = null, $resolved_tags = array() ) {
 		if ( empty( $manipulation ) ) {
 			return $content;
 		}
@@ -69,6 +73,107 @@ class Ieltssci_API_Client {
 				return trim( $content );
 			case 'strip_whitespace':
 				return preg_replace( '/\s+/', ' ', trim( $content ) );
+
+			case 'merge_with_previous_changes':
+				// Merge changes from current content INTO previous feedback changes.
+				// Looks for 'json_sentence' in resolved_tags.
+				$previous_data = null;
+
+				// Search for the tag in resolved_tags.
+				foreach ( $resolved_tags as $tag_key => $tag_value ) {
+					if ( false !== strpos( $tag_key, 'json_sentence' ) ) {
+						// Found the tag, now extract the full data object.
+						if ( is_string( $tag_value ) ) {
+							$parsed_value = json_decode( $tag_value, true );
+							if ( json_last_error() === JSON_ERROR_NONE ) {
+								$previous_data = $parsed_value;
+							}
+						} elseif ( is_array( $tag_value ) ) {
+							$previous_data = $tag_value;
+						}
+						break;
+					}
+				}
+
+				// Parse current content.
+				$current_data = json_decode( $content, true );
+				if ( json_last_error() !== JSON_ERROR_NONE ) {
+					// If content is not valid JSON, return as-is.
+					return $content;
+				}
+
+				// Extract current changes.
+				$current_changes = isset( $current_data['changes'] ) && is_array( $current_data['changes'] ) ? $current_data['changes'] : array();
+
+				// If no previous data exists, return current content as-is.
+				if ( empty( $previous_data ) || ! is_array( $previous_data ) ) {
+					return $content;
+				}
+
+				// Extract previous changes.
+				$previous_changes = isset( $previous_data['changes'] ) && is_array( $previous_data['changes'] ) ? $previous_data['changes'] : array();
+
+				// Start with previous changes as the base.
+				$merged_changes = $previous_changes;
+
+				// Merge current changes into previous changes.
+				// For each current change, find matching previous change by tag, old, new.
+				foreach ( $current_changes as $current_change ) {
+					if ( ! isset( $current_change['tag'] ) || ! isset( $current_change['old'] ) || ! isset( $current_change['new'] ) ) {
+						continue; // Skip invalid changes.
+					}
+
+					$found_match = false;
+
+					// Search for matching change in previous changes.
+					foreach ( $merged_changes as &$merged_change ) {
+						if ( isset( $merged_change['tag'] ) && isset( $merged_change['old'] ) && isset( $merged_change['new'] ) ) {
+							// Check if tag, old, and new all match.
+							if ( $merged_change['tag'] === $current_change['tag'] &&
+								$merged_change['old'] === $current_change['old'] &&
+								$merged_change['new'] === $current_change['new'] ) {
+								// Found a match - merge additional properties from current change.
+								$merged_change = array_merge( $merged_change, $current_change );
+								$found_match   = true;
+								break;
+							}
+						}
+					}
+
+					// If no match found, add as new change (this shouldn't happen in your use case, but for safety).
+					if ( ! $found_match ) {
+						$merged_changes[] = $current_change;
+					}
+				}
+
+				// Build the final result, preserving original_sentence and suggested_sentence from previous data.
+				$result = array(
+					'sentence' => array(
+						array(
+							'changes' => $merged_changes,
+						),
+					),
+				);
+
+				// Preserve original_sentence if it exists in previous data.
+				if ( isset( $previous_data['original_sentence'] ) ) {
+					$result['sentence'][0]['original_sentence'] = $previous_data['original_sentence'];
+				}
+
+				// Preserve suggested_sentence if it exists in previous data.
+				if ( isset( $previous_data['suggested_sentence'] ) ) {
+					$result['sentence'][0]['suggested_sentence'] = $previous_data['suggested_sentence'];
+				}
+
+				// Add any other fields from current_data that aren't changes, original_sentence, or suggested_sentence.
+				foreach ( $current_data as $key => $value ) {
+					if ( ! in_array( $key, array( 'changes', 'original_sentence', 'suggested_sentence' ), true ) ) {
+						$result['sentence'][0][ $key ] = $value;
+					}
+				}
+
+				return wp_json_encode( $result );
+
 			case 'add_sentence_changes':
 				// Check if content is JSON and matches the sentence schema.
 				$data = json_decode( $content, true );
@@ -607,9 +712,10 @@ class Ieltssci_API_Client {
 	 * @param float  $top_p Top P sampling parameter.
 	 * @param int    $top_k Top K sampling parameter.
 	 * @param string $content_manipulation Optional. Content manipulation rule to apply to the streamed content.
+	 * @param array  $resolved_tags Optional. Resolved merge tag values for content manipulation.
 	 * @return array|WP_Error Array containing 'content' and 'reasoning_content' from the API, or WP_Error on failure. For scoring steps, returns an array with 'content' (score) and 'reasoning_content'.
 	 */
-	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $score_regex = null, $top_p = 0.8, $top_k = 20, $content_manipulation = null ) {
+	public function make_stream_api_call( $api_provider, $model, $prompt, $temperature, $max_tokens, $feed, $step_type, $images = array(), $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $score_regex = null, $top_p = 0.8, $top_k = 20, $content_manipulation = null, $resolved_tags = array() ) {
 		try {
 			$current_provider = $api_provider; // Single attempt only.
 			$client_settings  = $this->get_client_settings( $current_provider );
@@ -648,7 +754,7 @@ class Ieltssci_API_Client {
 					CURLOPT_HTTPHEADER     => $curl_headers,
 					CURLOPT_POSTFIELDS     => wp_json_encode( $payload ),
 					CURLOPT_RETURNTRANSFER => false, // We stream manually.
-					CURLOPT_WRITEFUNCTION  => function ( $curl, $data ) use ( &$line_accumulator, &$done_received, &$full_response, &$reasoning_response, &$cot_active, $current_provider, $step_type, $is_scoring_step, $content_manipulation ) {
+					CURLOPT_WRITEFUNCTION  => function ( $curl, $data ) use ( &$line_accumulator, &$done_received, &$full_response, &$reasoning_response, &$cot_active, $current_provider, $step_type, $is_scoring_step, $content_manipulation, $prompt, $feed, $resolved_tags ) {
 						// Append incoming chunk to accumulator.
 						$line_accumulator .= $data;
 
@@ -692,7 +798,7 @@ class Ieltssci_API_Client {
 									if ( isset( $content_chunk['content'] ) && '' !== $content_chunk['content'] ) {
 										$full_response .= $content_chunk['content'];
 										if ( ! $is_scoring_step ) { // Stream immediately unless scoring step.
-											$manipulated_content = $this->apply_content_manipulation( $content_chunk['content'], $content_manipulation );
+											$manipulated_content = $this->apply_content_manipulation( $content_chunk['content'], $content_manipulation, $prompt, $feed, $step_type, $resolved_tags );
 											$this->message_handler->send_message(
 												$this->message_handler->transform_case( $step_type, 'snake_upper' ),
 												array(
@@ -704,7 +810,7 @@ class Ieltssci_API_Client {
 									}
 									if ( isset( $content_chunk['reasoning_content'] ) && '' !== $content_chunk['reasoning_content'] ) {
 										$reasoning_response .= $content_chunk['reasoning_content'];
-										$manipulated_reasoning = $this->apply_content_manipulation( $content_chunk['reasoning_content'], $content_manipulation );
+										$manipulated_reasoning = $this->apply_content_manipulation( $content_chunk['reasoning_content'], $content_manipulation, $prompt, $feed, $step_type, $resolved_tags );
 										$this->message_handler->send_message(
 											$this->message_handler->transform_case( 'chain-of-thought', 'snake_upper' ),
 											array(
@@ -758,8 +864,8 @@ class Ieltssci_API_Client {
 			// For scoring step extract score now (content not streamed earlier).
 			if ( $is_scoring_step && ! empty( $score_regex_pattern ) ) {
 				$extracted_score       = $this->extract_score_from_result( $full_response, $score_regex_pattern );
-				$manipulated_score     = $this->apply_content_manipulation( $extracted_score, $content_manipulation );
-				$manipulated_reasoning = $this->apply_content_manipulation( $reasoning_response, $content_manipulation );
+				$manipulated_score     = $this->apply_content_manipulation( $extracted_score, $content_manipulation, $prompt, $feed, $step_type, $resolved_tags );
+				$manipulated_reasoning = $this->apply_content_manipulation( $reasoning_response, $content_manipulation, $prompt, $feed, $step_type, $resolved_tags );
 				$this->message_handler->send_message(
 					$this->message_handler->transform_case( $step_type, 'snake_upper' ),
 					array(
@@ -776,8 +882,8 @@ class Ieltssci_API_Client {
 			}
 
 			return array(
-				'content'           => $this->apply_content_manipulation( $full_response, $content_manipulation ),
-				'reasoning_content' => $this->apply_content_manipulation( $reasoning_response, $content_manipulation ),
+				'content'           => $this->apply_content_manipulation( $full_response, $content_manipulation, $prompt, $feed, $step_type, $resolved_tags ),
+				'reasoning_content' => $this->apply_content_manipulation( $reasoning_response, $content_manipulation, $prompt, $feed, $step_type, $resolved_tags ),
 			);
 		} catch ( Exception $e ) {
 			$this->message_handler->send_error(
@@ -816,6 +922,35 @@ class Ieltssci_API_Client {
 	}
 
 	/**
+	 * Get resolved tags for a specific variant index
+	 *
+	 * Combines common tags with variant-specific tags for parallel processing.
+	 *
+	 * @param array $resolved_tags The resolved tags structure from merge processor.
+	 * @param int   $variant_index The index of the current variant being processed.
+	 * @return array Combined array of resolved tag values for this variant.
+	 */
+	private function get_tags_for_variant( $resolved_tags, $variant_index ) {
+		$result = array();
+
+		// Include all common tags (tags that resolved to single values).
+		if ( isset( $resolved_tags['common'] ) && is_array( $resolved_tags['common'] ) ) {
+			$result = $resolved_tags['common'];
+		}
+
+		// Add variant-specific tags for this index (tags that resolved to arrays).
+		if ( isset( $resolved_tags['variant_specific'] ) && is_array( $resolved_tags['variant_specific'] ) ) {
+			foreach ( $resolved_tags['variant_specific'] as $tag_key => $values_array ) {
+				if ( is_array( $values_array ) && isset( $values_array[ $variant_index ] ) ) {
+					$result[ $tag_key ] = $values_array[ $variant_index ];
+				}
+			}
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Make parallel API calls to the language model for multiple prompts
 	 *
 	 * @param string $api_provider The API provider to use.
@@ -833,9 +968,10 @@ class Ieltssci_API_Client {
 	 * @param float  $top_p Top P sampling parameter.
 	 * @param int    $top_k Top K sampling parameter.
 	 * @param string $content_manipulation Optional. Content manipulation rule to apply to each response.
+	 * @param array  $resolved_tags Optional. Resolved merge tag values for content manipulation.
 	 * @return string|array|WP_Error The concatenated responses from all API calls, indexed array of responses, or WP_Error on failure.
 	 */
-	public function make_parallel_api_calls( $api_provider, $model, $prompts, $temperature, $max_tokens, $feed, $step_type, $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $return_format = 'string', $top_p = 0.8, $top_k = 20, $content_manipulation = null ) {
+	public function make_parallel_api_calls( $api_provider, $model, $prompts, $temperature, $max_tokens, $feed, $step_type, $guided_choice = null, $guided_regex = null, $guided_json = null, $enable_thinking = false, $return_format = 'string', $top_p = 0.8, $top_k = 20, $content_manipulation = null, $resolved_tags = array() ) {
 		$current_provider  = $api_provider;
 		$remaining_prompts = $prompts; // Prompts that still need to be processed.
 		$final_responses   = array(); // Successful responses from all attempts.
@@ -908,14 +1044,17 @@ class Ieltssci_API_Client {
 					$requests( $remaining_prompts ),
 					array(
 						'concurrency' => 20, // Process 20 requests at a time.
-						'fulfilled'   => function ( $response, $index ) use ( &$responses_by_index, &$processed_count, $total_prompts, $step_type, $content_manipulation ) {
+						'fulfilled'   => function ( $response, $index ) use ( &$responses_by_index, &$processed_count, $total_prompts, $step_type, $content_manipulation, $remaining_prompts, $feed, $resolved_tags ) {
 							// Process successful response.
 							$body    = $response->getBody()->getContents();
 							$content = $this->extract_content_from_full_response( $body );
 
 							if ( $content ) {
+								// Get variant-specific tags for this index.
+								$variant_tags = $this->get_tags_for_variant( $resolved_tags, $index );
+
 								// Apply content manipulation if specified.
-								$content = $this->apply_content_manipulation( $content, $content_manipulation );
+								$content = $this->apply_content_manipulation( $content, $content_manipulation, $remaining_prompts[ $index ], $feed, $step_type, $variant_tags );
 
 								// Store response by index to maintain order.
 								$responses_by_index[ $index ] = $content;
