@@ -115,7 +115,12 @@ class Ieltssci_Merge_Tags_Processor {
 
 			// Replace each array tag with its corresponding item at position $i.
 			foreach ( $array_tags as $full_tag => $tag_data ) {
-				$replacement = "{$tag_data['prefix']}{$tag_data['content'][ $i ]}{$tag_data['suffix']}";
+				$item = $tag_data['content'][ $i ];
+				// Convert array items to JSON string.
+				if ( is_array( $item ) ) {
+					$item = wp_json_encode( $item );
+				}
+				$replacement = "{$tag_data['prefix']}{$item}{$tag_data['suffix']}";
 				$variant     = str_replace( $full_tag, $replacement, $variant );
 			}
 
@@ -1286,6 +1291,34 @@ class Ieltssci_Merge_Tags_Processor {
 				return count( $split_paragraphs );
 
 			default:
+				// Check if modifier starts with 'json_' for dynamic JSON property extraction.
+				if ( strpos( $modifier, 'json_' ) === 0 ) {
+					$property_name = substr( $modifier, 5 ); // Remove 'json_' prefix.
+
+					// Decode JSON content.
+					$data = json_decode( $content, true );
+					if ( json_last_error() !== JSON_ERROR_NONE ) {
+						return array( 'Invalid JSON.' );
+					}
+
+					// Recursively search for the property.
+					$property_value = $this->find_json_property( $data, $property_name );
+
+					if ( null === $property_value ) {
+						return array( "Schema mismatch: {$property_name} property not found." );
+					}
+
+					// Return the property value (could be array or scalar).
+					if ( is_array( $property_value ) ) {
+						if ( empty( $property_value ) ) {
+							return array( "No {$property_name} found." );
+						}
+						return $property_value;
+					}
+
+					return $property_value;
+				}
+
 				// If no valid modifier is found, return the original content.
 				return $content;
 		}
@@ -1314,6 +1347,36 @@ class Ieltssci_Merge_Tags_Processor {
 
 		// Return indexed array (not associative).
 		return array_values( $sentences );
+	}
+
+	/**
+	 * Recursively find a property in nested arrays
+	 *
+	 * @param array  $data The data to search.
+	 * @param string $property_name The property name to find.
+	 * @return mixed The property value if found, null otherwise.
+	 */
+	private function find_json_property( $data, $property_name ) {
+		if ( ! is_array( $data ) ) {
+			return null;
+		}
+
+		// Check if current level has the property key.
+		if ( isset( $data[ $property_name ] ) ) {
+			return $data[ $property_name ];
+		}
+
+		// Recursively search in all array values.
+		foreach ( $data as $value ) {
+			if ( is_array( $value ) ) {
+				$result = $this->find_json_property( $value, $property_name );
+				if ( null !== $result ) {
+					return $result;
+				}
+			}
+		}
+
+		return null;
 	}
 
 	/**
