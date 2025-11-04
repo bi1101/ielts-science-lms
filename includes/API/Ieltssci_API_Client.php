@@ -179,45 +179,63 @@ class Ieltssci_API_Client {
 				$data = json_decode( $content, true );
 				if ( json_last_error() === JSON_ERROR_NONE && isset( $data['sentence'] ) && is_array( $data['sentence'] ) ) {
 					foreach ( $data['sentence'] as &$sentence ) {
-						if ( isset( $sentence['original_sentence'] ) && isset( $sentence['suggested_sentence'] ) ) {
-							$old_words = explode( ' ', $sentence['original_sentence'] );
-							$new_words = explode( ' ', $sentence['suggested_sentence'] );
+						if ( isset( $sentence['suggested_sentence'] ) ) {
+							// Determine original sentence.
+							$original_sentence = isset( $sentence['original_sentence'] ) ? $sentence['original_sentence'] : null;
 
-							// Use Jfcherng\Diff for word-level diff.
-							$differ = new Differ(
-								$old_words,
-								$new_words,
-								array(
-									'context'          => Differ::CONTEXT_ALL,
-									'ignoreWhitespace' => true,
-									'ignoreLineEnding' => true,
-								)
-							);
-
-							$renderer = new JsonText(
-								array(
-									'outputTagAsString' => true,
-								)
-							);
-
-							$diff_result = $renderer->render( $differ );
-							$diff_data   = json_decode( $diff_result, true );
-
-							// Simplify the diff data.
-							$changes = array();
-							foreach ( $diff_data as $hunk ) {
-								foreach ( $hunk as $change ) {
-									if ( isset( $change['old'] ) && isset( $change['new'] ) ) {
-										$changes[] = array(
-											'old' => implode( ' ', $change['old']['lines'] ?? $change['old'] ),
-											'new' => implode( ' ', $change['new']['lines'] ?? $change['new'] ),
-											'tag' => $change['tag'] ?? 'eq',
-										);
+							// If original sentence is not available, search for a tag ending with ':sentence'.
+							if ( ! $original_sentence ) {
+								foreach ( $resolved_tags as $tag_key => $tag_value ) {
+									if ( substr( $tag_key, -9 ) === ':sentence' ) {
+										$original_sentence = $tag_value;
+										// Add the original_sentence to the data.
+										$sentence['original_sentence'] = $original_sentence;
+										break;
 									}
 								}
 							}
 
-							$sentence['changes'] = $changes;
+							// Only proceed if we have both original and suggested sentences.
+							if ( $original_sentence && isset( $sentence['suggested_sentence'] ) ) {
+								$old_words = explode( ' ', $original_sentence );
+								$new_words = explode( ' ', $sentence['suggested_sentence'] );
+
+								// Use Jfcherng\Diff for word-level diff.
+								$differ = new Differ(
+									$old_words,
+									$new_words,
+									array(
+										'context'          => Differ::CONTEXT_ALL,
+										'ignoreWhitespace' => true,
+										'ignoreLineEnding' => true,
+									)
+								);
+
+								$renderer = new JsonText(
+									array(
+										'outputTagAsString' => true,
+									)
+								);
+
+								$diff_result = $renderer->render( $differ );
+								$diff_data   = json_decode( $diff_result, true );
+
+								// Simplify the diff data.
+								$changes = array();
+								foreach ( $diff_data as $hunk ) {
+									foreach ( $hunk as $change ) {
+										if ( isset( $change['old'] ) && isset( $change['new'] ) ) {
+											$changes[] = array(
+												'old' => implode( ' ', $change['old']['lines'] ?? $change['old'] ),
+												'new' => implode( ' ', $change['new']['lines'] ?? $change['new'] ),
+												'tag' => $change['tag'] ?? 'eq',
+											);
+										}
+									}
+								}
+
+								$sentence['changes'] = $changes;
+							}
 						}
 					}
 					return wp_json_encode( $data );
