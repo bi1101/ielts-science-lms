@@ -43,6 +43,9 @@ class Ieltssci_Core_Module {
 		new \IeltsScienceLMS\Classroom\Ieltssci_LD_Integration();
 		new \IeltsScienceLMS\Classroom\Ieltssci_BB_Integration();
 
+		// Initialize Users Insights integration if plugin is active.
+		add_action( 'plugins_loaded', array( $this, 'init_users_insights_module' ), 20 );
+
 		// Hook for running DB updates.
 		add_action( 'plugins_loaded', array( $this, 'run_database_updates' ), 5 ); // Run early.
 
@@ -434,5 +437,35 @@ class Ieltssci_Core_Module {
 			}
 		}
 		return $post_states;
+	}
+
+	/**
+	 * Initialize Users Insights module.
+	 *
+	 * @return void
+	 */
+	public function init_users_insights_module() {
+		// Check if Users Insights is active.
+		if ( ! class_exists( 'USIN_Plugin_Module' ) ) {
+			return;
+		}
+
+		// Require the module files.
+		require_once plugin_dir_path( __DIR__ ) . 'UsersInsights/USIN_IeltsScience_Query.php';
+		require_once plugin_dir_path( __DIR__ ) . 'UsersInsights/USIN_IeltsScience_User_Activity.php';
+
+		// Require loader classes.
+		require_once plugin_dir_path( __DIR__ ) . 'UsersInsights/reports/loaders/ielts-essay-submissions-loader.php';
+		require_once plugin_dir_path( __DIR__ ) . 'UsersInsights/reports/loaders/ielts-new-writers-loader.php';
+		require_once plugin_dir_path( __DIR__ ) . 'UsersInsights/reports/loaders/ielts-essay-types-loader.php';
+		require_once plugin_dir_path( __DIR__ ) . 'UsersInsights/reports/loaders/ielts-essays-per-user-loader.php';
+		require_once plugin_dir_path( __DIR__ ) . 'UsersInsights/reports/loaders/ielts-word-count-distribution-loader.php';
+		require_once plugin_dir_path( __DIR__ ) . 'UsersInsights/reports/loaders/ielts-top-writers-loader.php';
+
+		require_once plugin_dir_path( __DIR__ ) . 'UsersInsights/reports/USIN_IeltsScience_Reports.php';
+		require_once plugin_dir_path( __DIR__ ) . 'UsersInsights/USIN_IeltsScience.php';
+
+		// Instantiate the module.
+		new \IeltsScienceLMS\UsersInsights\USIN_IeltsScience();
 	}
 }
