@@ -123,8 +123,6 @@ class Ieltssci_API_Client {
 						continue; // Skip invalid changes.
 					}
 
-					$found_match = false;
-
 					// Search for matching change in previous changes.
 					foreach ( $merged_changes as &$merged_change ) {
 						if ( isset( $merged_change['tag'] ) && isset( $merged_change['old'] ) && isset( $merged_change['new'] ) ) {
@@ -134,15 +132,9 @@ class Ieltssci_API_Client {
 								$merged_change['new'] === $current_change['new'] ) {
 								// Found a match - merge additional properties from current change.
 								$merged_change = array_merge( $merged_change, $current_change );
-								$found_match   = true;
 								break;
 							}
 						}
-					}
-
-					// If no match found, add as new change (this shouldn't happen in your use case, but for safety).
-					if ( ! $found_match ) {
-						$merged_changes[] = $current_change;
 					}
 				}
 
