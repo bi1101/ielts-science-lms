@@ -304,6 +304,9 @@ class Ieltssci_Speaking_Feedback_Processor {
 		$guided_json_vi = isset( $config['advanced-setting']['guided_json_vi'] ) ? $config['advanced-setting']['guided_json_vi'] : null;
 		$storing_json   = isset( $config['advanced-setting']['storing_json'] ) ? $config['advanced-setting']['storing_json'] : null;
 
+		// Extract content manipulation setting from advanced settings.
+		$content_manipulation = isset( $config['advanced-setting']['content_manipulation'] ) ? $config['advanced-setting']['content_manipulation'] : null;
+
 		// Extract sampling parameters from advanced settings.
 		$top_p = isset( $config['advanced-setting']['top_p'] ) ? (float) $config['advanced-setting']['top_p'] : 0.8;
 		$top_k = isset( $config['advanced-setting']['top_k'] ) ? (int) $config['advanced-setting']['top_k'] : 20;
@@ -445,8 +448,17 @@ class Ieltssci_Speaking_Feedback_Processor {
 			$feedback_style,
 			$guide_score,
 			$guide_feedback,
-			$attempt // Pass the full attempt array for attempt-specific merge tags.
+			$attempt, // Pass the full attempt array for attempt-specific merge tags.
+			true
 		);
+
+		// Handle structured return format with backward compatibility.
+		$resolved_tags = array();
+		if ( is_array( $processed_prompt ) && isset( $processed_prompt['prompts'] ) ) {
+			// New structured format.
+			$resolved_tags    = $processed_prompt['resolved_tags'] ?? array();
+			$processed_prompt = $processed_prompt['prompts'];
+		}
 
 		// Handle different prompt processing results.
 		if ( is_array( $processed_prompt ) ) {
@@ -463,7 +475,7 @@ class Ieltssci_Speaking_Feedback_Processor {
 			$return_format = ! empty( $storing_json ) ? 'array' : 'string';
 
 			// Use API client for parallel API calls.
-			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $selected_guided_json, $enable_thinking, $return_format, $top_p, $top_k );
+			$result = $this->api_client->make_parallel_api_calls( $api_provider, $model, $processed_prompt, $temperature, $max_tokens, $feed, $step_type, $guided_choice, $guided_regex, $selected_guided_json, $enable_thinking, $return_format, $top_p, $top_k, $content_manipulation, $resolved_tags );
 
 			// If we need to aggregate the results, do so now.
 			if ( 'array' === $return_format && is_array( $result ) ) {
@@ -539,7 +551,9 @@ class Ieltssci_Speaking_Feedback_Processor {
 				$enable_thinking,
 				'scoring' === $step_type ? $score_regex : null,
 				$top_p,
-				$top_k
+				$top_k,
+				$content_manipulation,
+				$resolved_tags
 			);
 
 			// Check if result is a WP_Error.
