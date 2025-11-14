@@ -1251,8 +1251,8 @@ class Ieltssci_Merge_Tags_Processor {
 			return implode( "\n\n---\n\n", $content );
 		}
 
-		// Check for compound modifiers containing flatten.
-		if ( false !== strpos( $modifier, ':' ) && false !== strpos( $modifier, 'flatten' ) ) {
+		// Check for compound modifiers.
+		if ( false !== strpos( $modifier, ':' ) ) {
 			$modifiers = explode( ':', $modifier );
 
 			// Process each modifier in sequence.
