@@ -1351,6 +1351,23 @@ class Ieltssci_Merge_Tags_Processor {
 					return $property_value;
 				}
 
+				// Check if modifier starts with 'remove_property_' for dynamic JSON property removal.
+				if ( strpos( $modifier, 'remove_property_' ) === 0 ) {
+					$property_name = substr( $modifier, 16 ); // Remove 'remove_property_' prefix.
+
+					// Decode JSON content.
+					$data = json_decode( $content, true );
+					if ( json_last_error() !== JSON_ERROR_NONE ) {
+						return array( 'Invalid JSON.' );
+					}
+
+					// Recursively remove the property.
+					$modified_data = $this->remove_json_property( $data, $property_name );
+
+					// Re-encode as JSON.
+					return wp_json_encode( $modified_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+				}
+
 				// If no valid modifier is found, return the original content.
 				return $content;
 		}
@@ -1409,6 +1426,33 @@ class Ieltssci_Merge_Tags_Processor {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Recursively remove a property from nested arrays
+	 *
+	 * @param array  $data The data to process.
+	 * @param string $property_name The property name to remove.
+	 * @return array The modified data with property removed.
+	 */
+	private function remove_json_property( $data, $property_name ) {
+		if ( ! is_array( $data ) ) {
+			return $data;
+		}
+
+		// Remove the property at current level if it exists.
+		if ( isset( $data[ $property_name ] ) ) {
+			unset( $data[ $property_name ] );
+		}
+
+		// Recursively process all nested arrays.
+		foreach ( $data as $key => $value ) {
+			if ( is_array( $value ) ) {
+				$data[ $key ] = $this->remove_json_property( $value, $property_name );
+			}
+		}
+
+		return $data;
 	}
 
 	/**
