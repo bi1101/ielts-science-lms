@@ -1368,6 +1368,30 @@ class Ieltssci_Merge_Tags_Processor {
 					return wp_json_encode( $modified_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 				}
 
+				// Check if modifier starts with 'remove_items_where_' for filtering array items.
+				if ( strpos( $modifier, 'remove_items_where_' ) === 0 ) {
+					// Extract the modifier parameters.
+					// Format: remove_items_where_{property}_{operator}_{value}.
+					$pattern = '/^remove_items_where_\{(.+?)\}_\{(.+?)\}_\{(.+?)\}$/';
+					if ( preg_match( $pattern, $modifier, $matches ) ) {
+						$property = $matches[1];
+						$operator = $matches[2];
+						$value    = $matches[3];
+
+						// Decode JSON content.
+						$data = json_decode( $content, true );
+						if ( json_last_error() !== JSON_ERROR_NONE ) {
+							return array( 'Invalid JSON.' );
+						}
+
+						// Remove items matching the criteria.
+						$modified_data = $this->remove_json_items_where( $data, $property, $operator, $value );
+
+						// Re-encode as JSON.
+						return wp_json_encode( $modified_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+					}
+				}
+
 				// If no valid modifier is found, return the original content.
 				return $content;
 		}
@@ -1453,6 +1477,94 @@ class Ieltssci_Merge_Tags_Processor {
 		}
 
 		return $data;
+	}
+
+	/**
+	 * Recursively remove items from arrays based on property condition
+	 *
+	 * This method searches through nested JSON structures and removes array items
+	 * that match the specified property condition.
+	 *
+	 * @param array  $data The data to process.
+	 * @param string $property The property name to check.
+	 * @param string $operator The comparison operator (equals, not_equals, contains, not_contains).
+	 * @param string $value The value to compare against.
+	 * @return array The modified data with matching items removed.
+	 */
+	private function remove_json_items_where( $data, $property, $operator, $value ) {
+		if ( ! is_array( $data ) ) {
+			return $data;
+		}
+
+		// Check if this is a sequential array (list of items).
+		if ( array_keys( $data ) === range( 0, count( $data ) - 1 ) ) {
+			// Filter items based on the condition.
+			$filtered = array();
+			foreach ( $data as $item ) {
+				if ( is_array( $item ) ) {
+					// First, recursively process the item to handle nested structures.
+					$processed_item = $this->remove_json_items_where( $item, $property, $operator, $value );
+
+					// Then check if this item itself should be removed.
+					if ( isset( $item[ $property ] ) ) {
+						// Check if item should be removed based on operator.
+						if ( ! $this->matches_condition( $item[ $property ], $operator, $value ) ) {
+							// Keep the item (it doesn't match the remove condition).
+							$filtered[] = $processed_item;
+						}
+						// If it matches the remove condition, don't add it to filtered.
+					} else {
+						// Keep items that don't have the property.
+						$filtered[] = $processed_item;
+					}
+				} else {
+					// Keep non-array items as is.
+					$filtered[] = $item;
+				}
+			}
+			return $filtered;
+		}
+
+		// For associative arrays, recursively process each value.
+		foreach ( $data as $key => $item_value ) {
+			if ( is_array( $item_value ) ) {
+				$data[ $key ] = $this->remove_json_items_where( $item_value, $property, $operator, $value );
+			}
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Check if a value matches a condition based on operator
+	 *
+	 * @param mixed  $item_value The value from the item to check.
+	 * @param string $operator The comparison operator.
+	 * @param string $compare_value The value to compare against.
+	 * @return bool True if the condition matches, false otherwise.
+	 */
+	private function matches_condition( $item_value, $operator, $compare_value ) {
+		// Convert to string for comparison.
+		$item_value    = (string) $item_value;
+		$compare_value = (string) $compare_value;
+
+		switch ( $operator ) {
+			case 'equals':
+				return $item_value === $compare_value;
+
+			case 'not_equals':
+				return $item_value !== $compare_value;
+
+			case 'contains':
+				return false !== strpos( $item_value, $compare_value );
+
+			case 'not_contains':
+				return false === strpos( $item_value, $compare_value );
+
+			default:
+				// Unknown operator, don't match.
+				return false;
+		}
 	}
 
 	/**
