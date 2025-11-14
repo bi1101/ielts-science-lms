@@ -1248,6 +1248,12 @@ class Ieltssci_Merge_Tags_Processor {
 
 		// Special handling for flatten modifier (standalone or as part of compound).
 		if ( 'flatten' === $modifier && is_array( $content ) ) {
+			$content = array_map(
+				function ( $item ) {
+					return is_array( $item ) ? json_encode( $item ) : $item;
+				},
+				$content
+			);
 			return implode( "\n\n---\n\n", $content );
 		}
 
@@ -1258,6 +1264,12 @@ class Ieltssci_Merge_Tags_Processor {
 			// Process each modifier in sequence.
 			foreach ( $modifiers as $mod ) {
 				if ( 'flatten' === $mod && is_array( $content ) ) {
+					$content = array_map(
+						function ( $item ) {
+							return is_array( $item ) ? json_encode( $item ) : $item;
+						},
+						$content
+					);
 					$content = implode( "\n\n---\n\n", $content );
 				} else {
 					$content = $this->apply_content_modifier( $content, $mod );
@@ -1323,7 +1335,37 @@ class Ieltssci_Merge_Tags_Processor {
 				return count( $split_paragraphs );
 
 			default:
-				// Check if modifier starts with 'json_' for dynamic JSON property extraction.
+				// Check if modifier starts with 'json_all_' for dynamic JSON property extraction (all occurrences).
+				if ( strpos( $modifier, 'json_all_' ) === 0 ) {
+					$property_name = substr( $modifier, 9 ); // Remove 'json_all_' prefix.
+
+					// Decode JSON content.
+					$data = json_decode( $content, true );
+					if ( json_last_error() !== JSON_ERROR_NONE ) {
+						return array( 'Invalid JSON.' );
+					}
+
+					// Recursively search for all properties.
+					$property_values = $this->find_all_json_properties( $data, $property_name );
+
+					if ( empty( $property_values ) ) {
+						return array( "No {$property_name} found." );
+					}
+
+					// Flatten the array if all values are arrays or scalars.
+					$flattened = array();
+					foreach ( $property_values as $value ) {
+						if ( is_array( $value ) ) {
+							$flattened = array_merge( $flattened, $value );
+						} else {
+							$flattened[] = $value;
+						}
+					}
+
+					return $flattened;
+				}
+
+				// Check if modifier starts with 'json_' for dynamic JSON property extraction (first occurrence).
 				if ( strpos( $modifier, 'json_' ) === 0 ) {
 					$property_name = substr( $modifier, 5 ); // Remove 'json_' prefix.
 
@@ -1450,6 +1492,35 @@ class Ieltssci_Merge_Tags_Processor {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Recursively find all properties in nested arrays
+	 *
+	 * @param array  $data The data to search.
+	 * @param string $property_name The property name to find.
+	 * @return array The array of property values if found, empty array otherwise.
+	 */
+	private function find_all_json_properties( $data, $property_name ) {
+		$results = array();
+
+		if ( ! is_array( $data ) ) {
+			return $results;
+		}
+
+		// Check if current level has the property key.
+		if ( isset( $data[ $property_name ] ) ) {
+			$results[] = $data[ $property_name ];
+		}
+
+		// Recursively search in all array values.
+		foreach ( $data as $value ) {
+			if ( is_array( $value ) ) {
+				$results = array_merge( $results, $this->find_all_json_properties( $value, $property_name ) );
+			}
+		}
+
+		return $results;
 	}
 
 	/**
