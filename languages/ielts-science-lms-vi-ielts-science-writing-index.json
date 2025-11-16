@@ -232,11 +232,17 @@
       "Evaluate and correct IELTS Writing Task 2": [
         "Chấm và nhận xét IELTS Writing Task 2"
       ],
-      "Evaluate IELTS Speaking x GPT": [
-        "Chấm IELTS Speaking x GPT"
+      "Evaluate IELTS Speaking x AI": [
+        "Chấm IELTS Speaking x AI"
       ],
-      "Evaluate IELTS Writing x GPT": [
-        "Chấm IELTS Writing x GPT"
+      "Evaluate IELTS Writing x AI": [
+        "Chấm IELTS Writing x AI"
+      ],
+      "Grade Essay": [
+        "Chấm bài"
+      ],
+      "Assign homework": [
+        "Giao bài tập"
       ],
       "Evaluation History": [
         "Lịch sử bài chấm"
