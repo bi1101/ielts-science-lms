@@ -138,6 +138,22 @@ class Ieltssci_API_Client {
 					}
 				}
 
+				// Ensure non-eq tags have required fields with empty strings if missing.
+				foreach ( $merged_changes as &$change ) {
+					if ( isset( $change['tag'] ) && 'eq' !== $change['tag'] ) {
+						// Add missing fields as empty strings for non-eq tags.
+						if ( ! isset( $change['giải thích'] ) ) {
+							$change['giải thích'] = '';
+						}
+						if ( ! isset( $change['category'] ) ) {
+							$change['category'] = '';
+						}
+						if ( ! isset( $change['impact'] ) ) {
+							$change['impact'] = '';
+						}
+					}
+				}
+
 				// Build the final result, preserving original_sentence and suggested_sentence from previous data.
 				$result = array(
 					'sentence' => array(
