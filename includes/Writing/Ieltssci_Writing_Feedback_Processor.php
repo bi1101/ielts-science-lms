@@ -54,13 +54,6 @@ class Ieltssci_Writing_Feedback_Processor {
 	private $api_client;
 
 	/**
-	 * Segment extractor instance.
-	 *
-	 * @var Ieltssci_Segment_Extractor
-	 */
-
-
-	/**
 	 * Merge Tags processor instance.
 	 *
 	 * @var Ieltssci_Merge_Tags_Processor
