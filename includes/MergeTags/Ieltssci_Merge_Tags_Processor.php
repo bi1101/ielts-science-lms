@@ -31,9 +31,10 @@ class Ieltssci_Merge_Tags_Processor {
 	 * @param string      $guide_feedback Human-guided feedback content for the AI to incorporate.
 	 * @param array|null  $attempt      Optional. The attempt data array for attempt-specific merge tags.
 	 * @param bool        $return_structured Optional. If true, returns structured array with resolved tags. Default false.
+	 * @param int|null    $target_score Optional. The desired score for conditional merge tags.
 	 * @return string|array The processed prompt with merge tags replaced, or structured array with prompts and resolved_tags.
 	 */
-	public function process_merge_tags( $prompt, $uuid = null, $segment_order_or_attempt_id = null, $feedback_style = '', $guide_score = '', $guide_feedback = '', $attempt = null, $return_structured = false ) {
+	public function process_merge_tags( $prompt, $uuid = null, $segment_order_or_attempt_id = null, $feedback_style = '', $guide_score = '', $guide_feedback = '', $attempt = null, $return_structured = false, $target_score = null ) {
 		// Regex to find merge tags in format {prefix|parameters|suffix}.
 		$regex = '/\{(?\'prefix\'.*?)\|(?\'parameters\'.*?)\|(?\'suffix\'.*?)\}/ms';
 
@@ -61,6 +62,8 @@ class Ieltssci_Merge_Tags_Processor {
 					$content = $guide_score;
 			} elseif ( 'guide_feedback' === trim( $parameters ) && ! empty( $guide_feedback ) ) {
 					$content = $guide_feedback;
+			} elseif ( 0 === strpos( trim( $parameters ), 'target_score' ) && ! empty( $target_score ) ) {
+					$content = $this->process_target_score_tag( trim( $parameters ), $target_score );
 			} else {
 				// Standard case: fetch content based on parameters.
 				$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id, $attempt );
@@ -101,6 +104,8 @@ class Ieltssci_Merge_Tags_Processor {
 					$content = $guide_score;
 				} elseif ( 'guide_feedback' === trim( $parameters ) && ! empty( $guide_feedback ) ) {
 					$content = $guide_feedback;
+				} elseif ( 0 === strpos( trim( $parameters ), 'target_score' ) && ! empty( $target_score ) ) {
+					$content = $this->process_target_score_tag( trim( $parameters ), $target_score );
 				} else {
 					// Standard case: fetch content based on parameters.
 					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id, $attempt );
@@ -167,6 +172,8 @@ class Ieltssci_Merge_Tags_Processor {
 					$content = $guide_score;
 				} elseif ( 'guide_feedback' === trim( $parameters ) && ! empty( $guide_feedback ) ) {
 					$content = $guide_feedback;
+				} elseif ( 0 === strpos( trim( $parameters ), 'target_score' ) && ! empty( $target_score ) ) {
+					$content = $this->process_target_score_tag( trim( $parameters ), $target_score );
 				} else {
 					// Standard case: fetch content based on parameters.
 					$content = $this->fetch_content_for_merge_tag( $parameters, $uuid, $segment_order_or_attempt_id, $attempt );
@@ -1761,5 +1768,79 @@ class Ieltssci_Merge_Tags_Processor {
 			}
 		}
 		return '';
+	}
+
+	/**
+	 * Process target_score merge tag with conditional logic
+	 *
+	 * Supports formats:
+	 * - {|target_score|} → returns the numeric score
+	 * - {|target_score:if[5]then[basic proficiency]|} → returns text if condition matches
+	 * - {|target_score:if[>=7]then[advanced level]|} → supports comparison operators
+	 *
+	 * @param string $parameters The full parameters string (e.g., "target_score:if[5]then[text]").
+	 * @param int    $target_score The desired score value.
+	 * @return string The processed content.
+	 */
+	private function process_target_score_tag( $parameters, $target_score ) {
+		// If just "target_score" with no modifier, return the numeric value.
+		if ( 'target_score' === $parameters ) {
+			return (string) $target_score;
+		}
+
+		// Check for conditional format: target_score:if[condition]then[text].
+		if ( preg_match( '/^target_score:if\[(.+?)\]then\[(.+?)\]$/s', $parameters, $matches ) ) {
+			$condition = $matches[1];
+			$then_text = $matches[2];
+
+			// Evaluate the condition.
+			if ( $this->evaluate_score_condition( $target_score, $condition ) ) {
+				return $then_text;
+			}
+
+			// Condition not met, return empty string.
+			return '';
+		}
+
+		// If no recognized format, return the score as fallback.
+		return (string) $target_score;
+	}
+
+	/**
+	 * Evaluate a condition against a desired score
+	 *
+	 * Supports operators: ==, !=, >, <, >=, <=, or plain number (equals).
+	 *
+	 * @param int    $score The score to evaluate.
+	 * @param string $condition The condition string (e.g., "5", ">=7", "<6").
+	 * @return bool True if condition matches.
+	 */
+	private function evaluate_score_condition( $score, $condition ) {
+		$condition = trim( $condition );
+
+		// Check for comparison operators.
+		if ( preg_match( '/^(>=|<=|>|<|!=|==)?\s*(\d+(?:\.\d+)?)$/', $condition, $matches ) ) {
+			$operator = ! empty( $matches[1] ) ? $matches[1] : '==';
+			$value    = (float) $matches[2];
+
+			switch ( $operator ) {
+				case '>=':
+					return $score >= $value;
+				case '<=':
+					return $score <= $value;
+				case '>':
+					return $score > $value;
+				case '<':
+					return $score < $value;
+				case '!=':
+					return $score != $value;
+				case '==':
+				default:
+					return $score == $value;
+			}
+		}
+
+		// If no valid condition found, return false.
+		return false;
 	}
 }

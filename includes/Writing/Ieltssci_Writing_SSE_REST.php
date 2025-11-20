@@ -104,6 +104,13 @@ class Ieltssci_Writing_SSE_REST {
 						},
 						'sanitize_callback' => 'sanitize_text_field',
 					),
+					'target_score'   => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_numeric( $param ) && intval( $param ) >= 5 && intval( $param ) <= 9;
+						},
+						'sanitize_callback' => 'absint',
+					),
 				),
 			)
 		);
@@ -173,6 +180,13 @@ class Ieltssci_Writing_SSE_REST {
 						},
 						'sanitize_callback' => 'sanitize_text_field',
 					),
+					'target_score'   => array(
+						'required'          => false,
+						'validate_callback' => function ( $param ) {
+							return is_numeric( $param ) && intval( $param ) >= 5 && intval( $param ) <= 9;
+						},
+						'sanitize_callback' => 'absint',
+					),
 				),
 			)
 		);
@@ -194,6 +208,7 @@ class Ieltssci_Writing_SSE_REST {
 		$guide_score    = $request->get_param( 'guide_score' );
 		$guide_feedback = $request->get_param( 'guide_feedback' );
 		$refetch        = $request->get_param( 'refetch' );
+		$target_score   = $request->get_param( 'target_score' );
 
 		// If refetch is requested, check permission.
 		if ( $refetch ) {
@@ -249,7 +264,8 @@ class Ieltssci_Writing_SSE_REST {
 			$feedback_style,
 			$guide_score,
 			$guide_feedback,
-			$refetch
+			$refetch,
+			$target_score
 		);
 
 		// Handle errors.
@@ -280,6 +296,7 @@ class Ieltssci_Writing_SSE_REST {
 		$guide_score    = $request->get_param( 'guide_score' );
 		$guide_feedback = $request->get_param( 'guide_feedback' );
 		$refetch        = $request->get_param( 'refetch' );
+		$target_score   = $request->get_param( 'target_score' );
 
 		// If refetch is requested, check permission.
 		if ( $refetch ) {
@@ -334,7 +351,8 @@ class Ieltssci_Writing_SSE_REST {
 			$feedback_style,
 			$guide_score,
 			$guide_feedback,
-			$refetch
+			$refetch,
+			$target_score
 		);
 
 		// Handle errors.

@@ -96,10 +96,11 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @param string $guide_score   Human-guided scoring for the AI to consider.
 	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
 	 * @param string $refetch       Whether to refetch the content even if it exists.
+	 * @param int    $target_score The desired score for the essay.
 	 * @return WP_Error|null Error or null on success.
 	 * @throws Exception When feed processing fails.
 	 */
-	public function process_feed_by_id( $feed_id, $uuid, $segment_order = null, $language = 'en', $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
+	public function process_feed_by_id( $feed_id, $uuid, $segment_order = null, $language = 'en', $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '', $target_score = null ) {
 		// Get the specific feed that needs processing.
 		$feeds = $this->api_feeds_db->get_api_feeds(
 			array(
@@ -121,7 +122,7 @@ class Ieltssci_Writing_Feedback_Processor {
 
 		try {
 			// Process the feed.
-			$this->process_feed( $feed, $uuid, $segment_order, $language, $feedback_style, $guide_score, $guide_feedback, $refetch );
+			$this->process_feed( $feed, $uuid, $segment_order, $language, $feedback_style, $guide_score, $guide_feedback, $refetch, $target_score );
 			return null;
 		} catch ( Exception $e ) {
 			return new WP_Error( 'feed_processing_error', $e->getMessage(), array( 'status' => 500 ) );
@@ -139,10 +140,11 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @param string $guide_score   Human-guided scoring for the AI to consider.
 	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
 	 * @param string $refetch       Whether to refetch the content even if it exists.
+	 * @param int    $target_score The desired score for the essay.
 	 *
 	 * @throws Exception When feed processing fails.
 	 */
-	public function process_feed( $feed, $uuid, $segment_order = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
+	public function process_feed( $feed, $uuid, $segment_order = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '', $target_score = null ) {
 		// Get segment information if segment_order is provided.
 		$segment = null;
 		if ( null !== $segment_order ) {
@@ -229,7 +231,8 @@ class Ieltssci_Writing_Feedback_Processor {
 					$feedback_style,
 					$guide_score,
 					$guide_feedback,
-					$refetch
+					$refetch,
+					$target_score
 				);
 				$results[] = $result;
 			}
@@ -298,11 +301,12 @@ class Ieltssci_Writing_Feedback_Processor {
 	 * @param string $guide_score   Human-guided scoring for the AI to consider.
 	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
 	 * @param string $refetch       Whether to refetch content, 'all' or specific step type.
+	 * @param int    $target_score The desired score for the essay.
 	 *
 	 * @return string The processed content.
 	 * @throws Exception When API calls fail or return errors.
 	 */
-	public function process_step( $step, $uuid, $feed, $segment = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '' ) {
+	public function process_step( $step, $uuid, $feed, $segment = null, $language, $feedback_style = '', $guide_score = '', $guide_feedback = '', $refetch = '', $target_score = null ) {
 		// Get settings from the step.
 		$step_type = isset( $step['step'] ) ? $step['step'] : 'feedback';
 		$sections  = isset( $step['sections'] ) ? $step['sections'] : array();
@@ -516,7 +520,8 @@ class Ieltssci_Writing_Feedback_Processor {
 			$guide_score,
 			$guide_feedback,
 			null,
-			true
+			true,
+			$target_score
 		);
 
 		// Handle structured return format with backward compatibility.
