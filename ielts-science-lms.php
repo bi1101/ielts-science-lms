@@ -3,7 +3,7 @@
  * Plugin Name: IELTS Science LMS
  * Plugin URI: https://ieltsscience.fun/
  * Description: IELTS Science Learning Management System.
- * Version: 0.11.16
+ * Version: 0.11.17
  * Author: IELTS Science
  * Author URI: https://ieltsscience.fun/
  * Text Domain: ielts-science-lms
