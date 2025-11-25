@@ -131,7 +131,12 @@ class Ieltssci_Speaking_Score {
 					}
 				}
 				if ( ! $found_score ) {
-					return null; // If any feed_name is missing score_content, return null immediately.
+					// Only allow missing feedback for pronunciation criteria (requires manual review).
+					if ( 'pronunciation' !== $criteria ) {
+						return null; // If any other criteria is missing score_content, return null immediately.
+					}
+					// For pronunciation, skip this criteria if feedback is not available.
+					continue 2; // Skip to next criteria.
 				}
 			}
 
@@ -145,7 +150,8 @@ class Ieltssci_Speaking_Score {
 		}
 
 		// Calculate overall score as average of criteria scores.
-		if ( ! empty( $criteria_scores ) && count( $criteria_scores ) === count( $criteria_config ) ) {
+		// Require at least 3 criteria (all except pronunciation) to calculate score.
+		if ( ! empty( $criteria_scores ) && count( $criteria_scores ) >= 3 ) {
 			$average = array_sum( $criteria_scores ) / count( $criteria_scores );
 			// Round to nearest 0.5.
 			$final_score = round( $average * 2 ) / 2;
