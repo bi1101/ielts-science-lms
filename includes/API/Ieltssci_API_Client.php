@@ -862,7 +862,6 @@ class Ieltssci_API_Client {
 			$exec_result = curl_exec( $ch );
 			$curl_error  = curl_error( $ch );
 			$http_code   = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-			curl_close( $ch );
 
 			if ( false === $exec_result && ! empty( $curl_error ) ) {
 				$this->message_handler->send_error(
