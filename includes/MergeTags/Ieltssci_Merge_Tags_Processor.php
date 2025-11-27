@@ -574,10 +574,20 @@ class Ieltssci_Merge_Tags_Processor {
 									$texts = array();
 									foreach ( $speeches[0]['transcript'] as $attachment_id => $transcript ) {
 										if ( isset( $transcript['text'] ) ) {
-											$texts[] = $transcript['text'];
+											$text = $transcript['text'];
+											// Fix capitalization after mid-sentence newlines.
+											$text = preg_replace_callback(
+												'/([^\.\!\?\n])\n+([A-Z])/u',
+												function ( $matches ) {
+													return $matches[1] . ' ' . mb_strtolower( $matches[2] );
+												},
+												$text
+											);
+											// Replace all whitespace with single spaces.
+											$texts[] = preg_replace( '/\s+/', ' ', trim( $text ) );
 										}
 									}
-									return implode( "\n\n", $texts );
+									return implode( ' ', $texts );
 								}
 								// For transcript_with_pause, return formatted text with pause indicators.
 								if ( 'transcript_with_pause' === $field ) {
@@ -1755,19 +1765,40 @@ class Ieltssci_Merge_Tags_Processor {
 	 */
 	private function get_audio_transcript_text( $media_id ) {
 		$transcription_meta = get_post_meta( $media_id, 'ieltssci_audio_transcription', true );
+		$text               = '';
+
 		if ( is_array( $transcription_meta ) && isset( $transcription_meta['text'] ) && is_string( $transcription_meta['text'] ) ) {
-			return $transcription_meta['text'];
+			$text = $transcription_meta['text'];
 		} elseif ( is_string( $transcription_meta ) && ! empty( $transcription_meta ) ) {
 			// Some sites may store JSON-encoded string. Try to decode first.
 			$decoded = json_decode( $transcription_meta, true );
 			if ( json_last_error() === JSON_ERROR_NONE && is_array( $decoded ) && isset( $decoded['text'] ) && is_string( $decoded['text'] ) ) {
-				return $decoded['text'];
+				$text = $decoded['text'];
 			} else {
 				// Fallback: if it is a plain string, use as-is.
-				return $transcription_meta;
+				$text = $transcription_meta;
 			}
 		}
-		return '';
+
+		if ( empty( $text ) ) {
+			return '';
+		}
+
+		// Fix capitalization after mid-sentence newlines.
+		// Match pattern: non-sentence-ending character followed by newline and capitalized word.
+		$text = preg_replace_callback(
+			'/([^\.\!\?\n])\n+([A-Z])/u',
+			function ( $matches ) {
+				// Lowercase the capitalized letter after the newline.
+				return $matches[1] . ' ' . mb_strtolower( $matches[2] );
+			},
+			$text
+		);
+
+		// Now replace all remaining whitespace (including newlines) with single spaces.
+		$text = preg_replace( '/\s+/', ' ', trim( $text ) );
+
+		return $text;
 	}
 
 	/**
