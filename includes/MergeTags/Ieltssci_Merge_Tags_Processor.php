@@ -1267,7 +1267,7 @@ class Ieltssci_Merge_Tags_Processor {
 		if ( 'flatten' === $modifier && is_array( $content ) ) {
 			$content = array_map(
 				function ( $item ) {
-					return is_array( $item ) ? json_encode( $item ) : $item;
+					return is_array( $item ) ? wp_json_encode( $item ) : $item;
 				},
 				$content
 			);
@@ -1283,7 +1283,7 @@ class Ieltssci_Merge_Tags_Processor {
 				if ( 'flatten' === $mod && is_array( $content ) ) {
 					$content = array_map(
 						function ( $item ) {
-							return is_array( $item ) ? json_encode( $item ) : $item;
+							return is_array( $item ) ? wp_json_encode( $item ) : $item;
 						},
 						$content
 					);
