@@ -162,7 +162,7 @@ class Ieltssci_LD_Teacher_Dashboard_Controller extends WP_REST_Controller {
 			$step_properties['step_status'] = array(
 				'description' => __( 'Computed step status.', 'ielts-science-lms' ),
 				'type'        => 'string',
-				'enum'        => array( 'completed', 'pending-review', 'in-progress', 'not-started', '' ),
+				'enum'        => array( 'completed', 'pending-review', 'failed', 'in-progress', 'not-started', '' ),
 				'readonly'    => true,
 			);
 		}
@@ -500,8 +500,9 @@ class Ieltssci_LD_Teacher_Dashboard_Controller extends WP_REST_Controller {
 		$user_course_activity = array();
 
 		$priority_map = array(
-			'completed'      => 4,
-			'pending-review' => 3,
+			'completed'      => 5,
+			'pending-review' => 4,
+			'failed'         => 3,
 			'in-progress'    => 2,
 			'not-started'    => 1,
 		);
@@ -560,12 +561,20 @@ class Ieltssci_LD_Teacher_Dashboard_Controller extends WP_REST_Controller {
 					} else {
 						$user_course_activity_row['step_status'] = 'completed';
 					}
-				} elseif ( empty( $user_course_activity_row['date_started'] ) ) {
-						$user_course_activity_row['step_status'] = 'not-started';
-				} elseif ( empty( $user_course_activity_row['date_completed'] ) ) {
-					$user_course_activity_row['step_status'] = 'in-progress';
 				} else {
-					$user_course_activity_row['step_status'] = 'completed';
+					$has_graded = isset( $result->activity_meta['has_graded'] ) ? $result->activity_meta['has_graded'] : false;
+					$score      = isset( $result->activity_meta['score'] ) ? (int) $result->activity_meta['score'] : 0;
+					$pass       = isset( $result->activity_meta['pass'] ) ? (int) $result->activity_meta['pass'] : 0;
+
+					if ( $has_graded && 0 !== $score && 0 === $pass ) {
+						$user_course_activity_row['step_status'] = 'failed';
+					} elseif ( empty( $user_course_activity_row['date_started'] ) ) {
+						$user_course_activity_row['step_status'] = 'not-started';
+					} elseif ( empty( $user_course_activity_row['date_completed'] ) ) {
+						$user_course_activity_row['step_status'] = 'in-progress';
+					} else {
+						$user_course_activity_row['step_status'] = 'completed';
+					}
 				}
 
 				// If this activity row is for a quiz, build an attempt record from meta and timestamps.
