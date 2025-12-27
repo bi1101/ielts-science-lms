@@ -16,3 +16,6 @@
 [submodule "public/ld_integration"]
 	path = public/ld_integration
 	url = https://github.com/bi1101/ld_integration.git
+[submodule "public/reading"]
+	path = public/reading
+	url = https://github.com/bi1101/ielts-science-reading
