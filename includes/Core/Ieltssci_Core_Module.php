@@ -38,6 +38,7 @@ class Ieltssci_Core_Module {
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit();
 		new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys();
 		new \IeltsScienceLMS\Writing\Ieltssci_Writing_Module();
+		new \IeltsScienceLMS\Reading\Ieltssci_Reading_Module();
 		new \IeltsScienceLMS\Speaking\Ieltssci_Speaking_Module();
 		new \IeltsScienceLMS\Dashboard\Ieltssci_Dashboard_Module();
 		new \IeltsScienceLMS\Classroom\Ieltssci_LD_Integration();
@@ -333,16 +334,16 @@ class Ieltssci_Core_Module {
 	}
 
 	/**
-	 * Override writing and speaking post templates to use React template.
+	 * Override writing, speaking, and reading post templates to use React template.
 	 *
 	 * @param string $template Current template path.
-	 * @return string Modified template path for writing-task, writing-test, speaking-part, and speaking-test posts.
+	 * @return string Modified template path for writing-task, writing-test, speaking-part, speaking-test, and reading-passage posts.
 	 */
 	public function override_post_templates( $template ) {
 		global $post;
 
-		// Check if we're viewing a writing-task, writing-test, speaking-part, or speaking-test post.
-		if ( is_singular( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ) {
+		// Check if we're viewing a writing-task, writing-test, speaking-part, speaking-test, or reading-passage post.
+		if ( is_singular( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test', 'reading-passage' ) ) ) {
 			$react_template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
 
 			// Check if our React template file exists.
@@ -355,14 +356,14 @@ class Ieltssci_Core_Module {
 	}
 
 	/**
-	 * Override writing and speaking archive templates to use React template.
+	 * Override writing, speaking, and reading archive templates to use React template.
 	 *
 	 * @param string $template Current template path.
-	 * @return string Modified template path for writing-task, writing-test, speaking-part, and speaking-test archives.
+	 * @return string Modified template path for writing-task, writing-test, speaking-part, speaking-test, and reading-passage archives.
 	 */
 	public function override_archive_templates( $template ) {
-		// Check if we're viewing writing-task, writing-test, speaking-part, or speaking-test archive pages.
-		if ( is_post_type_archive( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ) {
+		// Check if we're viewing writing-task, writing-test, speaking-part, speaking-test, or reading-passage archive pages.
+		if ( is_post_type_archive( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test', 'reading-passage' ) ) ) {
 			$react_template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
 
 			// Check if our React template file exists.
@@ -379,8 +380,8 @@ class Ieltssci_Core_Module {
 	 */
 	public function dequeue_assets_for_react_template() {
 		if ( is_page_template( 'template-react-page.php' ) ||
-			is_singular( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ||
-			is_post_type_archive( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ) {
+			is_singular( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test', 'reading-passage' ) ) ||
+			is_post_type_archive( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test', 'reading-passage' ) ) ) {
 
 			// Dequeue Stylesheets.
 			wp_dequeue_style( 'bb_theme_block-buddypanel-style-css' );
