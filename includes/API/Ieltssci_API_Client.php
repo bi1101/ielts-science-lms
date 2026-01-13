@@ -589,6 +589,7 @@ class Ieltssci_API_Client {
 							'type'        => 'json_schema',
 							'json_schema' => array(
 								'strict' => true,
+								'name'   => 'json_schema',
 								'schema' => $json_schema,
 							),
 						);
