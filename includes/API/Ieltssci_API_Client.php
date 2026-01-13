@@ -264,8 +264,7 @@ class Ieltssci_API_Client {
 	 */
 	private function get_fallback_provider( $current_provider ) {
 		$fallback_chains = array(
-			'gpt2-shupremium' => 'two-key-ai',
-			'two-key-ai'      => 'google',
+			'lite-llm' => 'google',
 		);
 
 		return isset( $fallback_chains[ $current_provider ] ) ? $fallback_chains[ $current_provider ] : null;
@@ -292,19 +291,6 @@ class Ieltssci_API_Client {
 
 			case 'openai':
 				$settings['base_uri'] = 'https://api.openai.com/v1/';
-				break;
-			case 'open-key-ai':
-				$settings['base_uri'] = 'https://open.keyai.shop/v1/';
-				break;
-			case 'two-key-ai':
-					$settings['base_uri'] = 'https://gpt5.shupremium.com/v1/';
-				break;
-			case 'gpt2-shupremium':
-				$settings['base_uri'] = 'https://gpt2.shupremium.com/v1/';
-				break;
-
-			case 'home-server':
-				$settings['base_uri'] = 'http://api3.ieltsscience.fun/v1/';
 				break;
 			case 'home-server-whisperx-api-server':
 				$settings['base_uri'] = 'https://api3.ieltsscience.fun/v1/';
@@ -348,7 +334,7 @@ class Ieltssci_API_Client {
 			)
 		);
 
-		if ( ! $api_key && 'home-server' !== $provider && 'home-server-whisperx-api-server' !== $provider && 'vllm' !== $provider && 'slm' !== $provider ) {
+		if ( ! $api_key && 'home-server-whisperx-api-server' !== $provider && 'vllm' !== $provider && 'slm' !== $provider ) {
 			throw new Exception( esc_html( "API key not found for provider: {$provider}" ) );
 		}
 
@@ -367,29 +353,6 @@ class Ieltssci_API_Client {
 					'Authorization' => 'Bearer ' . $api_key['meta']['api-key'],
 					'Content-Type'  => 'application/json',
 					'Accept'        => $accept_header,
-				);
-			case 'open-key-ai':
-				return array(
-					'Authorization' => 'Bearer ' . $api_key['meta']['api-key'],
-					'Content-Type'  => 'application/json',
-					'Accept'        => $accept_header,
-				);
-			case 'two-key-ai':
-				return array(
-					'Authorization' => 'Bearer ' . $api_key['meta']['api-key'],
-					'Content-Type'  => 'application/json',
-					'Accept'        => $accept_header,
-				);
-			case 'gpt2-shupremium':
-				return array(
-					'Authorization' => 'Bearer ' . $api_key['meta']['api-key'],
-					'Content-Type'  => 'application/json',
-					'Accept'        => $accept_header,
-				);
-			case 'home-server':
-				return array(
-					'Content-Type' => 'application/json',
-					'Accept'       => $accept_header,
 				);
 			case 'home-server-whisperx-api-server':
 				return array(
@@ -555,30 +518,8 @@ class Ieltssci_API_Client {
 				);
 				break;
 
-			case 'home-server':
-				// Get API key for huggingface when using home-server.
-				$api_keys_db = new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_DB();
-				$api_key     = $api_keys_db->get_api_key(
-					0,
-					array(
-						'provider'        => 'huggingface',
-						'increment_usage' => false,
-					)
-				);
-
-				if ( ! $api_key ) {
-					throw new Exception( esc_html( 'HF API key not found for provider: home-server' ) );
-				}
-
-				// Add API token for home-server.
-				$base_payload['api_token'] = $api_key['meta']['api-key'];
-				break;
-
 			case 'google':
 			case 'openai':
-			case 'open-key-ai':
-			case 'two-key-ai':
-			case 'gpt2-shupremium':
 			case 'lite-llm':
 				// Add guided JSON using response_format if available.
 				if ( ! empty( $guided_json ) ) {
@@ -647,9 +588,6 @@ class Ieltssci_API_Client {
 				break;
 
 			case 'openai':
-			case 'open-key-ai':
-			case 'two-key-ai':
-			case 'gpt2-shupremium':
 			case 'lite-llm':
 				$chunk = json_decode( $data, true );
 				if ( JSON_ERROR_NONE === json_last_error() && isset( $chunk['choices'][0]['delta'] ) ) {

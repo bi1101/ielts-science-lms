@@ -64,42 +64,32 @@ class Ieltssci_ApiKeys_Settings {
 	protected function get_api_keys_settings() {
 		$settings_config_instance = new \IeltsScienceLMS\Settings\Ieltssci_Settings_Config();
 		return array(
-			'open-key-ai'     => array(
-				'label'    => __( 'Open Key AI', 'ielts-science-lms' ),
-				'multiKey' => true,
-				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your Open Key AI API key.' ) ),
-			),
-			'lite-llm'        => array(
+			'lite-llm'       => array(
 				'label'    => __( 'Lite LLM', 'ielts-science-lms' ),
 				'multiKey' => false,
 				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your Lite LLM proxy API key.' ) ),
 			),
-			'two-key-ai'      => array(
-				'label'    => __( 'Two Key AI', 'ielts-science-lms' ),
-				'multiKey' => true,
-				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your Two Key AI API key.' ) ),
-			),
-			'open-ai'         => array(
+			'open-ai'        => array(
 				'label'    => __( 'Open AI', 'ielts-science-lms' ),
 				'multiKey' => true,
 				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your Open AI API key.' ) ),
 			),
-			'vllm'            => array(
+			'vllm'           => array(
 				'label'    => __( 'VLLM', 'ielts-science-lms' ),
 				'multiKey' => true,
 				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your VLLM API key.' ) ),
 			),
-			'vllm2'           => array(
+			'vllm2'          => array(
 				'label'    => __( 'VLLM2', 'ielts-science-lms' ),
 				'multiKey' => true,
 				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your VLLM2 API key.' ) ),
 			),
-			'slm'             => array(
+			'slm'            => array(
 				'label'    => __( 'SLM', 'ielts-science-lms' ),
 				'multiKey' => true,
 				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your SLM API key.' ) ),
 			),
-			'azure'           => array(
+			'azure'          => array(
 				'label'    => __( 'Azure', 'ielts-science-lms' ),
 				'multiKey' => false,
 				'fields'   => array(
@@ -115,17 +105,17 @@ class Ieltssci_ApiKeys_Settings {
 					$settings_config_instance->create_field( 'api-version', 'text', 'API Version', 'Enter your Azure API version.' ),
 				),
 			),
-			'google'          => array(
+			'google'         => array(
 				'label'    => __( 'Google', 'ielts-science-lms' ),
 				'multiKey' => false,
 				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your Google API key.' ) ),
 			),
-			'huggingface'     => array(
+			'huggingface'    => array(
 				'label'    => __( 'Huggingface', 'ielts-science-lms' ),
 				'multiKey' => false,
 				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your Huggingface API key.' ) ),
 			),
-			'google-console'  => array(
+			'google-console' => array(
 				'label'    => __( 'Google Console', 'ielts-science-lms' ),
 				'multiKey' => false,
 				'fields'   => array(
@@ -133,12 +123,7 @@ class Ieltssci_ApiKeys_Settings {
 					$settings_config_instance->create_field( 'client-id', 'text', 'Client ID', 'Enter your Google Console client ID.' ),
 				),
 			),
-			'gpt2-shupremium' => array(
-				'label'    => __( 'GPT2 Shupremium', 'ielts-science-lms' ),
-				'multiKey' => true,
-				'fields'   => array( $settings_config_instance->create_field( 'api-key', 'password', 'API Key', 'Enter your GPT2 Shupremium API key.' ) ),
-			),
-			'facebook'        => array(
+			'facebook'       => array(
 				'label'    => __( 'Facebook', 'ielts-science-lms' ),
 				'multiKey' => false,
 				'fields'   => array(
