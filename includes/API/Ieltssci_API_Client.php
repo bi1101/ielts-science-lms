@@ -1599,4 +1599,54 @@ class Ieltssci_API_Client {
 			return new WP_Error( 'transcription_batch_error', $e->getMessage() );
 		}
 	}
+
+	/**
+	 * Call the grammar range API to analyze grammar in sentences
+	 *
+	 * @param array $sentences Array of sentences to analyze.
+	 * @return array|WP_Error Grammar analysis result on success, or WP_Error on failure.
+	 * @throws Exception If API call fails.
+	 */
+	public function make_grammar_range_api_call( $sentences ) {
+		try {
+			// Create Guzzle client with appropriate settings.
+			$client_settings = array(
+				'base_uri'        => 'https://api3.ieltsscience.fun/',
+				'connect_timeout' => 30,
+				'timeout'         => 30,
+			);
+
+			$client = new Client( $client_settings );
+
+			// Prepare request payload.
+			$payload = array(
+				'sentence' => $sentences,
+			);
+
+			// Make the API request.
+			$response = $client->post(
+				'grammar-range',
+				array(
+					'headers' => array(
+						'Content-Type' => 'application/json',
+						'Accept'       => 'application/json',
+					),
+					'json'    => $payload,
+				)
+			);
+
+			// Parse response.
+			$response_body = $response->getBody()->getContents();
+			$result        = json_decode( $response_body, true );
+
+			if ( JSON_ERROR_NONE !== json_last_error() ) {
+				throw new Exception( 'Failed to parse grammar range response: ' . json_last_error_msg() );
+			}
+
+			return $result;
+
+		} catch ( Exception $e ) {
+			return new WP_Error( 'grammar_range_api_error', $e->getMessage() );
+		}
+	}
 }

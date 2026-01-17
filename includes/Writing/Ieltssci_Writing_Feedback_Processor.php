@@ -132,15 +132,15 @@ class Ieltssci_Writing_Feedback_Processor {
 	/**
 	 * Process a feed
 	 *
-	 * @param array  $feed          The feed data.
-	 * @param string $uuid          The UUID of the essay.
-	 * @param int    $segment_order Optional. The order of the segment to process.
-	 * @param string $language      The language of the feedback.
-	 * @param string $feedback_style The sample feedback style provided by the user for the AI to replicate.
-	 * @param string $guide_score   Human-guided scoring for the AI to consider.
-	 * @param string $guide_feedback Human-guided feedback content for the AI to incorporate.
-	 * @param string $refetch       Whether to refetch the content even if it exists.
-	 * @param int    $target_score The desired score for the essay.
+	 * @param array    $feed          The feed data.
+	 * @param string   $uuid          The UUID of the essay.
+	 * @param int|null $segment_order Optional. The order of the segment to process.
+	 * @param string   $language      The language of the feedback.
+	 * @param string   $feedback_style The sample feedback style provided by the user for the AI to replicate.
+	 * @param string   $guide_score   Human-guided scoring for the AI to consider.
+	 * @param string   $guide_feedback Human-guided feedback content for the AI to incorporate.
+	 * @param string   $refetch       Whether to refetch the content even if it exists.
+	 * @param int      $target_score The desired score for the essay.
 	 *
 	 * @throws Exception When feed processing fails.
 	 */
@@ -310,6 +310,11 @@ class Ieltssci_Writing_Feedback_Processor {
 		// Get settings from the step.
 		$step_type = isset( $step['step'] ) ? $step['step'] : 'feedback';
 		$sections  = isset( $step['sections'] ) ? $step['sections'] : array();
+
+		// Handle special API endpoints based on feed name and step type.
+		if ( 'grammar-range' === $feed['feedback_criteria'] && 'chain-of-thought' === $step_type ) {
+			return $this->process_grammar_range_api( $uuid, $feed, $segment, $step_type, $language, $refetch );
+		}
 
 		// Default settings.
 		$api_provider = 'google';
@@ -908,5 +913,124 @@ class Ieltssci_Writing_Feedback_Processor {
 
 		// Return the aggregated structure as a JSON string.
 		return wp_json_encode( $final_structure );
+	}
+
+	/**
+	 * Process grammar range API call
+	 *
+	 * @param string $uuid          The UUID of the essay.
+	 * @param array  $feed          The feed data.
+	 * @param array  $segment       Optional. The segment data if processing a specific segment.
+	 * @param string $step_type     The step type (e.g., 'chain-of-thought').
+	 * @param string $language      The language of the feedback.
+	 * @param string $refetch       Whether to refetch content, 'all' or specific step type.
+	 *
+	 * @return string The processed content as JSON.
+	 * @throws Exception When API calls fail or return errors.
+	 */
+	private function process_grammar_range_api( $uuid, $feed, $segment, $step_type, $language, $refetch ) {
+		// Map step_type to the appropriate database column.
+		$content_field = 'chain-of-thought' === $step_type ? 'cot_content' : 'feedback_content';
+
+		// Check if we should skip checking existing content based on refetch parameter.
+		$should_check_existing = ! ( 'all' === $refetch || $step_type === $refetch );
+
+		if ( $should_check_existing ) {
+			// Check if this step has already been processed.
+			$existing_content = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $segment, $content_field );
+
+			if ( $existing_content ) {
+				$this->send_message(
+					$this->transform_case( $step_type, 'snake_upper' ),
+					array(
+						'content' => $existing_content,
+						'reused'  => true,
+					)
+				);
+				$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
+				return $existing_content;
+			}
+		}
+
+		// Get essay content.
+		$essay_db = new Ieltssci_Essay_DB();
+		$essays   = $essay_db->get_essays(
+			array(
+				'uuid'     => $uuid,
+				'per_page' => 1,
+			)
+		);
+
+		if ( is_wp_error( $essays ) || empty( $essays ) ) {
+			throw new Exception( 'Essay not found for UUID: ' . esc_html( $uuid ) );
+		}
+
+		$essay         = $essays[0];
+		$essay_content = $essay['essay_content'] ?? '';
+
+		if ( empty( $essay_content ) ) {
+			throw new Exception( 'Essay content is empty.' );
+		}
+
+		// Split essay content into sentences.
+		$sentences = $this->merge_tags_processor->split_into_sentences( $essay_content );
+
+		if ( empty( $sentences ) ) {
+			throw new Exception( 'Failed to split essay into sentences.' );
+		}
+
+		// Send progress message.
+		$this->send_message(
+			$this->transform_case( $step_type, 'snake_upper' ),
+			array(
+				'message'         => 'Analyzing grammar range',
+				'total_sentences' => count( $sentences ),
+			)
+		);
+
+		// Call the grammar range API.
+		$result = $this->api_client->make_grammar_range_api_call( $sentences );
+
+		// Check if result is a WP_Error.
+		if ( is_wp_error( $result ) ) {
+			$error_message = $result->get_error_message();
+			$this->send_error(
+				$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
+				array(
+					'title'    => 'Grammar Range API Request Failed',
+					'message'  => $error_message,
+					'ctaTitle' => 'Try Again',
+					'ctaLink'  => '#',
+				)
+			);
+			throw new Exception( esc_html( 'Grammar Range API request failed: ' . $error_message ) );
+		}
+
+		// Convert result to JSON string for storage.
+		$result_json = is_string( $result ) ? $result : wp_json_encode( $result );
+
+		// Send the result to the client.
+		$this->send_message(
+			$this->transform_case( $step_type, 'snake_upper' ),
+			array(
+				'content' => $result_json,
+			)
+		);
+
+		// Save the result to the database.
+		$this->feedback_db->save_feedback_to_database(
+			$result_json,
+			$feed,
+			$uuid,
+			$step_type,
+			$segment,
+			$language,
+			'ai',
+			$refetch
+		);
+
+		$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
+
+		return $result_json;
 	}
 }
