@@ -1599,4 +1599,83 @@ class Ieltssci_API_Client {
 			return new WP_Error( 'transcription_batch_error', $e->getMessage() );
 		}
 	}
+
+	/**
+	 * Make API call for pronunciation assessment
+	 *
+	 * @param string       $audio_file_path The path to the audio file.
+	 * @param string|array $transcript_json The transcript JSON data as string or array.
+	 * @return array|WP_Error The assessment result or WP_Error on failure.
+	 *
+	 * @throws Exception If API call fails.
+	 */
+	public function make_pronunciation_assessment_api_call( $audio_file_path, $transcript_json ) {
+		try {
+			// Check if audio file exists and is readable.
+			if ( ! file_exists( $audio_file_path ) || ! is_readable( $audio_file_path ) ) {
+				throw new Exception( esc_html( "Audio file not found or not readable: {$audio_file_path}" ) );
+			}
+
+			// Ensure transcript_json is a string.
+			if ( is_array( $transcript_json ) ) {
+				$transcript_json = wp_json_encode( $transcript_json );
+			}
+
+			// Initialize WP_Filesystem.
+			global $wp_filesystem;
+			if ( ! WP_Filesystem() ) {
+				return new WP_Error( 'filesystem_error', 'Could not initialize WP_Filesystem.' );
+			}
+
+			// Create Guzzle client.
+			$client = new Client(
+				array(
+					'base_uri'        => 'https://api3.ieltsscience.fun/',
+					'connect_timeout' => 60,
+					'timeout'         => 60,
+				)
+			);
+
+			// Create multipart payload.
+			$multipart = array(
+				array(
+					'name'     => 'file',
+					'contents' => $wp_filesystem->get_contents( $audio_file_path ),
+					'filename' => basename( $audio_file_path ),
+				),
+				array(
+					'name'     => 'transcript_json',
+					'contents' => $transcript_json,
+					'filename' => 'transcript.json',
+				),
+			);
+
+			$boundary         = uniqid();
+			$multipart_stream = new MultipartStream( $multipart, $boundary );
+
+			// Make the request.
+			$response = $client->post(
+				'assess',
+				array(
+					'headers' => array(
+						'Content-Type' => 'multipart/form-data; boundary=' . $boundary,
+					),
+					'body'    => $multipart_stream,
+				)
+			);
+
+			// Get response body.
+			$response_body = $response->getBody()->getContents();
+			$result        = json_decode( $response_body, true );
+
+			if ( JSON_ERROR_NONE !== json_last_error() ) {
+				return new WP_Error( 'assessment_parse_error', 'Failed to parse assessment response: ' . json_last_error_msg() );
+			}
+
+			return $result;
+
+		} catch ( Exception $e ) {
+			return new WP_Error( 'assessment_api_error', $e->getMessage() );
+		}
+	}
 }
