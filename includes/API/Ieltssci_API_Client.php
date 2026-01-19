@@ -250,6 +250,72 @@ class Ieltssci_API_Client {
 				}
 				// If not matching schema, return original.
 				return $content;
+
+			case 'merge_grammar_flexibility':
+				// Maps flexibility assessment from API response to resolved tag data.
+				// Keeps original sentence, present grammar structures & sentence structures from resolved tag.
+
+				// Search for the json_sentence tag in resolved_tags.
+				$previous_data = null;
+				foreach ( $resolved_tags as $tag_key => $tag_value ) {
+					if ( false !== strpos( $tag_key, 'json_sentence' ) ) {
+						// Found the tag, extract the full data object.
+						if ( is_string( $tag_value ) ) {
+							$parsed_value = json_decode( $tag_value, true );
+							if ( json_last_error() === JSON_ERROR_NONE ) {
+								$previous_data = $parsed_value;
+							}
+						} elseif ( is_array( $tag_value ) ) {
+							$previous_data = $tag_value;
+						}
+						break;
+					}
+				}
+
+				$current_data = json_decode( $content, true );
+				if ( json_last_error() !== JSON_ERROR_NONE || ! isset( $current_data['sentence'] ) || ! is_array( $current_data['sentence'] ) ) {
+					// If content is not valid JSON or doesn't match schema, return as-is.
+					return wp_json_encode(
+						array(
+							'sentence' => $previous_data,
+						)
+					);
+				}
+
+				// If no previous data exists, return current content as-is.
+				if ( empty( $previous_data ) || ! is_array( $previous_data ) ) {
+					return $content;
+				}
+
+				// Extract previous sentence data.
+				$previous_data;
+
+				// Merge: take flexibility assessment from current, everything else from previous.
+				// Only process the first sentence from current data and match with first sentence from previous data.
+				$merged_sentences = array();
+
+				// Only process if both have at least one sentence.
+				if ( ! empty( $current_data['sentence'] ) && ! empty( $previous_data ) ) {
+					$current_sentence = $current_data['sentence'][0];
+
+					// Start with previous sentence data as base.
+					$merged_sentence = $previous_data;
+
+					// Override flexibility assessment with current if it exists.
+					if ( isset( $current_sentence['flexibility assessment'] ) ) {
+						$merged_sentence['flexibility assessment'] = $current_sentence['flexibility assessment'];
+					}
+
+					$merged_sentences[] = $merged_sentence;
+				}
+
+				// Build the final result.
+				$result = array(
+					'sentence' => $merged_sentences,
+				);
+
+				return wp_json_encode( $result );
+
 			default:
 				// If manipulation is not recognized, return original content.
 				return $content;
