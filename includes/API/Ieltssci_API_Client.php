@@ -1649,4 +1649,54 @@ class Ieltssci_API_Client {
 			return new WP_Error( 'grammar_range_api_error', $e->getMessage() );
 		}
 	}
+
+	/**
+	 * Call the references API to detect referencing in text
+	 *
+	 * @param string $text The text to analyze for referencing.
+	 * @return array|WP_Error Referencing detection result on success, or WP_Error on failure.
+	 * @throws Exception If API call fails.
+	 */
+	public function make_references_api_call( $text ) {
+		try {
+			// Create Guzzle client with appropriate settings.
+			$client_settings = array(
+				'base_uri'        => 'https://api3.ieltsscience.fun/',
+				'connect_timeout' => 30,
+				'timeout'         => 30,
+			);
+
+			$client = new Client( $client_settings );
+
+			// Prepare request payload.
+			$payload = array(
+				'text' => $text,
+			);
+
+			// Make the API request.
+			$response = $client->post(
+				'references',
+				array(
+					'headers' => array(
+						'Content-Type' => 'application/json',
+						'Accept'       => 'application/json',
+					),
+					'json'    => $payload,
+				)
+			);
+
+			// Parse response.
+			$response_body = $response->getBody()->getContents();
+			$result        = json_decode( $response_body, true );
+
+			if ( JSON_ERROR_NONE !== json_last_error() ) {
+				throw new Exception( 'Failed to parse references response: ' . json_last_error_msg() );
+			}
+
+			return $result;
+
+		} catch ( Exception $e ) {
+			return new WP_Error( 'references_api_error', $e->getMessage() );
+		}
+	}
 }

@@ -316,6 +316,10 @@ class Ieltssci_Writing_Feedback_Processor {
 			return $this->process_grammar_range_api( $uuid, $feed, $segment, $step_type, $language, $refetch );
 		}
 
+		if ( 'referencing-analysis' === $feed['feedback_criteria'] && 'chain-of-thought' === $step_type ) {
+			return $this->process_referencing_analysis_api( $uuid, $feed, $segment, $step_type, $language, $refetch );
+		}
+
 		// Default settings.
 		$api_provider = 'google';
 		$model        = 'gemini-2.0-flash-lite';
@@ -1004,6 +1008,116 @@ class Ieltssci_Writing_Feedback_Processor {
 				)
 			);
 			throw new Exception( esc_html( 'Grammar Range API request failed: ' . $error_message ) );
+		}
+
+		// Convert result to JSON string for storage.
+		$result_json = is_string( $result ) ? $result : wp_json_encode( $result );
+
+		// Send the result to the client.
+		$this->send_message(
+			$this->transform_case( $step_type, 'snake_upper' ),
+			array(
+				'content' => $result_json,
+			)
+		);
+
+		// Save the result to the database.
+		$this->feedback_db->save_feedback_to_database(
+			$result_json,
+			$feed,
+			$uuid,
+			$step_type,
+			$segment,
+			$language,
+			'ai',
+			$refetch
+		);
+
+		$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
+
+		return $result_json;
+	}
+
+	/**
+	 * Process referencing analysis API call for a given essay.
+	 *
+	 * @param string     $uuid Essay UUID.
+	 * @param array      $feed Feed configuration.
+	 * @param array|null $segment Segment data if applicable.
+	 * @param string     $step_type Type of step being processed.
+	 * @param string     $language Language for the feedback.
+	 * @param string     $refetch Whether to refetch existing content.
+	 * @return string Processed content as JSON string.
+	 * @throws Exception If the API call fails.
+	 */
+	private function process_referencing_analysis_api( $uuid, $feed, $segment, $step_type, $language, $refetch ) {
+		// Map step_type to the appropriate database column.
+		$content_field = 'chain-of-thought' === $step_type ? 'cot_content' : 'feedback_content';
+
+		// Check if we should skip checking existing content based on refetch parameter.
+		$should_check_existing = ! ( 'all' === $refetch || $step_type === $refetch );
+
+		if ( $should_check_existing ) {
+			// Check if this step has already been processed.
+			$existing_content = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $segment, $content_field );
+
+			if ( $existing_content ) {
+				$this->send_message(
+					$this->transform_case( $step_type, 'snake_upper' ),
+					array(
+						'content' => $existing_content,
+						'reused'  => true,
+					)
+				);
+				$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
+				return $existing_content;
+			}
+		}
+
+		// Get essay content.
+		$essay_db = new Ieltssci_Essay_DB();
+		$essays   = $essay_db->get_essays(
+			array(
+				'uuid'     => $uuid,
+				'per_page' => 1,
+			)
+		);
+
+		if ( is_wp_error( $essays ) || empty( $essays ) ) {
+			throw new Exception( 'Essay not found for UUID: ' . esc_html( $uuid ) );
+		}
+
+		$essay         = $essays[0];
+		$essay_content = $essay['essay_content'] ?? '';
+
+		if ( empty( $essay_content ) ) {
+			throw new Exception( 'Essay content is empty.' );
+		}
+
+		// Send progress message.
+		$this->send_message(
+			$this->transform_case( $step_type, 'snake_upper' ),
+			array(
+				'message' => 'Analyzing referencing',
+			)
+		);
+
+		// Call the references API.
+		$result = $this->api_client->make_references_api_call( $essay_content );
+
+		// Check if result is a WP_Error.
+		if ( is_wp_error( $result ) ) {
+			$error_message = $result->get_error_message();
+			$this->send_error(
+				$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
+				array(
+					'title'    => 'Referencing Analysis API Request Failed',
+					'message'  => $error_message,
+					'ctaTitle' => 'Try Again',
+					'ctaLink'  => '#',
+				)
+			);
+			throw new Exception( esc_html( 'Referencing Analysis API request failed: ' . $error_message ) );
 		}
 
 		// Convert result to JSON string for storage.
