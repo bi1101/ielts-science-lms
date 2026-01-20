@@ -794,7 +794,28 @@ class Ieltssci_Speaking_Module {
 			$footer_socials = buddyboss_theme_get_option( 'boss_footer_social_links' );
 			// Pass the social links object directly.
 			$localized_data['footer_socials'] = is_array( $footer_socials ) ? $footer_socials : array();
-
+			// Localize speaking collections for archive page.
+			if ( 'speaking-part-archive' === $script_type ) {
+				$collections                   = get_terms(
+					array(
+						'taxonomy'   => 'speaking-part-collection',
+						'hide_empty' => true,
+					)
+				);
+				$localized_collections         = array_map(
+					function ( $term ) {
+						return array(
+							'id'          => $term->term_id,
+							'name'        => $term->name,
+							'slug'        => $term->slug,
+							'description' => $term->description,
+							'link'        => get_term_link( $term ),
+						);
+					},
+					$collections
+				);
+				$localized_data['collections'] = $localized_collections;
+			}
 			// Localize script (pass data to the React app).
 			wp_localize_script( $script_handle, 'ielts_speaking_data', $localized_data );
 		}
