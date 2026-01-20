@@ -592,6 +592,42 @@ class Ieltssci_ACF {
 				'show_in_rest' => true,
 			)
 		);
+
+		register_taxonomy(
+			'speaking-part-collection',
+			array(
+				0 => 'speaking-part',
+			),
+			array(
+				'labels'       => array(
+					'name'                       => 'Speaking Part Collections',
+					'singular_name'              => 'Speaking Part Collection',
+					'menu_name'                  => 'Collections',
+					'all_items'                  => 'All Collections',
+					'edit_item'                  => 'Edit Collection',
+					'view_item'                  => 'View Collection',
+					'update_item'                => 'Update Collection',
+					'add_new_item'               => 'Add New Collection',
+					'new_item_name'              => 'New Collection Name',
+					'search_items'               => 'Search Collections',
+					'popular_items'              => 'Popular Collections',
+					'separate_items_with_commas' => 'Separate collections with commas',
+					'add_or_remove_items'        => 'Add or remove collections',
+					'choose_from_most_used'      => 'Choose from the most used collections',
+					'not_found'                  => 'No collections found',
+					'no_terms'                   => 'No collections',
+					'items_list_navigation'      => 'Collections list navigation',
+					'items_list'                 => 'Collections list',
+					'back_to_items'              => '← Go to collections',
+					'item_link'                  => 'Collection Link',
+					'item_link_description'      => 'A link to a collection',
+				),
+				'public'       => true,
+				'show_in_menu' => true,
+				'show_in_rest' => true,
+				'sort'         => true,
+			)
+		);
 	}
 
 	/**
