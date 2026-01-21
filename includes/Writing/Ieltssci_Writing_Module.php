@@ -563,6 +563,8 @@ class Ieltssci_Writing_Module {
 					array(
 						'taxonomy'   => 'writing-task-collection',
 						'hide_empty' => true,
+						'orderby'    => 'menu_order',
+						'order'      => 'ASC',
 					)
 				);
 				$localized_collections         = array_map(

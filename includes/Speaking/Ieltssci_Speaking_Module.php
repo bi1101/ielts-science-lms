@@ -813,6 +813,8 @@ class Ieltssci_Speaking_Module {
 					array(
 						'taxonomy'   => 'speaking-part-collection',
 						'hide_empty' => true,
+						'orderby'    => 'menu_order',
+						'order'      => 'ASC',
 					)
 				);
 				$localized_collections         = array_map(

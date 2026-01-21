@@ -33,6 +33,7 @@ class Ieltssci_Core_Module {
 
 		new Ieltssci_Core_Ajax();
 		new Ieltssci_ACF();
+		new Ieltssci_Term_Functions();
 		new \IeltsScienceLMS\Settings\Ieltssci_Settings();
 		new \IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeed_Module();
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit();

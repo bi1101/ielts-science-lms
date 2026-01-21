@@ -1,0 +1,26 @@
+/**
+ * Term Ordering Styles
+ *
+ * Styles for drag-and-drop term ordering in collection taxonomies.
+ *
+ * @package IELTS_Science_LMS
+ */
+
+.column-handle {
+	width: 25px;
+	cursor: move;
+}
+
+.column-handle::before {
+	content: "\f545";
+	font-family: dashicons;
+	color: #c5c5c5;
+}
+
+.column-handle:hover::before {
+	color: #0073aa;
+}
+
+.collection-placeholder {
+	outline: 1px dashed #c5c5c5;
+}
