@@ -358,7 +358,7 @@ class Ieltssci_Core_Module {
 	 * Override writing and speaking archive templates to use React template.
 	 *
 	 * @param string $template Current template path.
-	 * @return string Modified template path for writing-task, writing-test, speaking-part, speaking-test archives, and speaking-part-collection taxonomy.
+	 * @return string Modified template path for writing-task, writing-test, speaking-part, speaking-test archives, and speaking-part-collection, writing-task-collection taxonomies.
 	 */
 	public function override_archive_templates( $template ) {
 		// Check if we're viewing writing-task, writing-test, speaking-part, or speaking-test archive pages.
@@ -371,8 +371,8 @@ class Ieltssci_Core_Module {
 			}
 		}
 
-		// Check if we're viewing a speaking-part-collection taxonomy archive.
-		if ( is_tax( 'speaking-part-collection' ) ) {
+		// Check if we're viewing a speaking-part-collection or writing-task-collection taxonomy archive.
+		if ( is_tax( array( 'speaking-part-collection', 'writing-task-collection' ) ) ) {
 			$react_template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
 
 			// Check if our React template file exists.
@@ -391,7 +391,7 @@ class Ieltssci_Core_Module {
 		if ( is_page_template( 'template-react-page.php' ) ||
 			is_singular( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ||
 			is_post_type_archive( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ||
-			is_tax( 'speaking-part-collection' ) ) {
+			is_tax( array( 'speaking-part-collection', 'writing-task-collection' ) ) ) {
 
 			// Dequeue Stylesheets.
 			wp_dequeue_style( 'bb_theme_block-buddypanel-style-css' );
