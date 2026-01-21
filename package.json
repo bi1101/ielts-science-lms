@@ -29,7 +29,9 @@
         "submodule:public-speaking:build": "cd public/speaking && npm run build",
         "submodule:public-writing:install": "cd public/writing && npm ci",
         "submodule:public-writing:build": "cd public/writing && npm run build",
-        "build:submodules": "npm run submodule:admin-settings:install && npm run submodule:admin-settings:build && npm run submodule:public-speaking:install && npm run submodule:public-speaking:build && npm run submodule:public-writing:install && npm run submodule:public-writing:build",
+        "submodule:public-dashboard:install": "cd public/dashboard && npm ci",
+        "submodule:public-dashboard:build": "cd public/dashboard && npm run build",
+        "build:submodules": "npm run submodule:admin-settings:build && npm run submodule:public-speaking:build && npm run submodule:public-writing:build && npm run submodule:public-dashboard:build",
         "build": "npm run build:submodules",
         "package": "npm run submodules:update && npm run build && wp-scripts plugin-zip",
         "plugin-zip": "wp-scripts plugin-zip"
