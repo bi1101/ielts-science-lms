@@ -181,6 +181,19 @@ class Ieltssci_Writing_Module {
 				}
 				$should_enqueue = true;
 				$script_type    = 'writing-test-archive';
+			} elseif ( is_tax( 'writing-task-collection' ) ) {
+				// Writing Task Collection taxonomy archive.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
+				$should_enqueue = true;
+				$script_type    = 'writing-task-collection-archive';
 			}
 		}
 
@@ -414,7 +427,7 @@ class Ieltssci_Writing_Module {
 
 			// Get Google Console client ID.
 			$google_console_client_id = '';
-			$facebook_app_id = '';
+			$facebook_app_id          = '';
 			$api_keys_db              = new \IeltsScienceLMS\ApiKeys\Ieltssci_ApiKeys_DB();
 			$google_console_key       = $api_keys_db->get_api_key(
 				0,
@@ -519,7 +532,7 @@ class Ieltssci_Writing_Module {
 				// Google Console client ID.
 				'google_console_client_id' => $google_console_client_id,
 				// Facebook App ID.
-				'facebook_app_id' => $facebook_app_id,
+				'facebook_app_id'          => $facebook_app_id,
 			);
 
 			// Get footer menu items.
@@ -543,6 +556,44 @@ class Ieltssci_Writing_Module {
 			$footer_socials = buddyboss_theme_get_option( 'boss_footer_social_links' );
 			// Pass the social links object directly.
 			$localized_data['footer_socials'] = is_array( $footer_socials ) ? $footer_socials : array();
+
+			// Localize writing collections for archive page.
+			if ( 'writing-task-archive' === $script_type ) {
+				$collections                   = get_terms(
+					array(
+						'taxonomy'   => 'writing-task-collection',
+						'hide_empty' => true,
+					)
+				);
+				$localized_collections         = array_map(
+					function ( $term ) {
+						return array(
+							'id'          => $term->term_id,
+							'name'        => $term->name,
+							'slug'        => $term->slug,
+							'description' => $term->description,
+							'link'        => get_term_link( $term ),
+						);
+					},
+					$collections
+				);
+				$localized_data['collections'] = $localized_collections;
+			}
+
+			// Localize current collection data for collection archive page.
+			if ( 'writing-task-collection-archive' === $script_type ) {
+				$current_term = get_queried_object();
+				if ( $current_term && is_a( $current_term, 'WP_Term' ) ) {
+					$localized_data['current_collection'] = array(
+						'id'          => $current_term->term_id,
+						'name'        => $current_term->name,
+						'slug'        => $current_term->slug,
+						'description' => $current_term->description,
+						'count'       => $current_term->count,
+						'link'        => get_term_link( $current_term ),
+					);
+				}
+			}
 
 			// Localize script (pass data to the React app).
 			wp_localize_script( $script_handle, 'ielts_writing_data', $localized_data );
