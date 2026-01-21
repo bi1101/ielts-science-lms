@@ -1,6 +1,6 @@
 {
     "name": "ielts-science-lms",
-    "version": "0.12.1",
+    "version": "0.12.2",
     "description": "IELTS Science Learning Management System.",
     "author": "IELTS Science",
     "license": "Proprietary",
@@ -12,6 +12,8 @@
         "languages/",
         "admin/settings/build/",
         "admin/settings/*.php",
+        "admin/css/",
+        "admin/js/",
         "public/speaking/build/",
         "public/speaking/*.php",
         "public/writing/build/",
