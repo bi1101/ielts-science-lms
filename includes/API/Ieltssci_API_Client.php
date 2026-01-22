@@ -538,14 +538,14 @@ class Ieltssci_API_Client {
 			if ( ! empty( $guided_json ) ) {
 				$json_schema = json_decode( $guided_json, true );
 				if ( JSON_ERROR_NONE === json_last_error() ) { // Only add if schema is valid.
-					$base_payload['guided_json'] = $json_schema;
+					$base_payload['structured_outputs']['json'] = $json_schema;
 				}
 			} elseif ( ! empty( $guided_regex ) ) {
-				$base_payload['guided_regex'] = $guided_regex; // Add guided regex constraint.
+				$base_payload['structured_outputs']['regex'] = $guided_regex; // Add guided regex constraint.
 			} elseif ( ! empty( $guided_choice ) ) {
 				$choices_array = array_map( 'trim', explode( '|', $guided_choice ) );
 				if ( ! empty( $choices_array ) && ( count( $choices_array ) > 1 || ! empty( $choices_array[0] ) ) ) {
-					$base_payload['guided_choice'] = $choices_array; // Add guided choice list.
+					$base_payload['structured_outputs']['choice'] = $choices_array; // Add guided choice list.
 				}
 			}
 
@@ -564,17 +564,17 @@ class Ieltssci_API_Client {
 					$json_schema = json_decode( $guided_json, true );
 					// Ensure JSON decoding was successful before adding it.
 					if ( JSON_ERROR_NONE === json_last_error() ) {
-						$base_payload['guided_json'] = $json_schema;
+						$base_payload['structured_outputs']['json'] = $json_schema;
 					}
 					// Optionally, you could log an error here if json_decode fails.
 				} elseif ( ! empty( $guided_regex ) ) {
-					$base_payload['guided_regex'] = $guided_regex;
+					$base_payload['structured_outputs']['regex'] = $guided_regex;
 				} elseif ( ! empty( $guided_choice ) ) {
 					// Choices are expected to be a string separated by `|` character.
 					$choices_array = array_map( 'trim', explode( '|', $guided_choice ) );
 					// Ensure the array is not empty after splitting.
 					if ( ! empty( $choices_array ) && ( count( $choices_array ) > 1 || ! empty( $choices_array[0] ) ) ) {
-						$base_payload['guided_choice'] = $choices_array;
+						$base_payload['structured_outputs']['choice'] = $choices_array;
 					}
 				}
 
