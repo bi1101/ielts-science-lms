@@ -274,12 +274,8 @@ class Ieltssci_API_Client {
 
 				$current_data = json_decode( $content, true );
 				if ( json_last_error() !== JSON_ERROR_NONE || ! isset( $current_data['sentence'] ) || ! is_array( $current_data['sentence'] ) ) {
-					// If content is not valid JSON or doesn't match schema, return as-is.
-					return wp_json_encode(
-						array(
-							'sentence' => $previous_data,
-						)
-					);
+					// If content is not valid JSON or doesn't match schema, treat $content as flexibility assessment.
+					$current_data = array( 'sentence' => array( array( 'flexibility assessment' => $content ) ) );
 				}
 
 				// If no previous data exists, return current content as-is.
