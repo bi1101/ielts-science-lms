@@ -1763,7 +1763,7 @@ class Ieltssci_Merge_Tags_Processor {
 	 * @param int $media_id The attachment/media ID.
 	 * @return string The transcript text or empty string if not found.
 	 */
-	private function get_audio_transcript_text( $media_id ) {
+	public function get_audio_transcript_text( $media_id ) {
 		$transcription_meta = get_post_meta( $media_id, 'ieltssci_audio_transcription', true );
 		$text               = '';
 
