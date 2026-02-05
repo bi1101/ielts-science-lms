@@ -649,12 +649,12 @@ class Ieltssci_Speaking_Settings {
 				'groupTitle' => 'Pronunciation',
 				'feeds'      => array(
 					$settings_config_instance->create_feed(
-						'pronunciation-analysis-manual',
-						'Pronunciation Analysis Manual',
+						'pronunciation-analysis',
+						'Pronunciation Analysis',
 						'attempt',
 						array( 'speaking' ),
 						array(
-							$settings_config_instance->create_step( 'feedback', array() ),
+							$settings_config_instance->create_step( 'pronunciation-assessment', array() ),
 						)
 					),
 					$settings_config_instance->create_feed(

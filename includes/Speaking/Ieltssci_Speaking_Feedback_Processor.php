@@ -330,6 +330,11 @@ class Ieltssci_Speaking_Feedback_Processor {
 			return $this->process_transcription_step( $uuid, $api_provider, $model, $transcription_prompt, $attempt );
 		}
 
+		// Handle pronunciation assessment step.
+		if ( 'pronunciation-assessment' === $step_type ) {
+			return $this->process_pronunciation_assessment_step( $uuid, $attempt, $feed, $language, $source, $refetch );
+		}
+
 		// Map step_type to the appropriate database column.
 		switch ( $step_type ) {
 			case 'chain-of-thought':
@@ -801,6 +806,116 @@ class Ieltssci_Speaking_Feedback_Processor {
 			$transcription_results
 		);
 		return $combined_transcript;
+	}
+
+	/**
+	 * Process pronunciation assessment step
+	 *
+	 * @param string     $uuid The UUID of the recording.
+	 * @param array|null $attempt Optional. The attempt data array.
+	 * @param array      $feed The feed data.
+	 * @param string     $language The language of the feedback.
+	 * @param string     $source The source of the feedback.
+	 * @param string     $refetch Whether to refetch content.
+	 * @return string The pronunciation assessment result as JSON.
+	 * @throws Exception If the assessment process fails.
+	 */
+	private function process_pronunciation_assessment_step( $uuid, $attempt = null, $feed, $language = 'en', $source = 'ai', $refetch = '' ) {
+		if ( is_null( $attempt ) ) {
+			throw new Exception( 'Pronunciation assessment requires an attempt.' );
+		}
+
+		// Check if we should skip checking existing content based on refetch parameter.
+		$should_check_existing = ! ( 'all' === $refetch || 'feedback' === $refetch );
+
+		// Check if this step has already been processed.
+		$existing_content = null;
+		if ( $should_check_existing ) {
+			$existing_content = $this->feedback_db->get_existing_step_content(
+				'feedback',
+				$feed,
+				$uuid,
+				$attempt,
+				'feedback_content'
+			);
+		}
+
+		// If existing content is found, send it back without making a new API call.
+		if ( ! empty( $existing_content ) ) {
+			// Send the existing content to the client.
+			$this->send_message(
+				'PRONUNCIATION_ASSESSMENT_DATA',
+				json_decode( $existing_content, true )
+			);
+
+			// Send done signal.
+			$this->send_done( 'PRONUNCIATION_ASSESSMENT' );
+
+			return $existing_content;
+		}
+
+		// Get the audio file path from the attempt.
+		$audio_id = isset( $attempt['audio_id'] ) ? $attempt['audio_id'] : null;
+		if ( empty( $audio_id ) ) {
+			throw new Exception( 'No audio file found for pronunciation assessment.' );
+		}
+
+		$audio_path = get_attached_file( $audio_id );
+		if ( ! $audio_path || ! file_exists( $audio_path ) ) {
+			throw new Exception( 'Audio file not found or not accessible.' );
+		}
+
+		// Get the preprocessed transcript text using the merge tags processor.
+		$transcript_text = $this->merge_tags_processor->get_audio_transcript_text( $audio_id );
+
+		if ( empty( $transcript_text ) ) {
+			throw new Exception( 'No transcript text found for pronunciation assessment. Please transcribe the audio first.' );
+		}
+
+		// Get attempt ID for progress messages.
+		$attempt_id = isset( $attempt['id'] ) ? $attempt['id'] : null;
+
+		// Send progress message.
+		$this->send_message(
+			'PRONUNCIATION_ASSESSMENT_START',
+			array(
+				'message'    => 'Starting pronunciation assessment...',
+				'attempt_id' => $attempt_id,
+			)
+		);
+
+		// Make API call.
+		$result = $this->api_client->make_pronunciation_assessment_api_call( $audio_path, $transcript_text );
+
+		if ( is_wp_error( $result ) ) {
+			throw new Exception( esc_html( $result->get_error_message() ) );
+		}
+
+		// Convert result to JSON string.
+		$result_json = wp_json_encode( $result );
+
+		// Save the result to the database.
+		$this->feedback_db->save_feedback_to_database(
+			$result_json,
+			$feed,
+			$uuid,
+			'feedback',
+			$attempt,
+			$language,
+			$source,
+			$refetch
+		);
+
+		// Send completion message.
+		$this->send_message(
+			'PRONUNCIATION_ASSESSMENT_DATA',
+			$result
+		);
+
+		// Send done signal.
+		$this->send_done( 'PRONUNCIATION_ASSESSMENT' );
+
+		return $result_json;
 	}
 
 	/**
