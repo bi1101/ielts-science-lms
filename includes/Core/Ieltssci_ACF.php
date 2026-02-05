@@ -592,6 +592,83 @@ class Ieltssci_ACF {
 				'show_in_rest' => true,
 			)
 		);
+
+		register_taxonomy(
+			'speaking-part-collection',
+			array(
+				0 => 'speaking-part',
+			),
+			array(
+				'labels'       => array(
+					'name'                       => __( 'Speaking Part Collections', 'ielts-science-lms' ),
+					'singular_name'              => __( 'Speaking Part Collection', 'ielts-science-lms' ),
+					'menu_name'                  => __( 'Collections', 'ielts-science-lms' ),
+					'all_items'                  => __( 'All Collections', 'ielts-science-lms' ),
+					'edit_item'                  => __( 'Edit Collection', 'ielts-science-lms' ),
+					'view_item'                  => __( 'View Collection', 'ielts-science-lms' ),
+					'update_item'                => __( 'Update Collection', 'ielts-science-lms' ),
+					'add_new_item'               => __( 'Add New Collection', 'ielts-science-lms' ),
+					'new_item_name'              => __( 'New Collection Name', 'ielts-science-lms' ),
+					'search_items'               => __( 'Search Collections', 'ielts-science-lms' ),
+					'popular_items'              => __( 'Popular Collections', 'ielts-science-lms' ),
+					'separate_items_with_commas' => __( 'Separate collections with commas', 'ielts-science-lms' ),
+					'add_or_remove_items'        => __( 'Add or remove collections', 'ielts-science-lms' ),
+					'choose_from_most_used'      => __( 'Choose from the most used collections', 'ielts-science-lms' ),
+					'not_found'                  => __( 'No collections found', 'ielts-science-lms' ),
+					'no_terms'                   => __( 'No collections', 'ielts-science-lms' ),
+					'items_list_navigation'      => __( 'Collections list navigation', 'ielts-science-lms' ),
+					'items_list'                 => __( 'Collections list', 'ielts-science-lms' ),
+					'back_to_items'              => __( '← Go to collections', 'ielts-science-lms' ),
+					'item_link'                  => __( 'Collection Link', 'ielts-science-lms' ),
+					'item_link_description'      => __( 'A link to a collection', 'ielts-science-lms' ),
+				),
+				'public'       => true,
+				'hierarchical' => true,
+				'show_in_menu' => true,
+				'show_in_rest' => true,
+				'sort'         => true,
+			)
+		);
+
+		register_taxonomy(
+			'writing-task-collection',
+			array(
+				0 => 'writing-task',
+			),
+			array(
+				'labels'       => array(
+					'name'                       => __( 'Writing Task Collections', 'ielts-science-lms' ),
+					'singular_name'              => __( 'Writing Task Collection', 'ielts-science-lms' ),
+					'menu_name'                  => __( 'Collections', 'ielts-science-lms' ),
+					'all_items'                  => __( 'All Collections', 'ielts-science-lms' ),
+					'edit_item'                  => __( 'Edit Collection', 'ielts-science-lms' ),
+					'view_item'                  => __( 'View Collection', 'ielts-science-lms' ),
+					'update_item'                => __( 'Update Collection', 'ielts-science-lms' ),
+					'add_new_item'               => __( 'Add New Collection', 'ielts-science-lms' ),
+					'new_item_name'              => __( 'New Collection Name', 'ielts-science-lms' ),
+					'parent_item'                => __( 'Parent Collection', 'ielts-science-lms' ),
+					'parent_item_colon'          => __( 'Parent Collection:', 'ielts-science-lms' ),
+					'search_items'               => __( 'Search Collections', 'ielts-science-lms' ),
+					'popular_items'              => __( 'Popular Collections', 'ielts-science-lms' ),
+					'separate_items_with_commas' => __( 'Separate collections with commas', 'ielts-science-lms' ),
+					'add_or_remove_items'        => __( 'Add or remove collections', 'ielts-science-lms' ),
+					'choose_from_most_used'      => __( 'Choose from the most used collections', 'ielts-science-lms' ),
+					'not_found'                  => __( 'No collections found', 'ielts-science-lms' ),
+					'no_terms'                   => __( 'No collections', 'ielts-science-lms' ),
+					'filter_by_item'             => __( 'Filter by collection', 'ielts-science-lms' ),
+					'items_list_navigation'      => __( 'Collections list navigation', 'ielts-science-lms' ),
+					'items_list'                 => __( 'Collections list', 'ielts-science-lms' ),
+					'back_to_items'              => __( '← Go to collections', 'ielts-science-lms' ),
+					'item_link'                  => __( 'Collection Link', 'ielts-science-lms' ),
+					'item_link_description'      => __( 'A link to a collection', 'ielts-science-lms' ),
+				),
+				'public'       => true,
+				'hierarchical' => true,
+				'show_in_menu' => true,
+				'show_in_rest' => true,
+				'sort'         => true,
+			)
+		);
 	}
 
 	/**

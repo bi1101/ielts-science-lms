@@ -441,6 +441,19 @@ class Ieltssci_Speaking_Module {
 				}
 				$should_enqueue = true;
 				$script_type    = 'speaking-test-archive';
+			} elseif ( is_tax( 'speaking-part-collection' ) ) {
+				// Speaking Part Collection taxonomy archive.
+				global $wp_styles;
+				if ( isset( $wp_styles->registered ) ) {
+					foreach ( $wp_styles->registered as $handle => $style ) {
+						// Dequeue if handle starts with 'elementor-post-'.
+						if ( strpos( $handle, 'elementor-post-' ) === 0 ) {
+							wp_dequeue_style( $handle ); // Dequeue matching style.
+						}
+					}
+				}
+				$should_enqueue = true;
+				$script_type    = 'speaking-part-collection-archive';
 			}
 		}
 
@@ -794,6 +807,45 @@ class Ieltssci_Speaking_Module {
 			$footer_socials = buddyboss_theme_get_option( 'boss_footer_social_links' );
 			// Pass the social links object directly.
 			$localized_data['footer_socials'] = is_array( $footer_socials ) ? $footer_socials : array();
+			// Localize speaking collections for archive page.
+			if ( 'speaking-part-archive' === $script_type ) {
+				$collections                   = get_terms(
+					array(
+						'taxonomy'   => 'speaking-part-collection',
+						'hide_empty' => true,
+						'orderby'    => 'menu_order',
+						'order'      => 'ASC',
+					)
+				);
+				$localized_collections         = array_map(
+					function ( $term ) {
+						return array(
+							'id'          => $term->term_id,
+							'name'        => $term->name,
+							'slug'        => $term->slug,
+							'description' => $term->description,
+							'link'        => get_term_link( $term ),
+						);
+					},
+					$collections
+				);
+				$localized_data['collections'] = $localized_collections;
+			}
+
+			// Localize current collection data for collection archive page.
+			if ( 'speaking-part-collection-archive' === $script_type ) {
+				$current_term = get_queried_object();
+				if ( $current_term && is_a( $current_term, 'WP_Term' ) ) {
+					$localized_data['current_collection'] = array(
+						'id'          => $current_term->term_id,
+						'name'        => $current_term->name,
+						'slug'        => $current_term->slug,
+						'description' => $current_term->description,
+						'count'       => $current_term->count,
+						'link'        => get_term_link( $current_term ),
+					);
+				}
+			}
 
 			// Localize script (pass data to the React app).
 			wp_localize_script( $script_handle, 'ielts_speaking_data', $localized_data );

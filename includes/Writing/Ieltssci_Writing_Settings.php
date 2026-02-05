@@ -479,6 +479,7 @@ class Ieltssci_Writing_Settings {
 						'essay',
 						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
 						array(
+							$settings_config_instance->create_step( 'chain-of-thought', array() ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
@@ -1044,6 +1045,22 @@ class Ieltssci_Writing_Settings {
 						'essay',
 						array( 'task-1', 'task-1-ocr' ),
 						array(
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+				),
+			),
+			array(
+				'groupName'  => 'referencing-analysis',
+				'groupTitle' => 'Referencing Analysis',
+				'feeds'      => array(
+					$settings_config_instance->create_feed(
+						'referencing-analysis',
+						'Referencing Analysis',
+						'essay',
+						array( 'task-2', 'task-2-ocr', 'task-1', 'task-1-ocr' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', array() ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),

@@ -1462,7 +1462,7 @@ class Ieltssci_Merge_Tags_Processor {
 	 * @param string $text The text to split.
 	 * @return array Array of sentences.
 	 */
-	private function split_into_sentences( $text ) {
+	public function split_into_sentences( $text ) {
 		if ( empty( $text ) ) {
 			return array();
 		}

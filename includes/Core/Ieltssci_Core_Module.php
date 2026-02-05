@@ -33,6 +33,7 @@ class Ieltssci_Core_Module {
 
 		new Ieltssci_Core_Ajax();
 		new Ieltssci_ACF();
+		new Ieltssci_Term_Functions();
 		new \IeltsScienceLMS\Settings\Ieltssci_Settings();
 		new \IeltsScienceLMS\ApiFeeds\Ieltssci_ApiFeed_Module();
 		new \IeltsScienceLMS\RateLimits\Ieltssci_RateLimit();
@@ -358,11 +359,21 @@ class Ieltssci_Core_Module {
 	 * Override writing and speaking archive templates to use React template.
 	 *
 	 * @param string $template Current template path.
-	 * @return string Modified template path for writing-task, writing-test, speaking-part, and speaking-test archives.
+	 * @return string Modified template path for writing-task, writing-test, speaking-part, speaking-test archives, and speaking-part-collection, writing-task-collection taxonomies.
 	 */
 	public function override_archive_templates( $template ) {
 		// Check if we're viewing writing-task, writing-test, speaking-part, or speaking-test archive pages.
 		if ( is_post_type_archive( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ) {
+			$react_template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
+
+			// Check if our React template file exists.
+			if ( file_exists( $react_template ) ) {
+				return $react_template;
+			}
+		}
+
+		// Check if we're viewing a speaking-part-collection or writing-task-collection taxonomy archive.
+		if ( is_tax( array( 'speaking-part-collection', 'writing-task-collection' ) ) ) {
 			$react_template = plugin_dir_path( __FILE__ ) . '../templates/template-react-page.php';
 
 			// Check if our React template file exists.
@@ -380,7 +391,8 @@ class Ieltssci_Core_Module {
 	public function dequeue_assets_for_react_template() {
 		if ( is_page_template( 'template-react-page.php' ) ||
 			is_singular( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ||
-			is_post_type_archive( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ) {
+			is_post_type_archive( array( 'writing-task', 'writing-test', 'speaking-part', 'speaking-test' ) ) ||
+			is_tax( array( 'speaking-part-collection', 'writing-task-collection' ) ) ) {
 
 			// Dequeue Stylesheets.
 			wp_dequeue_style( 'bb_theme_block-buddypanel-style-css' );

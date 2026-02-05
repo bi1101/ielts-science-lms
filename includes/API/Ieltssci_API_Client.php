@@ -250,6 +250,68 @@ class Ieltssci_API_Client {
 				}
 				// If not matching schema, return original.
 				return $content;
+
+			case 'merge_grammar_flexibility':
+				// Maps flexibility assessment from API response to resolved tag data.
+				// Keeps original sentence, present grammar structures & sentence structures from resolved tag.
+
+				// Search for the json_sentence tag in resolved_tags.
+				$previous_data = null;
+				foreach ( $resolved_tags as $tag_key => $tag_value ) {
+					if ( false !== strpos( $tag_key, 'json_sentence' ) ) {
+						// Found the tag, extract the full data object.
+						if ( is_string( $tag_value ) ) {
+							$parsed_value = json_decode( $tag_value, true );
+							if ( json_last_error() === JSON_ERROR_NONE ) {
+								$previous_data = $parsed_value;
+							}
+						} elseif ( is_array( $tag_value ) ) {
+							$previous_data = $tag_value;
+						}
+						break;
+					}
+				}
+
+				$current_data = json_decode( $content, true );
+				if ( json_last_error() !== JSON_ERROR_NONE || ! isset( $current_data['sentence'] ) || ! is_array( $current_data['sentence'] ) ) {
+					// If content is not valid JSON or doesn't match schema, treat $content as flexibility assessment.
+					$current_data = array( 'sentence' => array( array( 'flexibility assessment' => $content ) ) );
+				}
+
+				// If no previous data exists, return current content as-is.
+				if ( empty( $previous_data ) || ! is_array( $previous_data ) ) {
+					return $content;
+				}
+
+				// Extract previous sentence data.
+				$previous_data;
+
+				// Merge: take flexibility assessment from current, everything else from previous.
+				// Only process the first sentence from current data and match with first sentence from previous data.
+				$merged_sentences = array();
+
+				// Only process if both have at least one sentence.
+				if ( ! empty( $current_data['sentence'] ) && ! empty( $previous_data ) ) {
+					$current_sentence = $current_data['sentence'][0];
+
+					// Start with previous sentence data as base.
+					$merged_sentence = $previous_data;
+
+					// Override flexibility assessment with current if it exists.
+					if ( isset( $current_sentence['flexibility assessment'] ) ) {
+						$merged_sentence['flexibility assessment'] = $current_sentence['flexibility assessment'];
+					}
+
+					$merged_sentences[] = $merged_sentence;
+				}
+
+				// Build the final result.
+				$result = array(
+					'sentence' => $merged_sentences,
+				);
+
+				return wp_json_encode( $result );
+
 			default:
 				// If manipulation is not recognized, return original content.
 				return $content;
@@ -472,14 +534,14 @@ class Ieltssci_API_Client {
 			if ( ! empty( $guided_json ) ) {
 				$json_schema = json_decode( $guided_json, true );
 				if ( JSON_ERROR_NONE === json_last_error() ) { // Only add if schema is valid.
-					$base_payload['guided_json'] = $json_schema;
+					$base_payload['structured_outputs']['json'] = $json_schema;
 				}
 			} elseif ( ! empty( $guided_regex ) ) {
-				$base_payload['guided_regex'] = $guided_regex; // Add guided regex constraint.
+				$base_payload['structured_outputs']['regex'] = $guided_regex; // Add guided regex constraint.
 			} elseif ( ! empty( $guided_choice ) ) {
 				$choices_array = array_map( 'trim', explode( '|', $guided_choice ) );
 				if ( ! empty( $choices_array ) && ( count( $choices_array ) > 1 || ! empty( $choices_array[0] ) ) ) {
-					$base_payload['guided_choice'] = $choices_array; // Add guided choice list.
+					$base_payload['structured_outputs']['choice'] = $choices_array; // Add guided choice list.
 				}
 			}
 
@@ -498,17 +560,17 @@ class Ieltssci_API_Client {
 					$json_schema = json_decode( $guided_json, true );
 					// Ensure JSON decoding was successful before adding it.
 					if ( JSON_ERROR_NONE === json_last_error() ) {
-						$base_payload['guided_json'] = $json_schema;
+						$base_payload['structured_outputs']['json'] = $json_schema;
 					}
 					// Optionally, you could log an error here if json_decode fails.
 				} elseif ( ! empty( $guided_regex ) ) {
-					$base_payload['guided_regex'] = $guided_regex;
+					$base_payload['structured_outputs']['regex'] = $guided_regex;
 				} elseif ( ! empty( $guided_choice ) ) {
 					// Choices are expected to be a string separated by `|` character.
 					$choices_array = array_map( 'trim', explode( '|', $guided_choice ) );
 					// Ensure the array is not empty after splitting.
 					if ( ! empty( $choices_array ) && ( count( $choices_array ) > 1 || ! empty( $choices_array[0] ) ) ) {
-						$base_payload['guided_choice'] = $choices_array;
+						$base_payload['structured_outputs']['choice'] = $choices_array;
 					}
 				}
 
@@ -1597,6 +1659,106 @@ class Ieltssci_API_Client {
 			);
 
 			return new WP_Error( 'transcription_batch_error', $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Call the grammar range API to analyze grammar in sentences
+	 *
+	 * @param array $sentences Array of sentences to analyze.
+	 * @return array|WP_Error Grammar analysis result on success, or WP_Error on failure.
+	 * @throws Exception If API call fails.
+	 */
+	public function make_grammar_range_api_call( $sentences ) {
+		try {
+			// Create Guzzle client with appropriate settings.
+			$client_settings = array(
+				'base_uri'        => 'https://api3.ieltsscience.fun/',
+				'connect_timeout' => 30,
+				'timeout'         => 30,
+			);
+
+			$client = new Client( $client_settings );
+
+			// Prepare request payload.
+			$payload = array(
+				'sentence' => $sentences,
+			);
+
+			// Make the API request.
+			$response = $client->post(
+				'grammar-range',
+				array(
+					'headers' => array(
+						'Content-Type' => 'application/json',
+						'Accept'       => 'application/json',
+					),
+					'json'    => $payload,
+				)
+			);
+
+			// Parse response.
+			$response_body = $response->getBody()->getContents();
+			$result        = json_decode( $response_body, true );
+
+			if ( JSON_ERROR_NONE !== json_last_error() ) {
+				throw new Exception( 'Failed to parse grammar range response: ' . json_last_error_msg() );
+			}
+
+			return $result;
+
+		} catch ( Exception $e ) {
+			return new WP_Error( 'grammar_range_api_error', $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Call the references API to detect referencing in text
+	 *
+	 * @param string $text The text to analyze for referencing.
+	 * @return array|WP_Error Referencing detection result on success, or WP_Error on failure.
+	 * @throws Exception If API call fails.
+	 */
+	public function make_references_api_call( $text ) {
+		try {
+			// Create Guzzle client with appropriate settings.
+			$client_settings = array(
+				'base_uri'        => 'https://api3.ieltsscience.fun/',
+				'connect_timeout' => 30,
+				'timeout'         => 30,
+			);
+
+			$client = new Client( $client_settings );
+
+			// Prepare request payload.
+			$payload = array(
+				'text' => $text,
+			);
+
+			// Make the API request.
+			$response = $client->post(
+				'references',
+				array(
+					'headers' => array(
+						'Content-Type' => 'application/json',
+						'Accept'       => 'application/json',
+					),
+					'json'    => $payload,
+				)
+			);
+
+			// Parse response.
+			$response_body = $response->getBody()->getContents();
+			$result        = json_decode( $response_body, true );
+
+			if ( JSON_ERROR_NONE !== json_last_error() ) {
+				throw new Exception( 'Failed to parse references response: ' . json_last_error_msg() );
+			}
+
+			return $result;
+
+		} catch ( Exception $e ) {
+			return new WP_Error( 'references_api_error', $e->getMessage() );
 		}
 	}
 
