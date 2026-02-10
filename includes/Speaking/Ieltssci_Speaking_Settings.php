@@ -552,6 +552,40 @@ class Ieltssci_Speaking_Settings {
 				'groupTitle' => 'Lexical Resource',
 				'feeds'      => array(
 					$settings_config_instance->create_feed(
+						'range-of-vocab-speaking-analysis',
+						'Range of Vocab Speaking Analysis',
+						'attempt',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+
+					$settings_config_instance->create_feed(
+						'word-choice-collocation-style-speaking-analysis',
+						'Word choice, Collocation, Style Speaking Analysis',
+						'attempt',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'uncommon-vocab-speaking-analysis',
+						'Uncommon vocab Speaking Analysis',
+						'attempt',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
 						'range-of-vocab-speaking',
 						'Range of Vocab Speaking',
 						'speech',
@@ -587,7 +621,7 @@ class Ieltssci_Speaking_Settings {
 					$settings_config_instance->create_feed(
 						'new-vocab-speaking',
 						'New Vocabulary',
-						'speech',
+						'attempt',
 						array( 'speaking' ),
 						array(
 							$settings_config_instance->create_step(
@@ -605,6 +639,28 @@ class Ieltssci_Speaking_Settings {
 				'groupName'  => 'grammatical-range-speaking',
 				'groupTitle' => 'Grammatical Range & Accuracy Speaking',
 				'feeds'      => array(
+					$settings_config_instance->create_feed(
+						'range-of-structures-speaking-analysis',
+						'Range of Structures Speaking Analysis',
+						'attempt',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'grammar-accuracy-speaking-analysis',
+						'Grammar Accuracy Speaking Analysis',
+						'attempt',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
 					$settings_config_instance->create_feed(
 						'range-of-structures-speaking',
 						'Range of Structures Speaking',
@@ -658,8 +714,30 @@ class Ieltssci_Speaking_Settings {
 						)
 					),
 					$settings_config_instance->create_feed(
-						'pronunciation-accuracy-manual',
-						'Pronunciation Accuracy Manual',
+						'pronunciation-accuracy-analysis',
+						'Pronunciation Accuracy Analysis',
+						'attempt',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'intelligibility-analysis',
+						'Intelligibility Analysis',
+						'attempt',
+						array( 'speaking' ),
+						array(
+							$settings_config_instance->create_step( 'chain-of-thought', $common_sections ),
+							$settings_config_instance->create_step( 'scoring', $scoring_sections ),
+							$settings_config_instance->create_step( 'feedback', $common_sections ),
+						)
+					),
+					$settings_config_instance->create_feed(
+						'pronunciation-accuracy',
+						'Pronunciation Accuracy',
 						'speech',
 						array( 'speaking' ),
 						array(
@@ -668,8 +746,8 @@ class Ieltssci_Speaking_Settings {
 						)
 					),
 					$settings_config_instance->create_feed(
-						'intelligibility-manual',
-						'Intelligibility Manual',
+						'intelligibility',
+						'Intelligibility',
 						'speech',
 						array( 'speaking' ),
 						array(
