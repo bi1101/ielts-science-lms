@@ -335,6 +335,11 @@ class Ieltssci_Speaking_Feedback_Processor {
 			return $this->process_pronunciation_assessment_step( $uuid, $attempt, $feed, $language, $source, $refetch );
 		}
 
+		// Handle grammar range API call.
+		if ( 'grammar-range-speaking' === $feed['feedback_criteria'] && 'chain-of-thought' === $step_type ) {
+			return $this->process_grammar_range_api( $uuid, $feed, $attempt, $step_type, $language, $refetch );
+		}
+
 		// Map step_type to the appropriate database column.
 		switch ( $step_type ) {
 			case 'chain-of-thought':
@@ -1064,5 +1069,117 @@ class Ieltssci_Speaking_Feedback_Processor {
 
 		// Return the aggregated structure as a JSON string.
 		return wp_json_encode( $final_structure );
+	}
+
+	/**
+	 * Process grammar range API call for speaking.
+	 *
+	 * @param string $uuid        The UUID of the speech recording. Can be null for standalone speech attempts.
+	 * @param array  $feed        The feed data.
+	 * @param array  $attempt     Optional. The attempt data if processing a specific attempt.
+	 * @param string $step_type   The step type (e.g., 'feedback').
+	 * @param string $language    The language of the feedback.
+	 * @param string $refetch     Whether to refetch content, 'all' or specific step type.
+	 *
+	 * @return string The processed content as JSON.
+	 * @throws Exception When API calls fail or return errors.
+	 */
+	private function process_grammar_range_api( $uuid, $feed, $attempt, $step_type, $language, $refetch ) {
+		// Map step_type to the appropriate database column.
+		$content_field = 'chain-of-thought' === $step_type ? 'cot_content' : 'feedback_content';
+
+		// Check if we should skip checking existing content based on refetch parameter.
+		$should_check_existing = ! ( 'all' === $refetch || $step_type === $refetch );
+
+		if ( $should_check_existing ) {
+			// Check if this step has already been processed.
+			$existing_content = $this->feedback_db->get_existing_step_content( $step_type, $feed, $uuid, $attempt, $content_field );
+
+			if ( $existing_content ) {
+				$this->send_message(
+					$this->transform_case( $step_type, 'snake_upper' ),
+					array(
+						'content' => $existing_content,
+						'reused'  => true,
+					)
+				);
+				$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
+				return $existing_content;
+			}
+		}
+
+		// Get the audio ID from the attempt.
+		$audio_id = isset( $attempt['audio_id'] ) ? $attempt['audio_id'] : null;
+		if ( empty( $audio_id ) ) {
+			throw new Exception( 'No audio file found for grammar range analysis.' );
+		}
+
+		// Get the preprocessed transcript text using the merge tags processor.
+		$speech_content = $this->merge_tags_processor->get_audio_transcript_text( $audio_id );
+
+		if ( empty( $speech_content ) ) {
+			throw new Exception( 'No transcript text found for grammar range analysis. Please transcribe the audio first.' );
+		}
+
+		// Split speech content into sentences.
+		$sentences = $this->merge_tags_processor->split_into_sentences( $speech_content );
+
+		if ( empty( $sentences ) ) {
+			throw new Exception( 'Failed to split transcript into sentences.' );
+		}
+
+		// Send progress message.
+		$this->send_message(
+			$this->transform_case( $step_type, 'snake_upper' ),
+			array(
+				'message'         => 'Analyzing grammar range',
+				'total_sentences' => count( $sentences ),
+			)
+		);
+
+		// Call the grammar range API.
+		$result = $this->api_client->make_grammar_range_api_call( $sentences );
+
+		// Check if result is a WP_Error.
+		if ( is_wp_error( $result ) ) {
+			$error_message = $result->get_error_message();
+			$this->send_error(
+				$this->transform_case( $step_type, 'snake_upper' ) . '_ERROR',
+				array(
+					'title'    => 'Grammar Range API Request Failed',
+					'message'  => $error_message,
+					'ctaTitle' => 'Try Again',
+					'ctaLink'  => '#',
+				)
+			);
+			throw new Exception( esc_html( 'Grammar Range API request failed: ' . $error_message ) );
+		}
+
+		// Convert result to JSON string for storage.
+		$result_json = is_string( $result ) ? $result : wp_json_encode( $result );
+
+		// Send the result to the client.
+		$this->send_message(
+			$this->transform_case( $step_type, 'snake_upper' ),
+			array(
+				'content' => $result_json,
+			)
+		);
+
+		// Save the result to the database.
+		$this->feedback_db->save_feedback_to_database(
+			$result_json,
+			$feed,
+			$uuid,
+			$step_type,
+			$attempt,
+			$language,
+			'ai',
+			$refetch
+		);
+
+		$this->send_done( $this->transform_case( $step_type, 'snake_upper' ) );
+
+		return $result_json;
 	}
 }

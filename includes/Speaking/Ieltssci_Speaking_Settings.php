@@ -470,6 +470,7 @@ class Ieltssci_Speaking_Settings {
 						'attempt',
 						array( 'speaking' ),
 						array(
+							$settings_config_instance->create_step( 'chain-of-thought', array() ),
 							$settings_config_instance->create_step( 'feedback', $common_sections ),
 						)
 					),
