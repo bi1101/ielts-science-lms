@@ -480,59 +480,71 @@ class Ieltssci_Writing_Module {
 			// Get sample results data.
 			$sample_results = get_option( 'ielts_science_sample_results', array() );
 
+			// Get writing submission page ID and comment status.
+			$writing_submission_page_id        = isset( $ielts_pages['writing_submission'] ) ? (int) $ielts_pages['writing_submission'] : 0;
+			$writing_submission_comment_status = 'closed';
+			if ( $writing_submission_page_id > 0 ) {
+				$writing_submission_page = get_post( $writing_submission_page_id );
+				if ( $writing_submission_page instanceof \WP_Post ) {
+					$writing_submission_comment_status = $writing_submission_page->comment_status;
+				}
+			}
+
 			// Combine all data to be localized.
 			$localized_data = array(
-				'pages'                    => $page_data_for_js,
-				'nonce'                    => $nonce,
-				'root_url'                 => $root_url,
-				'is_logged_in'             => is_user_logged_in(),
-				'current_user'             => $safe_user_data, // Use safe user data prepared by WordPress REST API.
-				'header_menu'              => $formatted_header_menu_items,
-				'account_menu'             => $formatted_account_menu_items,
-				'user_link'                => $user_link,
-				'user_display_name'        => $display_name,
-				'user_mention'             => $user_mention,
-				'user_avatar'              => $user_avatar,
-				'user_roles'               => $user_roles,
-				'has_subscription_active'  => $has_subscription_active, // Add subscription status.
-				'feed_data'                => $feed_data,
-				'max_concurrent_requests'  => $api_settings['max_concurrent_requests'],
-				'login_url'                => $login_url,
-				'register_url'             => $register_url,
-				'ajax_url'                 => admin_url( 'admin-ajax.php' ), // Add AJAX URL for custom login.
-				'current_page'             => $current_page,
-				'post_data'                => $post_data,
+				'pages'                             => $page_data_for_js,
+				'nonce'                             => $nonce,
+				'root_url'                          => $root_url,
+				'is_logged_in'                      => is_user_logged_in(),
+				'current_user'                      => $safe_user_data, // Use safe user data prepared by WordPress REST API.
+				'header_menu'                       => $formatted_header_menu_items,
+				'account_menu'                      => $formatted_account_menu_items,
+				'user_link'                         => $user_link,
+				'user_display_name'                 => $display_name,
+				'user_mention'                      => $user_mention,
+				'user_avatar'                       => $user_avatar,
+				'user_roles'                        => $user_roles,
+				'has_subscription_active'           => $has_subscription_active, // Add subscription status.
+				'feed_data'                         => $feed_data,
+				'max_concurrent_requests'           => $api_settings['max_concurrent_requests'],
+				'login_url'                         => $login_url,
+				'register_url'                      => $register_url,
+				'ajax_url'                          => admin_url( 'admin-ajax.php' ), // Add AJAX URL for custom login.
+				'current_page'                      => $current_page,
+				'post_data'                         => $post_data,
 				// Add sample results data.
-				'sample_results'           => $sample_results,
+				'sample_results'                    => $sample_results,
 				// Check if Nextend Social Login plugin is active.
-				'social_login_active'      => class_exists( 'NextendSocialLogin' ),
+				'social_login_active'               => class_exists( 'NextendSocialLogin' ),
 				// New logo data.
-				'site_logo_url'            => $logo_url,
-				'site_logo_dark_url'       => $logo_dark_url,
-				'logo_size'                => $logo_size,
-				'mobile_logo_size'         => $mobile_logo_size,
-				'logo_alt'                 => $logo_alt,
-				'logo_dark_alt'            => $logo_dark_alt,
-				'site_title'               => $site_title,
-				'site_url'                 => $site_url,
-				'front_page'               => $front_page_id,
+				'site_logo_url'                     => $logo_url,
+				'site_logo_dark_url'                => $logo_dark_url,
+				'logo_size'                         => $logo_size,
+				'mobile_logo_size'                  => $mobile_logo_size,
+				'logo_alt'                          => $logo_alt,
+				'logo_dark_alt'                     => $logo_dark_alt,
+				'site_title'                        => $site_title,
+				'site_url'                          => $site_url,
+				'front_page'                        => $front_page_id,
+				'writing_submission_page_id'        => $writing_submission_page_id,
+				'writing_submission_comment_status' => $writing_submission_comment_status,
 				// WooCommerce data.
-				'show_shopping_cart'       => buddyboss_theme_get_option( 'desktop_component_opt_multi_checkbox', 'desktop_shopping_cart' ) && class_exists( 'WooCommerce' ),
-				'woocommerce_urls'         => array(
+				'show_shopping_cart'                => buddyboss_theme_get_option( 'desktop_component_opt_multi_checkbox', 'desktop_shopping_cart' ) && class_exists( 'WooCommerce' ),
+				'woocommerce_urls'                  => array(
 					'cart'     => class_exists( 'WooCommerce' ) ? wc_get_cart_url() : '#',
 					'checkout' => class_exists( 'WooCommerce' ) ? wc_get_checkout_url() : '#',
 					'shop'     => class_exists( 'WooCommerce' ) ? wc_get_page_permalink( 'shop' ) : '#',
 				),
 				// Footer data.
-				'footer_copyright_text'    => do_shortcode( buddyboss_theme_get_option( 'copyright_text' ) ),
-				'footer_description'       => buddyboss_theme_get_option( 'footer_description' ),
-				'footer_tagline'           => buddyboss_theme_get_option( 'footer_tagline' ),
-				'footer_style'             => (int) buddyboss_theme_get_option( 'footer_style' ),
-				'footer_logo_url'          => wp_get_attachment_image_url( buddyboss_theme_get_option( 'footer_logo', 'id' ), 'full' ),
+				'footer_copyright_text'             => do_shortcode( buddyboss_theme_get_option( 'copyright_text' ) ),
+				'footer_description'                => buddyboss_theme_get_option( 'footer_description' ),
+				'footer_tagline'                    => buddyboss_theme_get_option( 'footer_tagline' ),
+				'footer_style'                      => (int) buddyboss_theme_get_option( 'footer_style' ),
+				'footer_logo_url'                   => wp_get_attachment_image_url( buddyboss_theme_get_option( 'footer_logo', 'id' ), 'full' ),
 				// Google Console client ID.
-				'google_console_client_id' => $google_console_client_id,
+				'google_console_client_id'          => $google_console_client_id,
 				// Facebook App ID.
-				'facebook_app_id'          => $facebook_app_id,
+				'facebook_app_id'                   => $facebook_app_id,
 			);
 
 			// Get footer menu items.
