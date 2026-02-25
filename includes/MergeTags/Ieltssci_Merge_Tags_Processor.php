@@ -1327,6 +1327,116 @@ class Ieltssci_Merge_Tags_Processor {
 			case 'trim':
 				return trim( $content );
 
+			// Transform pronunciation analysis JSON into an LLM-friendly shape.
+			// Rules applied:
+			// 1) Only consider `word_segments` (ignore top-level `segments`).
+			// 2) For each PronunciationWord: if `pronunciation_score` === 1.0 keep only the `word` field.
+			// Otherwise keep the word object (with filtered phonemes).
+			// 3) For each PronunciationPhoneme: if `mispronounced` is false, keep only `phoneme`.
+			// Otherwise keep full phoneme but filter AttributeDetail arrays to include only items with an `error_type`.
+			// Transform pronunciation analysis JSON into a mixed text+JSON string.
+			// Rules:
+			// - Correctly pronounced words (score >= 1.0): plain word text only.
+			// - Mispronounced words: word text immediately followed by a JSON annotation containing start, end, pronunciation_score, and filtered phonemes.
+			// - Non-mispronounced phonemes are reduced to {phoneme} only.
+			// - Mispronounced phonemes keep all fields but remove grapheme/mispronounced keys and strip attribute items that have no error_type.
+			// - All floats are cast to 2-decimal strings to avoid PHP serialize_precision bloat.
+			case 'pronunciation_analysis':
+				$decoded = json_decode( $content, true );
+				if ( json_last_error() !== JSON_ERROR_NONE || ! is_array( $decoded ) ) {
+					return $content;
+				}
+
+				// Require word_segments per instruction.
+				if ( empty( $decoded['word_segments'] ) || ! is_array( $decoded['word_segments'] ) ) {
+					// If structure not present, return original content to avoid accidental data loss.
+					return $content;
+				}
+
+				$parts = array();
+
+				// word_segments is a flat array of PronunciationWord objects.
+				foreach ( $decoded['word_segments'] as $w ) {
+					$word_text  = isset( $w['word'] ) ? $w['word'] : '';
+					$word_score = isset( $w['pronunciation_score'] ) ? floatval( $w['pronunciation_score'] ) : null;
+
+					// Perfect score: output plain word text.
+					if ( is_numeric( $word_score ) && $word_score >= 1.0 ) {
+						$parts[] = $word_text;
+						continue;
+					}
+
+					// Mispronounced: build a JSON annotation (without the 'word' key) and append it.
+					// Only include phoneme-level details to reduce token count.
+					$word_detail = array(
+						'phonemes' => array(),
+					);
+
+					if ( isset( $w['phonemes'] ) && is_array( $w['phonemes'] ) ) {
+						foreach ( $w['phonemes'] as $p ) {
+							$mis = isset( $p['mispronounced'] ) ? (bool) $p['mispronounced'] : false;
+
+							// Non-mispronounced phoneme: keep only the phoneme symbol.
+							if ( ! $mis ) {
+								$word_detail['phonemes'][] = array( 'phoneme' => isset( $p['phoneme'] ) ? $p['phoneme'] : '' );
+								continue;
+							}
+
+							// Mispronounced phoneme: keep full data, filter attributes, remove verbose keys.
+							$full_ph = $p;
+
+							if ( isset( $full_ph['required_attributes'] ) && is_array( $full_ph['required_attributes'] ) ) {
+								$filtered = array();
+								foreach ( $full_ph['required_attributes'] as $attr ) {
+									if ( isset( $attr['error_type'] ) && ! empty( $attr['error_type'] ) ) {
+										$filtered[] = $attr;
+									}
+								}
+								if ( empty( $filtered ) ) {
+									unset( $full_ph['required_attributes'] );
+								} else {
+									$full_ph['required_attributes'] = $filtered;
+								}
+							}
+
+							if ( isset( $full_ph['unexpected_attributes'] ) && is_array( $full_ph['unexpected_attributes'] ) ) {
+								$filtered = array();
+								foreach ( $full_ph['unexpected_attributes'] as $attr ) {
+									if ( isset( $attr['error_type'] ) && ! empty( $attr['error_type'] ) ) {
+										$filtered[] = $attr;
+									}
+								}
+								if ( empty( $filtered ) ) {
+									unset( $full_ph['unexpected_attributes'] );
+								} else {
+									$full_ph['unexpected_attributes'] = $filtered;
+								}
+							}
+
+							// Cast floats to 2-decimal strings.
+							if ( isset( $full_ph['pronunciation_score'] ) ) {
+								$full_ph['pronunciation_score'] = (string) round( floatval( $full_ph['pronunciation_score'] ), 2 );
+							}
+							if ( isset( $full_ph['start'] ) && is_numeric( $full_ph['start'] ) ) {
+								$full_ph['start'] = (string) round( floatval( $full_ph['start'] ), 2 );
+							}
+							if ( isset( $full_ph['end'] ) && is_numeric( $full_ph['end'] ) ) {
+								$full_ph['end'] = (string) round( floatval( $full_ph['end'] ), 2 );
+							}
+
+							// Remove verbose keys to reduce token count.
+							unset( $full_ph['grapheme'], $full_ph['mispronounced'] );
+
+							$word_detail['phonemes'][] = $full_ph;
+						}
+					}
+
+					// Append word text directly followed by the JSON annotation (no space between).
+					$parts[] = $word_text . wp_json_encode( $word_detail, JSON_UNESCAPED_UNICODE );
+				}
+
+				return implode( '|', $parts );
+
 			case 'html_entity_decode':
 				return html_entity_decode( $content );
 
