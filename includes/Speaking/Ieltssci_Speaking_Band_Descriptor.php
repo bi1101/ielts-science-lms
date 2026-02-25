@@ -348,12 +348,20 @@ class Ieltssci_Speaking_Band_Descriptor {
 			'PR'  => array(
 				'Pronunciation Accuracy' => array(
 					'Perfect pronunciation' => array(
-						'score' => '7+',
+						'score' => 8,
 						'color' => 'success',
+					),
+					'Mostly accurate pronunciation with rare minor errors that do not affect clarity' => array(
+						'score' => 7,
+						'color' => 'info',
 					),
 					'Individual words or phonemes may be mispronounced but this causes only occasional lack of clarity' => array(
 						'score' => 6,
 						'color' => 'yellow',
+					),
+					'Individual words or phonemes are often mispronounced, causing lack of clarity' => array(
+						'score' => 5,
+						'color' => 'warning',
 					),
 					'Individual words or phonemes are frequently mispronounced, causing lack of clarity' => array(
 						'score' => 4,
@@ -362,12 +370,20 @@ class Ieltssci_Speaking_Band_Descriptor {
 				),
 				'Intelligibility'        => array(
 					'Clear throughout'                    => array(
-						'score' => '8+',
+						'score' => 8,
 						'color' => 'success',
+					),
+					'Clear throughout, minimal effort needed' => array(
+						'score' => 7,
+						'color' => 'info',
 					),
 					'Mostly clear, minimal effort needed' => array(
 						'score' => 6,
 						'color' => 'yellow',
+					),
+					'Few parts are unclear, may require some effort to understand' => array(
+						'score' => 5,
+						'color' => 'warning',
 					),
 					'Some parts are unclear, requiring effort to understand' => array(
 						'score' => 4,
