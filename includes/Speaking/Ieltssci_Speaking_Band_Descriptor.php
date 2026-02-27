@@ -347,7 +347,7 @@ class Ieltssci_Speaking_Band_Descriptor {
 			),
 			'PR'  => array(
 				'Pronunciation Accuracy' => array(
-					'Perfect pronunciation' => array(
+					'Highly accurate pronunciation and effortless to understand' => array(
 						'score' => 8,
 						'color' => 'success',
 					),
